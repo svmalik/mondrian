@@ -1168,11 +1168,11 @@ public class DialectTest extends TestCase {
                 "Column 'time_by_day.the_month' is invalid in the select list because it is not contained in either an aggregate function or the GROUP BY clause.",
                 // impala
                 "(?s).*select list expression not produced by aggregation output.*missing from GROUP BY clause.*",
+                // NuoDB
+                "(?s).*scolumn mondrian.time_by_day.the_month must appear in the GROUP BY clause or be used in an aggregate function.*",
                 // Vertica 6
                 "(?s).*ERROR: Column \"time_by_day.the_month\" must appear in "
-                + "the GROUP BY clause or be used in an aggregate function.*",
-                // NuoDB
-                "(?s).*scolumn mondrian.time_by_day.the_month must appear in the GROUP BY clause or be used in an aggregate function.*"
+                + "the GROUP BY clause or be used in an aggregate function.*"
             };
             assertQueryFails(sql, errs);
         }
