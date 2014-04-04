@@ -66,8 +66,8 @@ public class VerticaDialect extends JdbcDialectImpl {
     }
 
     @Override
-    public boolean allowsMultipleCountDistinct() {
-        return false;
+    public boolean allowsCountDistinctWithOtherAggs() {
+      return false;
     }
 
     @Override
