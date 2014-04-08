@@ -1691,7 +1691,11 @@ public class SteelWheelsSchemaTest extends SteelWheelsTestCase {
      * Compound slicer getting applied to CurrentDateMember
      */
     public void testMondrian1750() throws Exception {
-        getTestContext().assertQueryReturns(
+        TestContext testContext = getTestContext();
+        if (!testContext.databaseIsValid()) {
+            return;
+        }
+        testContext.assertQueryReturns(
             "with member [Measures].[CYQ] as\n"
             + "'Aggregate(CurrentDateMember([Time],\"[Ti\\me]\\.[Year\\s]\\.[yyyy]\", BEFORE), [Quantity])'\n"
             + "select\n"
