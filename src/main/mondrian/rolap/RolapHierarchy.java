@@ -1361,9 +1361,7 @@ public class RolapHierarchy extends HierarchyBase {
         }
 
         public int hashCode() {
-            int hash = member.hashCode();
-            hash = Util.hash(hash, exp);
-            return hash;
+            return member.hashCode();
         }
 
         public Exp getExpression() {
