@@ -4,7 +4,7 @@
 * http://www.eclipse.org/legal/epl-v10.html.
 * You must accept the terms of that agreement to use this software.
 *
-* Copyright (c) 2002-2013 Pentaho Corporation..  All rights reserved.
+* Copyright (c) 2002-2014 Pentaho Corporation..  All rights reserved.
 */
 
 package mondrian.olap.fun;
@@ -200,7 +200,8 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
          * large slicers due to many to many use cases.
          */
         private static boolean shouldPushdownAggregation(boolean pushdownAggregation, Aggregator aggregator, TupleList tupleList) {
-          if (aggregator == RolapAggregator.DistinctCount) {
+          if (aggregator == RolapAggregator.DistinctCount
+              || aggregator == RolapAggregator.Avg) {
               return true;
           }
           if (!pushdownAggregation) {
