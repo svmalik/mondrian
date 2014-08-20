@@ -6,7 +6,7 @@
 //
 // Copyright (C) 2004-2005 TONBELLER AG
 // Copyright (C) 2005-2005 Julian Hyde
-// Copyright (C) 2005-2013 Pentaho
+// Copyright (C) 2005-2014 Pentaho
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -106,7 +106,27 @@ public class RolapNativeFilter extends RolapNativeSet {
             // AKA a Non Empty Check, which just needs to join to the fact table.
             if (filterSql != null && !filterSql.equals("<NOOP>") && !filterSql.equals("(<NOOP>) ")) {
                 sqlQuery.addHaving(filterSql);
+
+              final List<RolapMember> slicerMembers = Util
+                  .cast(((RolapEvaluator) getEvaluator()).getSlicerMembers());
+              if (!slicerMembers.isEmpty()) {
+                Map<RolapLevel, List<RolapMember>> slicerMap =
+                    new HashMap<RolapLevel, List<RolapMember>>();
+                for (RolapMember rolapMember : slicerMembers) {
+                  final RolapLevel level = rolapMember.getLevel();
+                  if (!slicerMap.containsKey(level)) {
+                    slicerMap.put(level, new ArrayList<RolapMember>());
+                  }
+                  slicerMap.get(level).add(rolapMember);
+                }
+                for (List<RolapMember> slicersLevel : slicerMap.values()) {
+                  SqlConstraintUtils.addMemberConstraint(
+                      sqlQuery, baseCube, aggStar, slicersLevel,
+                      false, true, false);
+                }
+              }
             }
+
             if (getEvaluator().isNonEmpty() || isJoinRequired()) {
                 // only apply context constraint if non empty, or
                 // if a join is required to fulfill the filter condition

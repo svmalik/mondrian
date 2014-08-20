@@ -6,7 +6,7 @@
 //
 // Copyright (C) 2004-2005 TONBELLER AG
 // Copyright (C) 2005-2005 Julian Hyde
-// Copyright (C) 2005-2013 Pentaho and others
+// Copyright (C) 2005-2014 Pentaho and others
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -1731,6 +1731,16 @@ public class SqlTupleReader implements TupleReader {
             }
             ((RolapNativeSet.SetConstraint) constraint)
                 .constrainExtraLevels(baseCube, levelBitKey);
+        } else if (constraint instanceof RolapNativeFilter.FilterConstraint) {
+            for (Member slicer : ((RolapEvaluator)evaluator).getSlicerMembers())
+            {
+                final Level level = slicer.getLevel();
+                if (level != null && !level.isAll()) {
+                    final RolapStar.Column column = ((RolapCubeLevel) level)
+                        .getBaseStarKeyColumn(baseCube);
+                    levelBitKey.set(column.getBitPosition());
+                }
+            }
         }
 
         // find the aggstar using the masks
