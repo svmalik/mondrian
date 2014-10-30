@@ -297,7 +297,7 @@ public class Util extends XOMUtil {
                 // TODO Write a non-blocking queue which implements
                 // the blocking queue API so we can pass that to the
                 // executor.
-                new SynchronousQueue<Runnable>(true),
+                new LinkedBlockingQueue<Runnable>(),
                 factory);
 
         // Set the rejection policy if required.
@@ -4301,7 +4301,7 @@ public class Util extends XOMUtil {
 
     public static <T> Functor1<T, T> identityFunctor() {
         //noinspection unchecked
-        return (Functor1) IDENTITY_FUNCTOR;
+        return IDENTITY_FUNCTOR;
     }
 
     private static final Functor1 IDENTITY_FUNCTOR =
@@ -4313,12 +4313,12 @@ public class Util extends XOMUtil {
 
     public static <PT> Functor1<Boolean, PT> trueFunctor() {
         //noinspection unchecked
-        return (Functor1) TRUE_FUNCTOR;
+        return TRUE_FUNCTOR;
     }
 
     public static <PT> Functor1<Boolean, PT> falseFunctor() {
         //noinspection unchecked
-        return (Functor1) FALSE_FUNCTOR;
+        return FALSE_FUNCTOR;
     }
 
     private static final Functor1 TRUE_FUNCTOR =
