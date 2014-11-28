@@ -106,25 +106,6 @@ public class RolapNativeFilter extends RolapNativeSet {
             // AKA a Non Empty Check, which just needs to join to the fact table.
             if (filterSql != null && !filterSql.equals("<NOOP>") && !filterSql.equals("(<NOOP>) ")) {
                 sqlQuery.addHaving(filterSql);
-
-              final List<RolapMember> slicerMembers = Util
-                  .cast(((RolapEvaluator) getEvaluator()).getSlicerMembers());
-              if (!slicerMembers.isEmpty()) {
-                Map<RolapLevel, List<RolapMember>> slicerMap =
-                    new HashMap<RolapLevel, List<RolapMember>>();
-                for (RolapMember rolapMember : slicerMembers) {
-                  final RolapLevel level = rolapMember.getLevel();
-                  if (!slicerMap.containsKey(level)) {
-                    slicerMap.put(level, new ArrayList<RolapMember>());
-                  }
-                  slicerMap.get(level).add(rolapMember);
-                }
-                for (List<RolapMember> slicersLevel : slicerMap.values()) {
-                  SqlConstraintUtils.addMemberConstraint(
-                      sqlQuery, baseCube, aggStar, slicersLevel,
-                      false, true, false);
-                }
-              }
             }
 
             if (getEvaluator().isNonEmpty() || isJoinRequired()) {

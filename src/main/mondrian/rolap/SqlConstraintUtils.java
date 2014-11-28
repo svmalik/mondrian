@@ -6,7 +6,7 @@
 //
 // Copyright (C) 2004-2005 TONBELLER AG
 // Copyright (C) 2005-2005 Julian Hyde
-// Copyright (C) 2005-2014 Pentaho and others
+// Copyright (C) 2005-2015 Pentaho and others
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -21,7 +21,6 @@ import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.*;
 import mondrian.spi.Dialect;
 import mondrian.util.FilteredIterableList;
-
 import mondrian.calc.*;
 import mondrian.mdx.*;
 
@@ -85,16 +84,19 @@ public class SqlConstraintUtils {
         // decide if we should use the tuple-based version instead
         TupleList slicerTuples = rEvaluator.getOptimizedSlicerTuples(baseCube);
         boolean disjointSlicerTuples = false;
-        if (slicerTuples != null && slicerTuples.size() > 0 && (
-            SqlConstraintUtils.isDisjointTuple(slicerTuples)
-            || rEvaluator.isMultiLevelSlicerTuple()))
+        if (slicerTuples != null && slicerTuples.size() > 0
+            && (SqlConstraintUtils.isDisjointTuple(slicerTuples)
+                || rEvaluator.isMultiLevelSlicerTuple()))
         {
             disjointSlicerTuples = true;
         }
 
         // find columns affected by context members
         final CellRequest request =
-            makeContextMembersRequest(evaluator, restrictMemberTypes, disjointSlicerTuples);
+            makeContextMembersRequest(
+                evaluator,
+                restrictMemberTypes,
+                disjointSlicerTuples);
         if (request == null) {
             if (restrictMemberTypes) {
                 throw Util.newInternal("CellRequest is null - why?");
@@ -121,7 +123,7 @@ public class SqlConstraintUtils {
 
         Map<MondrianDef.Expression, Set<RolapMember>> mapOfSlicerMembers = null;
         HashMap<MondrianDef.Expression, Boolean> done =
-                new HashMap<MondrianDef.Expression, Boolean>();
+            new HashMap<MondrianDef.Expression, Boolean>();
 
         for (int i = 0; i < columns.length; i++) {
             final RolapStar.Column column = columns[i];
@@ -148,17 +150,18 @@ public class SqlConstraintUtils {
                 if (mapOfSlicerMembers == null) {
                     mapOfSlicerMembers = getSlicerMemberMap(evaluator);
                 }
+
                 final MondrianDef.Expression keyForSlicerMap =
-                        column.getExpression();
+                    column.getExpression();
                 if (mapOfSlicerMembers.containsKey(keyForSlicerMap)) {
                     if (!done.containsKey(keyForSlicerMap)) {
                         Set<RolapMember> slicerMembersSet =
-                                mapOfSlicerMembers.get(keyForSlicerMap);
+                            mapOfSlicerMembers.get(keyForSlicerMap);
 
                         // get only constraining members
                         // TODO: can we do this right at getSlicerMemberMap?
                         List<RolapMember> slicerMembers =
-                                getNonAllMembers(slicerMembersSet);
+                            getNonAllMembers(slicerMembersSet);
 
                         if (slicerMembers.size() > 0) {
                             // get level
@@ -208,14 +211,7 @@ public class SqlConstraintUtils {
     }
 
     /**
-     * Same as {@link addConstraint} but tr
-     *
-     * @param sqlQuery
-     * @param aggStar
-     * @param evaluator
-     * @param baseCube
-     * @param restrictMemberTypes
-     * @param request
+     * Same as {@link addConstraint} but uses tuples
      */
     private static void addContextConstraintTuples(
         SqlQuery sqlQuery,
@@ -239,7 +235,7 @@ public class SqlConstraintUtils {
         Object[] values = request.getSingleValues();
         for (int i = 0; i < columns.length; i++) {
             final RolapStar.Column column = columns[i];
-            final String value = String.valueOf(values[i]); 
+            final String value = String.valueOf(values[i]);
             if (!slicerBitKey.get(column.getBitPosition())) {
                 // column not constrained by tupleSlicer
                 String expr = getColumnExpr(sqlQuery, aggStar, column);
@@ -262,32 +258,26 @@ public class SqlConstraintUtils {
 
         // force Role based Access filtering
         addRoleAccessConstraints(
-                sqlQuery,
-                aggStar,
-                restrictMemberTypes,
-                baseCube,
-                evaluator);
+            sqlQuery,
+            aggStar,
+            restrictMemberTypes,
+            baseCube,
+            evaluator);
     }
 
     /**
      * Creates a predicate for the slicer tuple list
-     * 
-     * @param tupleList
-     * @param baseCube
-     * @param aggStar
-     * @param sqlQuery
-     * @return
      */
     private static StarPredicate getSlicerTuplesPredicate(
-            TupleList tupleList,
-            RolapCube baseCube,
-            AggStar aggStar,
-            SqlQuery sqlQuery)
+        TupleList tupleList,
+        RolapCube baseCube,
+        AggStar aggStar,
+        SqlQuery sqlQuery)
     {
         List<StarPredicate> tupleListPredicate = new ArrayList<StarPredicate>();
         for (List<Member> tuple : tupleList) {
             tupleListPredicate.add(
-                    getTupleConstraint(tuple, baseCube, aggStar, sqlQuery));
+                getTupleConstraint(tuple, baseCube, aggStar, sqlQuery));
         }
         return new OrPredicate(tupleListPredicate);
     }
@@ -299,7 +289,7 @@ public class SqlConstraintUtils {
             new ArrayList<Set<Member>>(tupleList.getArity());
         for (int i = 0; i < tupleList.size(); i++) {
             final List<Member> tuple = tupleList.get(i);
-            for (int j=0; j < tupleList.getArity(); j++) {
+            for (int j = 0; j < tupleList.getArity(); j++) {
                 final Member member = tuple.get(j);
                 if (i == 0) {
                     counters.add(new HashSet<Member>());
@@ -334,12 +324,6 @@ public class SqlConstraintUtils {
 
     /**
      * Creates constraint on a single tuple
-     * 
-     * @param tuple
-     * @param baseCube
-     * @param aggStar
-     * @param sqlQuery
-     * @return
      */
     private static AndPredicate getTupleConstraint(
         List<Member> tuple,
@@ -364,18 +348,14 @@ public class SqlConstraintUtils {
 
     /**
      * add single member constraint to predicate list
-     *
-     * @param member
-     * @param predicateList
-     * @param baseCube
      */
     private static void addMember(
-            RolapMember member,
-            List<StarPredicate> predicateList,
-            RolapCube baseCube,
-            AggStar aggStar,
-            SqlQuery sqlQuery,
-            Map<String, SqlQuery> subqueryMap)
+        RolapMember member,
+        List<StarPredicate> predicateList,
+        RolapCube baseCube,
+        AggStar aggStar,
+        SqlQuery sqlQuery,
+        Map<String, SqlQuery> subqueryMap)
     {
         ArrayList<MemberColumnPredicate> memberList =
           new ArrayList<MemberColumnPredicate>();
@@ -411,11 +391,11 @@ public class SqlConstraintUtils {
      * the query.
      */
     private static RolapStar.Column getLevelColumn(
-            RolapLevel level,
-            RolapCube baseCube,
-            AggStar aggStar,
-            SqlQuery sqlQuery,
-            Map<String, SqlQuery> subqueryMap)
+        RolapLevel level,
+        RolapCube baseCube,
+        AggStar aggStar,
+        SqlQuery sqlQuery,
+        Map<String, SqlQuery> subqueryMap)
     {
         final RolapStar.Column column =
                 ((RolapCubeLevel) level).getBaseStarKeyColumn(baseCube);
@@ -423,10 +403,8 @@ public class SqlConstraintUtils {
             int bitPos = column.getBitPosition();
             final AggStar.Table.Column aggColumn = aggStar.lookupColumn(bitPos);
             AggStar.Table table = aggColumn.getTable();
-            // TODO: Support M2M
             table.addToFrom(sqlQuery, false, true);
             // create a delegate to use the aggregated column's expression
-            // TODO: check for a better way
             return new Column(aggColumn.getDatatype()) {
                 public String generateExprString(SqlQuery query) {
                     // used by predicates for sql generation
@@ -436,8 +414,6 @@ public class SqlConstraintUtils {
                     // this is the same as the one in RolapStar.Column
                     return aggColumn.getBitPosition();
                 }
-                // TODO
-                // table and star needed for
                 public Table getTable() {
                     return column.getTable();
                 }
@@ -470,15 +446,10 @@ public class SqlConstraintUtils {
         }
     }
 
-    /**
-     * @param evaluator
-     * @param restrictMemberTypes
-     * @return
-     */
     private static CellRequest makeContextMembersRequest(
-            Evaluator evaluator,
-            boolean restrictMemberTypes,
-            boolean disjointSlicerTuples)
+        Evaluator evaluator,
+        boolean restrictMemberTypes,
+        boolean disjointSlicerTuples)
     {
         // Add constraint using the current evaluator context
         Member[] members = evaluator.getNonAllMembers();
@@ -517,7 +488,6 @@ public class SqlConstraintUtils {
         final String expr;
         if (aggStar != null) {
             int bitPos = column.getBitPosition();
-            // TODO: Support Join Optimization in Agg Tables
             AggStar.Table.Column aggColumn = aggStar.lookupColumn(bitPos);
             AggStar.Table table = aggColumn.getTable();
             table.addToFrom(sqlQuery, false, true);
@@ -541,11 +511,10 @@ public class SqlConstraintUtils {
     }
 
     /**
-     * @param slicerMembersSet
      * @return only non-all members
      */
     private static List<RolapMember> getNonAllMembers(
-        Set<RolapMember> slicerMembersSet)
+        Collection<RolapMember> slicerMembersSet)
     {
         List<RolapMember> slicerMembers =
             new ArrayList<RolapMember>(slicerMembersSet);

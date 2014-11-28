@@ -5,7 +5,7 @@
 // You must accept the terms of that agreement to use this software.
 //
 // Copyright (C) 2001-2005 Julian Hyde
-// Copyright (C) 2005-2014 Pentaho and others
+// Copyright (C) 2005-2015 Pentaho and others
 // All Rights Reserved.
 //
 // jhyde, 10 August, 2001
@@ -98,11 +98,12 @@ public class RolapEvaluator implements Evaluator {
     protected final List<List<List<Member>>> aggregationLists;
 
     private final List<Member> slicerMembers;
-    // contains a list of slicer tuples
+
+    // slicer tuples and extra info
     private TupleList slicerTuples;
-    // extra info on slicer tuples (temp)
     private boolean disjointSlicerTuple;
     private boolean multiLevelSlicerTuple;
+
     private boolean nativeEnabled;
     private Member[] nonAllMembers;
     private int commandCount;
@@ -191,6 +192,7 @@ public class RolapEvaluator implements Evaluator {
         slicerTuples = parent.slicerTuples;
         disjointSlicerTuple = parent.disjointSlicerTuple;
         multiLevelSlicerTuple = parent.multiLevelSlicerTuple;
+
         commands = new Object[10];
         commands[0] = Command.SAVEPOINT; // sentinel
         commandCount = 1;
@@ -554,17 +556,15 @@ public class RolapEvaluator implements Evaluator {
      * Sets the slicer tuple object, used later by native evaluation and
      * non-empty crossjoins.
      *
-     * @param tuples
+     * @param tuples slicer
      */
     public final void setSlicerTuples(TupleList tuples) {
         slicerTuples = tuples;
-        // XXX: TEMPORARY, change this!
         if (tuples != null) {
             disjointSlicerTuple = SqlConstraintUtils.isDisjointTuple(tuples);
             multiLevelSlicerTuple =
               SqlConstraintUtils.hasMultipleLevelSlicer(this);
-        }
-        else {
+        } else {
             disjointSlicerTuple = false;
             multiLevelSlicerTuple = false;
         }
@@ -572,7 +572,6 @@ public class RolapEvaluator implements Evaluator {
 
     /**
      * Return the list of compound slicer tuples
-     * @param tuples
      */
     public final TupleList getSlicerTuples() {
         return slicerTuples;
@@ -587,41 +586,49 @@ public class RolapEvaluator implements Evaluator {
     }
 
     /**
-     * Returns an optimized list of tuples related to the slicer based on the current evaluator.
-     * This function removes overridden compound slicer members from the tuple list.
+     * Returns an optimized list of tuples related to the slicer based on the
+     * current evaluator.
+     * This function removes overridden compound slicer members from the
+     * tuple list.
      *
      * TODO: Add Virtual Cube test cases, demonstrating unrelated dimensions.
-     * TODO: Test various Tuple List sizes - tuples sizes that are bigger and smaller than list size
+     * TODO: Test various Tuple List sizes - tuples sizes that are bigger and
+     * smaller than list size
      *
-     * @param baseCube if this is a virtual cube, remove the unrelated tuples from the slicer.
+     * @param baseCube if this is a virtual cube, remove the unrelated tuples
+     * from the slicer.
      *
      * @return optimized slicer tuple list
      */
     public final TupleList getOptimizedSlicerTuples(RolapCube baseCube) {
         // removes members in the tuple list that are no longer compound.
-        // for each member in the tuple, see if the evaluator is still set to the
-        // current member
-        if (slicerTuples == null) return null;
+        // for each member in the tuple, see if the evaluator is still set to
+        // the current member
+        if (slicerTuples == null) {
+            return null;
+        }
         int toRemove = 0;
         boolean removeMember[] = new boolean[slicerTuples.getArity()];
-        for (int i = 0; i < slicerTuples.get( 0 ).size(); i++) {
+        for (int i = 0; i < slicerTuples.get(0).size(); i++) {
             Hierarchy h = slicerTuples.get(0).get(i).getHierarchy();
-            // check to see if the current member is overridden and not expanding.
+            // check to see if the current member is overridden
+            // and not expanding.
             if (!(getContext(h) instanceof
                 RolapResult.CompoundSlicerRolapMember)
                 && (getExpanding() == null
-                || !getExpanding().getHierarchy().equals(h)
-                || !(getExpanding() instanceof
-                RolapResult.CompoundSlicerRolapMember)))
+                    || !getExpanding().getHierarchy().equals(h)
+                    || !(getExpanding() instanceof
+                        RolapResult.CompoundSlicerRolapMember)))
             {
                 toRemove++;
                 removeMember[i] = true;
             }
             // Remove unrelated dimensions from slicer as well
             if (!removeMember[i] && baseCube != null) {
-                RolapLevel l = (RolapLevel)slicerTuples.get(0).get(i).getLevel();
-                RolapCubeLevel lvl = baseCube.findBaseCubeLevel(l);
-                if (lvl == null) {
+                RolapLevel level =
+                    (RolapLevel)slicerTuples.get(0).get(i).getLevel();
+                RolapCubeLevel cubeLevel = baseCube.findBaseCubeLevel(level);
+                if (cubeLevel == null) {
                     toRemove++;
                     removeMember[i] = true;
                 }
@@ -635,11 +642,12 @@ public class RolapEvaluator implements Evaluator {
             final Set<List<Member>> processedTuples =
                 new LinkedHashSet<List<Member>>(slicerTuples.size());
             for (List<Member> tuple : slicerTuples) {
-                List<Member> tupleCopy = new ArrayList<Member>(slicerTuples.getArity() - toRemove);
+                List<Member> tupleCopy =
+                    new ArrayList<Member>(slicerTuples.getArity() - toRemove);
                 for (int j = 0; j < tuple.size(); j++) {
                     final Member member = tuple.get(j);
                     if (!removeMember[j]) {
-                        tupleCopy.add( member );
+                        tupleCopy.add(member);
                     }
                 }
                 processedTuples.add(tupleCopy);

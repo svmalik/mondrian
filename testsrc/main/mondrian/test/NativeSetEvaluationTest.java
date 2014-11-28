@@ -1132,9 +1132,8 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #0: 28\n");
     }
 
-
-
     public void testConstraintCacheIncludesMultiPositionSlicer() {
+        // MONDRIAN-2081
         assertQueryReturns(
             "select non empty [Customers].[USA].[WA].[Spokane].children  on 0, "
             + "Time.[1997].[Q1].[1] * [Store].[USA].[WA].[Spokane] * Gender.F * [Marital Status].M on 1 from sales where\n"
@@ -3658,7 +3657,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #1: 12,888\n"
             + "Row #2: 1,433\n");
     }
-    
+
     public void testNativeFilterWithCompoundSlicer() {
         String mdx =
             "WITH MEMBER [Measures].[TotalVal] AS 'Aggregate(Filter({[Store].[Store City].members},[Measures].[Unit Sales] > 1000))'\n"
@@ -3822,7 +3821,8 @@ public class NativeSetEvaluationTest extends BatchTestCase {
     }
 
     /**
-     * This test demonstrates complex interaction between member calcs and a compound slicer 
+     * This test demonstrates complex interaction between member calcs
+     * and a compound slicer
      */
     public void testOverridingCompoundFilter() {
         String mdx =

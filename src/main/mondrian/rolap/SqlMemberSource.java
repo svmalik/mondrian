@@ -5,7 +5,7 @@
 // You must accept the terms of that agreement to use this software.
 //
 // Copyright (C) 2001-2005 Julian Hyde
-// Copyright (C) 2005-2014 Pentaho and others
+// Copyright (C) 2005-2015 Pentaho and others
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -692,9 +692,11 @@ RME is this right
 
         // Convert global ordinal to cube based ordinal (the 0th dimension
         // is always [Measures])
+
+        // Expand calculated so we don't miss their bitkeys
         final Member[] members =
-          SqlConstraintUtils.expandSupportedCalculatedMembers(
-              evaluator.getNonAllMembers(), evaluator);
+            SqlConstraintUtils.expandSupportedCalculatedMembers(
+                evaluator.getNonAllMembers(), evaluator);
 
         // if measure is calculated, we can't continue
         if (!(members[0] instanceof RolapBaseCubeMeasure)) {
