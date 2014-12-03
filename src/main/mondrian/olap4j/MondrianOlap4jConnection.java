@@ -1,10 +1,11 @@
 /*
-* This software is subject to the terms of the Eclipse Public License v1.0
-* Agreement, available at the following URL:
-* http://www.eclipse.org/legal/epl-v10.html.
-* You must accept the terms of that agreement to use this software.
-*
-* Copyright (c) 2002-2014 Pentaho Corporation..  All rights reserved.
+// This software is subject to the terms of the Eclipse Public License v1.0
+// Agreement, available at the following URL:
+// http://www.eclipse.org/legal/epl-v10.html.
+// You must accept the terms of that agreement to use this software.
+//
+// Copyright (C) 2002-2014 Pentaho and others
+// All Rights Reserved.
 */
 package mondrian.olap4j;
 
@@ -16,6 +17,8 @@ import mondrian.rolap.*;
 import mondrian.util.Bug;
 import mondrian.xmla.PropertyDefinition;
 import mondrian.xmla.XmlaHandler;
+
+import org.apache.log4j.Logger;
 
 import org.olap4j.Axis;
 import org.olap4j.Cell;
@@ -62,6 +65,9 @@ public abstract class MondrianOlap4jConnection implements OlapConnection {
             + "The setRoleNames method will then be available through the "
             + "olap4j API");
     }
+
+    private static final Logger LOGGER =
+        Logger.getLogger(MondrianOlap4jConnection.class);
 
     /**
      * Handler for errors.
@@ -210,10 +216,20 @@ public abstract class MondrianOlap4jConnection implements OlapConnection {
         for (String catalogName
             : catalogFinder.getCatalogNames(mondrianConnection))
         {
-            final Map<String, RolapSchema> schemaMap =
-                catalogFinder.getRolapSchemas(
-                    mondrianConnection,
-                    catalogName);
+            final Map<String, RolapSchema> schemaMap;
+            try {
+              schemaMap =
+                  catalogFinder.getRolapSchemas(
+                      mondrianConnection,
+                      catalogName);
+            } catch (Exception e) {
+                LOGGER.warn(
+                    "Can't get Rolap Schemas for catalog:"
+                    + catalogName
+                    + ". Skipping...",
+                    e);
+               continue;
+            }
             olap4jCatalogs.add(
                 new MondrianOlap4jCatalog(
                     olap4jDatabaseMetaData,
