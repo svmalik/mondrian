@@ -66,8 +66,8 @@ public class VerticaDialect extends JdbcDialectImpl {
     }
 
     @Override
-    public boolean allowsCountDistinctWithOtherAggs() {
-      return false;
+    public boolean allowsMultipleCountDistinct() {
+        return false;
     }
 
     @Override
@@ -98,6 +98,7 @@ public class VerticaDialect extends JdbcDialectImpl {
         VERTICA_TYPE_MAP = Collections.unmodifiableMap(typeMapInitial);
     }
 
+    @Override
     public SqlStatement.Type getType(
         ResultSetMetaData metaData, int columnIndex)
         throws SQLException
@@ -106,11 +107,7 @@ public class VerticaDialect extends JdbcDialectImpl {
 
         SqlStatement.Type internalType = null;
         // all int types in vertica are longs.
-        if (columnType != Types.NUMERIC && columnType != Types.DECIMAL) {
-            internalType = VERTICA_TYPE_MAP.get(columnType);
-            internalType =  internalType == null ? SqlStatement.Type.OBJECT
-                : internalType;
-        } else {
+        if (columnType == Types.NUMERIC || columnType == Types.DECIMAL) {
             final int precision = metaData.getPrecision(columnIndex + 1);
             final int scale = metaData.getScale(columnIndex + 1);
             if (scale == 0 && precision <= 9) {
@@ -123,6 +120,11 @@ public class VerticaDialect extends JdbcDialectImpl {
                 internalType = SqlStatement.Type.LONG;
             } else {
                 internalType = SqlStatement.Type.DOUBLE;
+            }
+        } else {
+            internalType = VERTICA_TYPE_MAP.get(columnType);
+            if (internalType == null) {
+                internalType = SqlStatement.Type.OBJECT;
             }
         }
         logTypeInfo(metaData, columnIndex, internalType);
