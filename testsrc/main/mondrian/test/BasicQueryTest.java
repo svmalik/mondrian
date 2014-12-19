@@ -10,7 +10,6 @@
 //
 // jhyde, Feb 14, 2003
 */
-
 package mondrian.test;
 
 import mondrian.calc.ResultStyle;
@@ -35,6 +34,7 @@ import junit.framework.Assert;
 import org.apache.log4j.AppenderSkeleton;
 import org.apache.log4j.Logger;
 import org.apache.log4j.spi.LoggingEvent;
+
 import org.eigenbase.util.property.StringProperty;
 
 import org.olap4j.*;
@@ -6088,6 +6088,7 @@ public class BasicQueryTest extends FoodMartTestCase {
 
         executeAndCancel(query, 2000);
     }
+
 
     private void executeAndCancel(String queryString, int waitMillis)
     {
