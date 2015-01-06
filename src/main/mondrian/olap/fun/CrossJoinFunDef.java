@@ -5,10 +5,9 @@
 // You must accept the terms of that agreement to use this software.
 //
 // Copyright (C) 2002-2005 Julian Hyde
-// Copyright (C) 2005-2011 Pentaho and others
+// Copyright (C) 2005-2014 Pentaho and others
 // All Rights Reserved.
 */
-
 package mondrian.olap.fun;
 
 import mondrian.calc.*;
@@ -567,44 +566,6 @@ public class CrossJoinFunDef extends FunDefBase {
     }
 
     /**
-     * Visitor class used to locate a resolved function call within an
-     * expression
-     */
-    private static class ResolvedFunCallFinder
-        extends MdxVisitorImpl
-    {
-        private final ResolvedFunCall call;
-        public boolean found;
-        private final Set<Member> activeMembers = new HashSet<Member>();
-
-        public ResolvedFunCallFinder(ResolvedFunCall call)
-        {
-            this.call = call;
-            found = false;
-        }
-
-        public Object visit(ResolvedFunCall funCall)
-        {
-            if (funCall == call) {
-                found = true;
-            }
-            return null;
-        }
-
-        public Object visit(MemberExpr memberExpr) {
-            Member member = memberExpr.getMember();
-            if (member.isCalculated()) {
-                if (activeMembers.add(member)) {
-                    Exp memberExp = member.getExpression();
-                    memberExp.accept(this);
-                    activeMembers.remove(member);
-                }
-            }
-            return null;
-        }
-    }
-
-    /**
      * Traverses the function call tree of
      * the non empty crossjoin function and populates the queryMeasureSet
      * with base measures
@@ -762,12 +723,19 @@ public class CrossJoinFunDef extends FunDefBase {
         final String measureSetKey = "MEASURE_SET-" + ctag;
         Set<Member> measureSet =
             Util.cast((Set) query.getEvalCache(measureSetKey));
+
+        final String memberSetKey = "MEMBER_SET-" + ctag;
+        Set<Member> memberSet =
+            Util.cast((Set) query.getEvalCache(memberSetKey));
         // If not in query cache, then create and place into cache.
         // This information is used for each iteration so it makes
         // sense to create and cache it.
-        if (measureSet == null) {
-            measureSet = calculateMeasureSet(call, query);
+        if (measureSet == null || memberSet == null) {
+            measureSet = new HashSet<Member>();
+            memberSet = new HashSet<Member>();
+            calculateMeasureSet(measureSet, memberSet, call, query);
             query.putEvalCache(measureSetKey, measureSet);
+            query.putEvalCache(memberSetKey, memberSet);
         }
 
         final String allMemberListKey = "ALL_MEMBER_LIST-" + ctag;
@@ -844,6 +812,15 @@ public class CrossJoinFunDef extends FunDefBase {
             final TupleCursor cursor = list.tupleCursor();
             while (cursor.forward()) {
                 cursor.setContext(evaluator);
+                for (Member member : memberSet) {
+                    // memberSet contains members referenced within measures.
+                    // Make sure that we don't incorrectly assume a context
+                    // that will be changed by the measure, so conservatively
+                    // push context to [All] for each of the associated
+                    // hierarchies.
+                    evaluator.setContext(member.getHierarchy().getAllMember());
+                }
+
                 if (checkData(
                         nonAllMembers,
                         nonAllMembers.length - 1,
@@ -989,24 +966,36 @@ public class CrossJoinFunDef extends FunDefBase {
     }
 
     /**
-     * Returns the measures used in the query, ignoring those under the
+     * Collects measures used in the query, ignoring those under the
      * function call. Includes measures used in calculated measures.
+     * @param measureSet
+     * @param memberSet
      * @param call
      * @param query
-     * @return
      */
-    private static Set<Member> calculateMeasureSet(
+    private static void calculateMeasureSet(
+        Set<Member> measureSet,
+        Set<Member> memberSet,
         ResolvedFunCall call,
         final Query query)
     {
-        Set<Member> measureSet;
-        measureSet = new HashSet<Member>();
         Set<Member> queryMeasureSet = query.getMeasuresMembers();
-        MeasureVisitor visitor = new MeasureVisitor(measureSet, call);
+        MeasureVisitor measureVisitor =
+            new MeasureVisitor(measureSet, call);
+
+        // MemberExtractingVisitor will collect the dimension members
+        // referenced within the measures in the query.
+        // One or more measures may conflict with the members in the tuple,
+        // overriding the context of the tuple member when determining
+        // non-emptiness.
+        MemberExtractingVisitor memVisitor =
+            new MemberExtractingVisitor(memberSet, call, false);
+
         for (Member m : queryMeasureSet) {
             if (m.isCalculated()) {
                 Exp exp = m.getExpression();
-                exp.accept(visitor);
+                exp.accept(measureVisitor);
+                exp.accept(memVisitor);
             } else {
                 measureSet.add(m);
             }
@@ -1015,10 +1004,9 @@ public class CrossJoinFunDef extends FunDefBase {
         Formula[] formula = query.getFormulas();
         if (formula != null) {
             for (Formula f : formula) {
-                f.accept(visitor);
+                f.accept(measureVisitor);
             }
         }
-        return measureSet;
     }
 
     /**
