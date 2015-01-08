@@ -371,9 +371,15 @@ public class RolapResult extends ResultBase {
                             }
                         };
 
-                    final ExpCacheDescriptor cacheDescriptor = new ExpCacheDescriptor(query.getSlicerAxis().getSet(), calcCached, evaluator);
+                    final ExpCacheDescriptor cacheDescriptor =
+                        new ExpCacheDescriptor(
+                            query.getSlicerAxis().getSet(),
+                            calcCached,
+                            evaluator);
                     // generate a cached calculation for slicer aggregation
-                    final Calc calc = new CacheCalc(query.getSlicerAxis().getSet(), cacheDescriptor);
+                    final Calc calc = new CacheCalc(
+                        query.getSlicerAxis().getSet(),
+                        cacheDescriptor);
 
                     // replace the slicer set with a placeholder to avoid
                     // interaction between the aggregate calc we just created
@@ -384,7 +390,7 @@ public class RolapResult extends ResultBase {
                     if (tupleList.get(0).size() > 1) {
                         for (int i = 1; i < tupleList.get(0).size(); i++) {
                             Member placeholder = setPlaceholderSlicerAxis(
-                                (RolapMember) tupleList.get(0).get(i),
+                                (RolapMember)tupleList.get(0).get(i),
                                 calc,
                                 false);
                             prevSlicerMembers.add(
@@ -515,7 +521,8 @@ public class RolapResult extends ResultBase {
             final Locus locus = new Locus(execution, null, "Loading cells");
             Locus.push(locus);
             try {
-                executeBody(internalSlicerEvaluator, query, new int[axes.length]);
+                executeBody(
+                    internalSlicerEvaluator, query, new int[axes.length]);
             } finally {
                 Locus.pop(locus);
             }

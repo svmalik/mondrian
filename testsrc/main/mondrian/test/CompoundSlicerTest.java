@@ -6,7 +6,6 @@
 *
 * Copyright (c) 2002-2013 Pentaho Corporation..  All rights reserved.
 */
-
 package mondrian.test;
 
 import mondrian.util.Bug;
