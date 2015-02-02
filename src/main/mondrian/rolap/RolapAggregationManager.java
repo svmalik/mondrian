@@ -110,7 +110,7 @@ public abstract class RolapAggregationManager {
         assert starMeasure != null;
         int starColumnCount = starMeasure.getStar().getColumnCount();
 
-        CellRequest request =
+        final CellRequest request =
             makeCellRequest(
                 currentMembers,
                 false,
@@ -118,6 +118,11 @@ public abstract class RolapAggregationManager {
                 null,
                 null,
                 evaluator);
+
+        if (request == null) {
+            // Current request cannot be processed. Per API, return null.
+            return null;
+        }
 
         /*
          * Now setting the compound keys.
