@@ -293,6 +293,7 @@ public class CrossJoinArgFactory {
         Exp[] tupleArgs = getCalculatedTupleArgs(arg);
         for (Exp tupleArg : tupleArgs) {
             Dimension dimension = tupleArg.getType().getDimension();
+
             if (tupleArg instanceof ResolvedFunCall) {
                 addConstrainingMembersToMap(tupleArg, memberLists);
             } else if (dimension != null && !dimension.isMeasures()) {
