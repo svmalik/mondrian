@@ -6,7 +6,7 @@
 //
 // Copyright (C) 2004-2005 TONBELLER AG
 // Copyright (C) 2005-2005 Julian Hyde
-// Copyright (C) 2005-2014 Pentaho and others
+// Copyright (C) 2005-2015 Pentaho and others
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -1427,32 +1427,19 @@ public class SqlTupleReader implements TupleReader {
                 && SqlMemberSource.isLevelCollapsed(
                     aggStar,
                     (RolapCubeLevel)currLevel);
-
             boolean multipleCols =
                 SqlMemberSource.levelContainsMultipleColumns(currLevel);
 
             if (levelCollapsed && !multipleCols) {
                 // if this is a single column collapsed level, there is
                 // no need to join it with dimension tables
-                RolapStar.Column starColumn =
-                    ((RolapCubeLevel) currLevel).getStarKeyColumn();
-                int bitPos = starColumn.getBitPosition();
-                AggStar.Table.Column aggColumn = aggStar.lookupColumn(bitPos);
-                String q = aggColumn.generateExprString(sqlQuery);
-                final String qAlias =
-                    sqlQuery.addSelectGroupBy(q, starColumn.getInternalType());
-                if (whichSelect == WhichSelect.ONLY) {
-                    sqlQuery.addOrderBy(
-                        q, qAlias, true, false, true, true);
-                }
-                aggColumn.getTable().addToFrom(sqlQuery, false, true);
+                addAggColumnToSql(
+                    sqlQuery, whichSelect, aggStar, (RolapCubeLevel)currLevel);
                 continue;
             }
 
-            // Add the contextual level constraints.
-            // Do this ahead of adding other parts of the SQL, so that
-            // if there is different context with a subquery, it'll be detected later.
-            MondrianDef.Expression keyExp = currLevel.getKeyExp();
+            MondrianDef.Expression keyExp = getKeyExprOrAggColExp(
+                currLevel, levelCollapsed, aggStar);
             constraint.addLevelConstraint(
                 sqlQuery, baseCube, aggStar, currLevel, keyOnly && keyExp instanceof MondrianDef.Column);
 
@@ -1495,7 +1482,6 @@ public class SqlTupleReader implements TupleReader {
             }
 
             String keySql = keyExp.getExpression(sqlQuery);
-            String ordinalSql = ordinalExp.getExpression(sqlQuery);
 
             if (!levelCollapsed && !optimized) {
                 hierarchy.addToFrom(sqlQuery, keyExp);
@@ -1549,7 +1535,8 @@ public class SqlTupleReader implements TupleReader {
     
                 // Figure out the order-by part
                 final String orderByAliasAndExpr[];
-                if (!ordinalSql.equals(keySql)) {
+            if (!currLevel.getKeyExp().equals(currLevel.getOrdinalExp())) {
+                String ordinalSql = ordinalExp.getExpression(sqlQuery);
                     orderByAliasAndExpr = sqlQuery.addSelect(ordinalExp, null);
                     if (needsGroupBy) {
                         sqlQuery.addGroupBy(orderByAliasAndExpr[1], orderByAliasAndExpr[0]);
@@ -1570,15 +1557,18 @@ public class SqlTupleReader implements TupleReader {
                 // join to dimension tables starting
                 // at the lowest granularity and working
                 // towards the fact table
-                hierarchy.addToFromInverse(sqlQuery, keyExp);
+                hierarchy.addToFromInverse(sqlQuery, currLevel.getKeyExp());
 
                 RolapStar.Column starColumn =
                     ((RolapCubeLevel) currLevel).getStarKeyColumn();
                 int bitPos = starColumn.getBitPosition();
                 AggStar.Table.Column aggColumn = aggStar.lookupColumn(bitPos);
                 RolapStar.Condition condition =
-                    new RolapStar.Condition(keyExp, aggColumn.getExpression());
+                    new RolapStar.Condition(
+                        currLevel.getKeyExp(),
+                        aggColumn.getExpression());
                 sqlQuery.addWhere(condition.toString(sqlQuery));
+                aggColumn.getTable().addToFrom(sqlQuery, false, true);
             }
             if (!keyOnly) { 
                 RolapProperty[] properties = currLevel.getProperties();
@@ -1598,6 +1588,56 @@ public class SqlTupleReader implements TupleReader {
                 }
             }
         }
+    }
+
+    /**
+     * Returns the Expression associated with the level's
+     * KeyExp, or the Expression associated with the level's
+     * AggStar column if the level is collapsed and aggStar is defined.
+     */
+    private MondrianDef.Expression getKeyExprOrAggColExp(
+        RolapLevel level, boolean levelCollapsed, AggStar aggStar)
+    {
+        if (aggStar == null || !levelCollapsed) {
+            return level.getKeyExp();
+        } else {
+            AggStar.Table.Column aggColumn = getAggColumn(
+                aggStar, (RolapCubeLevel)level);
+            if (aggColumn == null) {
+                throw new MondrianException(
+                    String.format(
+                        "Expected level [%s] to have a collapsed attribute "
+                        + "on aggregate table '%s'", level.getName(),
+                        aggStar.getFactTable().getName()));
+            }
+            return aggColumn.getExpression();
+        }
+    }
+
+    private void addAggColumnToSql(
+        SqlQuery sqlQuery, WhichSelect whichSelect, AggStar aggStar,
+        RolapCubeLevel level)
+    {
+        RolapStar.Column starColumn =
+            level.getStarKeyColumn();
+        AggStar.Table.Column aggColumn = getAggColumn(aggStar, level);
+        String aggColExp = aggColumn.generateExprString(sqlQuery);
+        final String colAlias =
+            sqlQuery.addSelectGroupBy(aggColExp, starColumn.getInternalType());
+        if (whichSelect == WhichSelect.ONLY) {
+            sqlQuery.addOrderBy(
+                aggColExp, colAlias, true, false, true, true);
+        }
+        aggColumn.getTable().addToFrom(sqlQuery, false, true);
+    }
+
+    private AggStar.Table.Column getAggColumn(
+        AggStar aggStar, RolapCubeLevel level)
+    {
+        RolapStar.Column starColumn =
+            level.getStarKeyColumn();
+        int bitPos = starColumn.getBitPosition();
+        return aggStar.lookupColumn(bitPos);
     }
 
     /**
