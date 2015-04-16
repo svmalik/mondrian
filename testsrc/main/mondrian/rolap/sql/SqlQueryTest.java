@@ -11,6 +11,7 @@
 package mondrian.rolap.sql;
 
 import mondrian.olap.MondrianProperties;
+import mondrian.olap.Util;
 import mondrian.rolap.BatchTestCase;
 import mondrian.spi.Dialect;
 import mondrian.spi.impl.*;
@@ -104,29 +105,29 @@ public class SqlQueryTest extends BatchTestCase {
         }
     }
 
-
     public void testOrderBy() throws SQLException {
+        String nl = Util.nl;
         // Test with requireAlias = true
         assertEquals(
-            "\norder by\n"
+            nl + "order by" + nl
             + "    CASE WHEN alias IS NULL THEN 1 ELSE 0 END, alias ASC",
             makeTestSqlQuery("expr", "alias", true, true, true, true)
             .toString());
         // requireAlias = false
         assertEquals(
-            "\norder by\n"
+            nl + "order by" + nl
             + "    CASE WHEN expr IS NULL THEN 1 ELSE 0 END, expr ASC",
             makeTestSqlQuery("expr", "alias", true, true, true, false)
                 .toString());
         //  nullable = false
         assertEquals(
-            "\norder by\n"
+            nl + "order by" + nl
             + "    expr ASC",
             makeTestSqlQuery("expr", "alias", true, false, true, false)
                 .toString());
         //  ascending=false, collateNullsLast=false
         assertEquals(
-            "\norder by\n"
+            nl + "order by" + nl
             + "    CASE WHEN alias IS NULL THEN 0 ELSE 1 END, alias DESC",
             makeTestSqlQuery("expr", "alias", false, true, false, true)
                 .toString());
