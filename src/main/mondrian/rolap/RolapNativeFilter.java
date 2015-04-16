@@ -18,7 +18,6 @@ import mondrian.olap.*;
 import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -193,6 +192,15 @@ public class RolapNativeFilter extends RolapNativeSet {
             if (isPreferInterpreter(cjArgs, false)) {
                 return null;
             }
+
+            if (SqlConstraintUtils.measuresConflictWithMembers(
+                    evaluator.getQuery().getMeasuresMembers(), cjArgs))
+            {
+                RolapUtil.alertNonNative("NativeFilter",
+                    "One or more calculated measures conflict with crossjoin args");
+                return null;
+            }
+
             firstCrossjoinLevel = cjArgs[0].getLevel();
         } else {
             firstCrossjoinLevel = ((SetConstraint)eval.getConstraint()).getArgs()[0].getLevel();

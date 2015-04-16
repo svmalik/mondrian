@@ -2198,7 +2198,11 @@ public class SqlConstraintUtils {
             }
         }
         for (Member memberCheckedForConflict : members) {
-            if (memberCheckedForConflict.getHierarchy().getDimension().isHanger()) {
+            if (memberCheckedForConflict.isAll()
+                || memberCheckedForConflict.isCalculated()
+                || memberCheckedForConflict.getHierarchy()
+                    .getDimension().isHanger())
+            {
                 continue;
             }
             for (Member memberInMeasure : membersNestedInMeasures) {
@@ -2206,9 +2210,8 @@ public class SqlConstraintUtils {
                     memberInMeasure.getHierarchy()
                         .equals(memberCheckedForConflict.getHierarchy());
                 final boolean childOrEqual =
-                    memberCheckedForConflict.isAll()
-                        || memberInMeasure
-                            .isChildOrEqualTo(memberCheckedForConflict);
+                    memberInMeasure
+                        .isChildOrEqualTo(memberCheckedForConflict);
                 if (sameHierarchy && !childOrEqual) {
                     return true;
                 }

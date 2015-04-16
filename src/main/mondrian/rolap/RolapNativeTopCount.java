@@ -213,6 +213,14 @@ public class RolapNativeTopCount extends RolapNativeSet {
                     return null;
                 }
 
+                if (SqlConstraintUtils.measuresConflictWithMembers(
+                        evaluator.getQuery().getMeasuresMembers(), cjArgs))
+                {
+                    RolapUtil.alertNonNative("NativeTopCount",
+                        "One or more calculated measures conflict with crossjoin args");
+                    return null;
+                }
+
                 LOGGER.debug("using native topcount");
                 overrideContext(evaluator, cjArgs, sql.getStoredMeasure());
                 for (Member member : sql.addlContext) {
