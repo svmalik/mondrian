@@ -107,7 +107,7 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
           // select the final one for non-empty evaluation
 
           Set<RolapCube> baseCubes = new HashSet<RolapCube>();
-          Set<Member> measures = new HashSet<Member>();
+          Set<Member> measures = new LinkedHashSet<Member>();
           List<RolapCube> baseCubeList = new ArrayList<RolapCube>();
           findMeasures(args[1], baseCubes, baseCubeList, measures);
           boolean calculatedMeasures = false;

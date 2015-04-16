@@ -4578,7 +4578,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "and\n"
             + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
             + "and\n"
-            + "    (`product_class`.`product_family` in ('Drink', 'Non-Consumable', 'Food'))\n"
+            + "    (`product_class`.`product_family` in ('Non-Consumable', 'Drink', 'Food'))\n"
             + "group by\n"
             + "    `product_class`.`product_family`,\n"
             + "    `product_class`.`product_department`) as `countQuery`";
@@ -4630,7 +4630,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "and\n"
             + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
             + "and\n"
-            + "    (`product_class`.`product_family` in ('Drink', 'Non-Consumable', 'Food'))\n"
+            + "    (`product_class`.`product_family` in ('Non-Consumable', 'Drink', 'Food'))\n"
             + "group by\n"
             + "    `product_class`.`product_family`,\n"
             + "    `product_class`.`product_department`) as `countQuery`";
@@ -4680,7 +4680,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "and\n"
             + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
             + "and\n"
-            + "    (`product_class`.`product_family` in ('Drink', 'Non-Consumable', 'Food'))\n"
+            + "    (`product_class`.`product_family` in ('Non-Consumable', 'Food', 'Drink'))\n"
             + "group by\n"
             + "    `product_class`.`product_family`) as `countQuery`";
 

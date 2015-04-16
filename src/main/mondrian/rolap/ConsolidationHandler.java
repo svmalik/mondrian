@@ -14,7 +14,7 @@ package mondrian.rolap;
 
 
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -116,7 +116,7 @@ public abstract class ConsolidationHandler {
             members.setColumnExpression(
                 SqlConstraintUtils.getColumnExpr(sqlQuery, aggStar, column));
             members.setStarColumn(column);
-            Set<RolapMember> allMembers = new HashSet<RolapMember>(arg.getMembers());
+            Set<RolapMember> allMembers = new LinkedHashSet<RolapMember>(arg.getMembers());
             allMembers.addAll(
                 members.getMembers()); //don't add matched member-that should be in the arg already
             if (arg instanceof MemberListCrossJoinArg) {
