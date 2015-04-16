@@ -2198,6 +2198,9 @@ public class SqlConstraintUtils {
             }
         }
         for (Member memberCheckedForConflict : members) {
+            if (memberCheckedForConflict.getHierarchy().getDimension().isHanger()) {
+                continue;
+            }
             for (Member memberInMeasure : membersNestedInMeasures) {
                 final boolean sameHierarchy =
                     memberInMeasure.getHierarchy()
