@@ -280,6 +280,7 @@ public class Main extends TestSuite {
             addTest(suite, DynamicDatasourceXmlaServletTest.class);
             addTest(suite, XmlaAdomdTest.class);
             addTest(suite, XmlaTest.class, "suite");
+            addTest(suite, XmlaDimensionPropertiesTest.class);
             if (isRunOnce()) {
                 addTest(suite, TestCalculatedMembers.class);
             }
