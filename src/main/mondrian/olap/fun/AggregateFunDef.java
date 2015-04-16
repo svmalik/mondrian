@@ -105,7 +105,7 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                 if (member != null) {
                     evaluator.setContext(member);
                 }
-                return aggregate(calc, evaluator, list);
+                return aggregate(calc, evaluator, list, false);
             } finally {
                 evaluator.restore(savepoint);
                 evaluator.getTiming().markEnd(TIMING_NAME);

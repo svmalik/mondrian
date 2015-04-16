@@ -769,7 +769,7 @@ public class CompoundSlicerTest extends FoodMartTestCase {
             "Axis #0:\n"
             + "{[Measures].[Avg Unit Sales], [Customers].[USA].[OR]}\n"
             + "{[Measures].[Avg Unit Sales], [Customers].[USA].[CA]}\n"
-            + "3.094");
+            + "3.092");
 
         // roll up using a named set
         testContext.assertQueryReturns(
