@@ -731,7 +731,7 @@ public class SegmentBuilder {
                             .getExpression().getGenericExpression(),
                         predicate.getConstrainedColumn().getCardinality(),
                         new ArraySortedSet(valuesArray),
-                        false));
+                        predicate.getConstrainedColumn().isRollupAllowed()));
             }
         }
         return ccs;
