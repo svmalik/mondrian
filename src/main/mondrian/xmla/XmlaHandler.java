@@ -2330,59 +2330,51 @@ public class XmlaHandler {
         }
 
         private void writeMember(
-            SaxWriter writer,
-            Member member,
-            Position prevPosition,
-            Position nextPosition,
-            int k,
-            List<Property> props,
-            boolean fullUniqueNames)
-            throws OlapException
-        {
-            writer.startElement(
-                "Member",
-                "Hierarchy", getHierarchyName(member.getHierarchy()));
-            for (Property prop : props) {
-                Object value;
-                Property longProp = longProps.get(prop.getName());
-                if (longProp == null) {
-                    longProp = prop;
+                SaxWriter writer, Member member, Position prevPosition,
+                Position nextPosition, int k, List<Property> props)
+                throws OlapException
+            {
+                writer.startElement(
+                    "Member", "Hierarchy", member.getHierarchy().getName());
+                for (final Property prop : props) {
+                    Object value = null;
+                    Property longProp = (longProps.get(prop.getName()) != null)
+                        ? longProps.get(prop.getName()) : prop;
+                    if (longProp == StandardMemberProperty.DISPLAY_INFO) {
+                        Integer childrenCard = (Integer) member
+                            .getPropertyValue(
+                                StandardMemberProperty.CHILDREN_CARDINALITY);
+                        value = calculateDisplayInfo(
+                            prevPosition, nextPosition, member, k, childrenCard);
+                    } else if (longProp == StandardMemberProperty.DEPTH) {
+                        value = member.getDepth();
+                    } else {
+                        value = (longProp instanceof IMondrianOlap4jProperty)
+                            ? getCurrentHierarchyProperty(member, longProp)
+                            : member.getPropertyValue(longProp);
+                    }
+                    if (value != null) {
+                        writer.textElement(encoder.encode(prop.getName()), value);
+                    }
                 }
-                if (longProp == StandardMemberProperty.DISPLAY_INFO) {
-                    Integer childrenCard =
-                        (Integer) member.getPropertyValue(
-                            StandardMemberProperty.CHILDREN_CARDINALITY);
-                    value = calculateDisplayInfo(
-                        prevPosition,
-                        nextPosition,
-                        member, k, childrenCard);
-                } else if (longProp == StandardMemberProperty.DEPTH) {
-                    value = member.getDepth();
-                } else if (longProp
-                    == StandardMemberProperty.MEMBER_UNIQUE_NAME)
-                {
-                    value = getFullUniqueName(
-                        fullUniqueNames,
-                        member.getHierarchy(),
-                        member);
-                } else if (longProp
-                    == StandardMemberProperty.LEVEL_UNIQUE_NAME)
-                {
-                    value = getFullUniqueName(
-                        fullUniqueNames,
-                        member.getHierarchy(),
-                        member.getLevel());
-                } else {
-                    value = member.getPropertyValue(longProp);
-                }
-                if (value != null) {
-                    writer.textElement(
-                        encoder.encode(prop.getName()), value);
-                }
-            }
 
-            writer.endElement(); // Member
-        }
+                writer.endElement(); // Member
+            }
+        
+        private Object getCurrentHierarchyProperty(
+                Member member, Property longProp) throws OlapException
+            {
+                IMondrianOlap4jProperty currentProperty =
+                    (IMondrianOlap4jProperty) longProp;
+                String thisHierarchyName = member.getHierarchy().getName();
+                String thatHierarchyName = currentProperty.getLevel()
+                        .getHierarchy().getName();
+                if (thisHierarchyName.equals(thatHierarchyName)) {
+                    return member.getPropertyValue(currentProperty);
+                }
+                // if property isn't belong to current hierarchy return null
+                return null;
+            }
 
         private void slicerAxis(
             SaxWriter writer, Member member, List<Property> props)
