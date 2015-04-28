@@ -1513,6 +1513,11 @@ RME is this right
         public Exp getExpression() {
             return getHierarchy().getAggregateChildrenExpression();
         }
+
+        @Override
+        public boolean isParentChildPhysicalMember() {
+            return true;
+        }
     }
 
     /**
