@@ -2355,6 +2355,11 @@ public class ManyToManyTest  extends CsvDBTestCase {
         }
 
         @Override
+        public boolean isParentChildPhysicalMember() {
+            return false;
+        }
+
+        @Override
         public void setName(String name) {
         }
 

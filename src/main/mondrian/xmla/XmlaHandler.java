@@ -14,6 +14,7 @@ import mondrian.olap.MondrianProperties;
 import mondrian.olap.Parameter;
 import mondrian.olap.Util;
 import mondrian.olap4j.IMondrianOlap4jProperty;
+import mondrian.olap4j.MondrianOlap4jConnection;
 import mondrian.util.CompositeList;
 import mondrian.xmla.XmlaSessionConnectionManager.SessionConnection;
 import mondrian.xmla.impl.DefaultSaxWriter;
@@ -2121,7 +2122,7 @@ public class XmlaHandler {
             writer.startSequence(null, "HierarchyInfo");
             for (Hierarchy hierarchy : hierarchies) {
                 writer.startElement(
-                    "HierarchyInfo", "name", hierarchy.getName());
+                    "HierarchyInfo", "name", getHierarchyName(hierarchy));
                 for (final Property prop : props) {
                     if (prop instanceof IMondrianOlap4jProperty) {
                         writeProperty(writer, hierarchy, prop);
@@ -2338,11 +2339,12 @@ public class XmlaHandler {
 
         private void writeMember(
             SaxWriter writer, Member member, Position prevPosition,
-            Position nextPosition, int k, List<Property> props)
+            Position nextPosition, int k, List<Property> props,
+            boolean fullUniqueNames)
             throws OlapException
         {
             writer.startElement(
-                "Member", "Hierarchy", member.getHierarchy().getName());
+                "Member", "Hierarchy", getHierarchyName(member.getHierarchy()));
             for (final Property prop : props) {
                 Object value = null;
                 Property longProp = (longProps.get(prop.getName()) != null)
@@ -2355,6 +2357,20 @@ public class XmlaHandler {
                         prevPosition, nextPosition, member, k, childrenCard);
                 } else if (longProp == StandardMemberProperty.DEPTH) {
                     value = member.getDepth();
+                } else if (longProp
+                    == StandardMemberProperty.MEMBER_UNIQUE_NAME)
+                {
+                    value = getFullUniqueName(
+                        fullUniqueNames,
+                        member.getHierarchy(),
+                        member);
+                } else if (longProp
+                    == StandardMemberProperty.LEVEL_UNIQUE_NAME)
+                {
+                    value = getFullUniqueName(
+                        fullUniqueNames,
+                        member.getHierarchy(),
+                        member.getLevel());
                 } else {
                     value = (longProp instanceof IMondrianOlap4jProperty)
                         ? getCurrentHierarchyProperty(member, longProp)
