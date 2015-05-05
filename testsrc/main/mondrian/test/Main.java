@@ -38,6 +38,7 @@ import mondrian.util.*;
 import mondrian.xmla.*;
 import mondrian.xmla.impl.DynamicDatasourceXmlaServletTest;
 import mondrian.xmla.test.XmlaTest;
+
 import junit.framework.Test;
 import junit.framework.*;
 
@@ -349,6 +350,7 @@ public class Main extends TestSuite {
             addTest(suite, CrossJoinArgFactoryTest.class);
             addTest(suite, UnionFunDefTest.class);
             addTest(suite, SybaseDialectTest.class);
+            addTest(suite, SqlStatementTest.class);
 
             boolean testNonEmpty = isRunOnce();
             if (!MondrianProperties.instance().EnableNativeNonEmpty.get()) {
