@@ -1085,9 +1085,7 @@ public abstract class RolapNativeSet extends RolapNative {
     }
 
     public void flushCache() {
-        if (cache.size() != 0) {
-            cache.clear();
-        }
+        cache.clear();
     }
 
     /**
