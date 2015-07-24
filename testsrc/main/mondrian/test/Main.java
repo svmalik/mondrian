@@ -372,6 +372,7 @@ public class Main extends TestSuite {
             addTest(suite, FastBatchingCellReaderTest.class);
             addTest(suite, SqlQueryTest.class);
             addTest(suite, CodeSetTest.class);
+            addTest(suite, ExplicitRecognizerTest.class);
             addTest(suite, ManyToManyTest.class);
             addTest(suite, CalculatedCellTest.class);
 
