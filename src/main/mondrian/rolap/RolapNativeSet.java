@@ -886,8 +886,12 @@ public abstract class RolapNativeSet extends RolapNative {
             // that independent axes have identical constraints but different
             // args (i.e. projections). REVIEW: In this case, should we use the
             // same cached result and project different columns?
+            //
+            // [MONDRIAN-2411] adds the roles to the key. Normally, the
+            // schemaReader would apply the roles, but we cache the lists over
+            // its head.
             CacheKey key = tr.getCacheKey();
-
+            key.add(schemaReader.getRole());
             key.setValue(KEY_SET_EVALUATOR_CROSSJOIN_ARGS, Arrays.asList(args));
             key.setValue(KEY_SET_EVALUATOR_MAX_ROWS, maxRows);
             return key;
