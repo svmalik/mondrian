@@ -17,13 +17,13 @@ import mondrian.calc.ParameterSlot;
 import mondrian.calc.TupleList;
 import mondrian.calc.impl.DelegatingTupleList;
 import mondrian.olap.*;
-import mondrian.olap.fun.FunUtil;
+import mondrian.olap.fun.*;
 import mondrian.rolap.CalculatedCellUtil.CellCalc;
 import mondrian.rolap.CalculatedCellUtil.CellCalcReturn;
 import mondrian.rolap.CalculatedCellUtil.RolapCellCalculation;
 import mondrian.server.Statement;
 import mondrian.spi.Dialect;
-import mondrian.util.Format;
+import mondrian.util.*;
 
 import org.apache.log4j.Logger;
 
@@ -97,6 +97,8 @@ public class RolapEvaluator implements Evaluator {
      */
     protected final List<List<List<Member>>> aggregationLists;
 
+    protected CompoundPredicateInfo slicerPredicateInfo;
+
     private final List<Member> slicerMembers;
 
     // slicer tuples and extra info
@@ -149,6 +151,10 @@ public class RolapEvaluator implements Evaluator {
         return root.activeNativeExpansions;
     }
 
+    public CompoundPredicateInfo getSlicerPredicateInfo() {
+        return slicerPredicateInfo;
+    }
+
     /**
      * States of the finite state machine for determining the max solve order
      * for the "scoped" behavior.
@@ -190,8 +196,10 @@ public class RolapEvaluator implements Evaluator {
         calculationCount = parent.calculationCount;
         slicerMembers = new ArrayList<Member>(parent.slicerMembers);
         slicerTuples = parent.slicerTuples;
+        slicerPredicateInfo = parent.slicerPredicateInfo;
         disjointSlicerTuple = parent.disjointSlicerTuple;
         multiLevelSlicerTuple = parent.multiLevelSlicerTuple;
+        expandingMember = parent.expandingMember;
 
         commands = new Object[10];
         commands[0] = Command.SAVEPOINT; // sentinel
@@ -205,6 +213,12 @@ public class RolapEvaluator implements Evaluator {
             aggregationLists =
                 new ArrayList<List<List<Member>>>(parent.aggregationLists);
         }
+        //compoundPredicates.addAll(parent.compoundPredicates);
+
+        if (parent.slicerPredicateInfo != null) {
+            this.slicerPredicateInfo = parent.slicerPredicateInfo;
+        }
+
         if (aggregationList != null) {
             if (aggregationLists == null) {
                 aggregationLists = new ArrayList<List<List<Member>>>();
@@ -215,10 +229,11 @@ public class RolapEvaluator implements Evaluator {
                 setContext(member.getHierarchy().getAllMember());
             }
         }
-        this.aggregationLists = aggregationLists;
-
-        expandingMember = parent.expandingMember;
+        this.aggregationLists = aggregationLists == null
+            ? Collections.<List<List<Member>>>emptyList()
+            : Collections.unmodifiableList(aggregationLists);
     }
+
 
     /**
      * Creates a root evaluator.
@@ -233,7 +248,7 @@ public class RolapEvaluator implements Evaluator {
         nonEmpty = false;
         nativeEnabled =
             MondrianProperties.instance().EnableNativeNonEmpty.get()
-            || MondrianProperties.instance().EnableNativeCrossJoin.get();
+                || MondrianProperties.instance().EnableNativeCrossJoin.get();
         evalAxes = false;
         cellReader = null;
         currentMembers = root.defaultMembers.clone();
@@ -564,6 +579,8 @@ public class RolapEvaluator implements Evaluator {
             disjointSlicerTuple = SqlConstraintUtils.isDisjointTuple(tuples);
             multiLevelSlicerTuple =
               SqlConstraintUtils.hasMultipleLevelSlicer(this);
+            slicerPredicateInfo = new CompoundPredicateInfo(
+                tuples, (RolapMeasure)currentMembers[0]);
         } else {
             disjointSlicerTuple = false;
             multiLevelSlicerTuple = false;
