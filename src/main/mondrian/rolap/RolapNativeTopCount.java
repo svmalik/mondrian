@@ -6,7 +6,7 @@
 //
 // Copyright (C) 2004-2005 TONBELLER AG
 // Copyright (C) 2005-2005 Julian Hyde
-// Copyright (C) 2005-2013 Pentaho and others
+// Copyright (C) 2005-2015 Pentaho and others
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -120,6 +120,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
             }
             key.setValue(getClass().getName() + ".ascending", ascending);
             key.setValue(getClass().getName() + ".topCount", topCount);
+            key.add(this.getEvaluator().isNonEmpty());
 
             return key;
         }
@@ -246,6 +247,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
                 SetEvaluator sev =
                     new SetEvaluator(cjArgs, schemaReader, constraint, sql.getStoredMeasure());
                 sev.setMaxRows(count);
+                sev.setCompleteWithNullValues(!evaluator.isNonEmpty());
                 return sev;
             } else {
                 SetConstraint parentConstraint = (SetConstraint)eval.getConstraint();
@@ -262,6 +264,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
                         parentConstraint);
                 eval.setConstraint(constraint);
                 eval.setMaxRows(count);
+                sev.setCompleteWithNullValues(!evaluator.isNonEmpty());
                 LOGGER.debug("using nested native topcount");
                 return eval;
             }
