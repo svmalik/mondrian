@@ -27,6 +27,7 @@ import org.eigenbase.xom.StringEscaper;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.CancellationException;
 
 /**
  * <code>FunctionTest</code> tests the functions defined in
@@ -7416,6 +7417,8 @@ public class FunctionTest extends FoodMartTestCase {
                 + "    {([Store].CurrentMember, [Product].CurrentMember, [Customers].CurrentMember)}))");
         } catch (QueryTimeoutException e) {
             return;
+        } catch (CancellationException e) {
+            return;
         }
         fail("should have timed out");
     }
@@ -7429,6 +7432,8 @@ public class FunctionTest extends FoodMartTestCase {
                 + "Filter(CrossJoin([Customers].[Name].members, [Product].[Product Name].members), [Measures].[Unit Sales] > 0),"
                 + " [Measures].[Sales Count] > 5) ");
         } catch (QueryTimeoutException e) {
+            return;
+        } catch (CancellationException e) {
             return;
         }
         fail("should have timed out");
