@@ -84,13 +84,15 @@ public class RolapConnection extends ConnectionBase {
      * @param connectInfo Connection properties; keywords are described in
      *   {@link RolapConnectionProperties}.
      * @param dataSource JDBC data source
+     * @param roleLoader loader to grab roles from the schema                  
      */
     public RolapConnection(
         MondrianServer server,
         Util.PropertyList connectInfo,
-        DataSource dataSource)
+        DataSource dataSource,
+        RoleLoader roleLoader)
     {
-        this(server, connectInfo, null, dataSource);
+        this(server, connectInfo, null, dataSource, roleLoader);
     }
 
     /**
@@ -108,12 +110,14 @@ public class RolapConnection extends ConnectionBase {
      *   be an internal connection.
      * @param dataSource If not null an external DataSource to be used
      *        by Mondrian
+     * @param roleLoader loader to grab roles from the schema 
      */
     RolapConnection(
         MondrianServer server,
         Util.PropertyList connectInfo,
         RolapSchema schema,
-        DataSource dataSource)
+        DataSource dataSource,
+        RoleLoader roleLoader)
     {
         super();
         assert server != null;
@@ -178,30 +182,8 @@ public class RolapConnection extends ConnectionBase {
             }
             internalStatement =
                 schema.getInternalConnection().getInternalStatement();
-            String roleNameList =
-                connectInfo.get(RolapConnectionProperties.Role.name());
-            if (roleNameList != null) {
-                List<String> roleNames = Util.parseCommaList(roleNameList);
-                List<Role> roleList = new ArrayList<Role>();
-                for (String roleName : roleNames) {
-                    final LockBox.Entry entry =
-                        server.getLockBox().get(roleName);
-                    Role role1;
-                    if (entry != null) {
-                        try {
-                            role1 = (Role) entry.getValue();
-                        } catch (ClassCastException e) {
-                            role1 = null;
-                        }
-                    } else {
-                        role1 = schema.lookupRole(roleName);
-                    }
-                    if (role1 == null) {
-                        throw Util.newError(
-                            "Role '" + roleName + "' not found");
-                    }
-                    roleList.add(role1);
-                }
+            List<Role> roleList = roleLoader.loadRoles(server, schema, connectInfo);
+            if (roleList != null) {
                 switch (roleList.size()) {
                 case 0:
                     // If they specify 'Role=;', the list of names will be

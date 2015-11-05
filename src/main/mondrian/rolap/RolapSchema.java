@@ -186,7 +186,8 @@ public class RolapSchema implements Schema {
         this.defaultRole = Util.createRootRole(this);
         final MondrianServer internalServer = MondrianServer.forId(null);
         this.internalConnection =
-            new RolapConnection(internalServer, connectInfo, this, dataSource);
+            new RolapConnection(internalServer, connectInfo, this, dataSource,
+                DriverManager.getRoleLoader());
         internalServer.removeConnection(internalConnection);
         internalServer.removeStatement(
             internalConnection.getInternalStatement());
@@ -679,6 +680,27 @@ public class RolapSchema implements Schema {
             }
         }
     }
+    
+    public void addRole(String xml) {
+        try {
+            final Parser xmlParser = XOMUtil.createDefaultParser();
+            final DOMWrapper def = xmlParser.parse(xml);
+            MondrianDef.Role xmlRole = new MondrianDef.Role(def);
+            if (MondrianProperties.instance().LazyLoadRoles.get()) {
+                mapNameToRole.put(xmlRole.name, null);
+            } else {
+                Role role = createRole(xmlRole);
+                mapNameToRole.put(xmlRole.name, role);
+            }
+            if(LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Added role created from XML [" + xml + "]");
+            }
+        } catch (XOMException e) {
+            throw Util.newError(e,
+                "Error while adding role from XML [" + xml + "]");
+        }
+    }
+    
 
     static Scripts.ScriptDefinition toScriptDef(MondrianDef.Script script) {
         if (script == null) {

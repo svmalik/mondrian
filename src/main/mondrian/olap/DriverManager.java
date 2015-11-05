@@ -14,8 +14,12 @@ package mondrian.olap;
 import mondrian.rolap.RolapConnection;
 import mondrian.rolap.RolapConnectionProperties;
 import mondrian.spi.CatalogLocator;
+import mondrian.spi.RoleLoader;
+import mondrian.spi.impl.RoleLoaderImpl;
+import mondrian.util.ClassResolver;
 
 import javax.sql.DataSource;
+import org.apache.log4j.Logger;
 
 /**
  * The basic service for managing a set of OLAP drivers.
@@ -24,6 +28,29 @@ import javax.sql.DataSource;
  * @since 15 January, 2002
  */
 public class DriverManager {
+
+    private static final Logger LOGGER = Logger.getLogger(DriverManager.class);
+    
+    private static RoleLoader roleLoader;
+
+    public static synchronized RoleLoader getRoleLoader() {
+        if (roleLoader == null) {
+            String loader = MondrianProperties.instance().RoleLoader.get();
+            try {
+                roleLoader = ClassResolver.INSTANCE.instantiateSafe(loader);
+            } catch (Exception e) {
+                LOGGER.warn("Failed to load RoleLoader from Mondrian " 
+                    + "properties with class name "
+                    + loader + ". Defaulting to a " + RoleLoaderImpl.class.getName(), e);
+                roleLoader = new RoleLoaderImpl();
+            }
+        }
+        if(LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Returning RoleLoader of type:" + roleLoader.getClass()
+                                                                     .getName());
+        }
+        return roleLoader;
+    }
 
     public DriverManager() {
     }
@@ -111,7 +138,7 @@ public class DriverManager {
                 locator.locate(catalog));
         }
         final RolapConnection connection =
-            new RolapConnection(server, properties, dataSource);
+            new RolapConnection(server, properties, dataSource, getRoleLoader());
         server.addConnection(connection);
         return connection;
     }

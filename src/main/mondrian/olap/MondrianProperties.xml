@@ -1807,4 +1807,18 @@ log4j.configuration=file:log4j.properties</code></blockquote>
         <Core>false</Core>
         <Type>String</Type>
     </PropertyDefinition>
+    <PropertyDefinition>
+        <Name>RoleLoader</Name>
+        <Path>mondrian.spi.RoleLoader</Path>
+        <Description>
+            Property which defines which RoleLoader implementation
+            to use when creating roles in a RolapConnection.
+            The property should be the fully qualified class name of the implementation.
+            The factory is passed to the connection at creation time.
+            The default implementation is {@mondrian.spi.impl.RoleLoaderImpl}.
+            See {@link mondrian.spi.RoleLoader}.
+        </Description>
+        <Type>String</Type>
+        <Default>mondrian.spi.impl.RoleLoaderImpl</Default>
+    </PropertyDefinition>
 </PropertyDefinitions>

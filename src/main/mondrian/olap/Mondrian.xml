@@ -95,6 +95,11 @@ Revision is $Id$
                 Roles in this schema.
             </Doc>
         </Array>
+        <Array name="roleTemplates" type="RoleTemplate">
+            <Doc>
+                Role Templates in this schema.
+            </Doc>
+        </Array>
         <Array name="userDefinedFunctions" type="UserDefinedFunction">
             <Doc>
                 Declarations of user-defined functions in this schema.
@@ -2187,6 +2192,17 @@ Revision is $Id$
         </Object>
         <Array name="schemaGrants" type="SchemaGrant"/>
         <Object name="union" type="Union" required="false" />
+    </Element>
+
+    <Element type="RoleTemplate">
+        <Doc>
+            A role template defines a role as a template. The template
+            can be retrieved at runtime to create dynamic roles. How that
+            is done is not specified, but variable substitution
+            would be one approach.
+        </Doc>
+        <Attribute name="name" required="true"/>
+        <CData/>
     </Element>
 
     <Class class="Grant">

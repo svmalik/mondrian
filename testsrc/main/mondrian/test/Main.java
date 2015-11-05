@@ -263,6 +263,7 @@ public class Main extends TestSuite {
             addTest(suite, ParameterTest.class);
             addTest(suite, AccessControlTest.class);
             addTest(suite, AccessControlWithLazyLoadRolesTest.class);
+            addTest(suite, RoleTemplateTest.class);
             addTest(suite, ParserTest.class);
             addTest(suite, CustomizedParserTest.class);
             addTest(suite, SolveOrderScopeIsolationTest.class);
