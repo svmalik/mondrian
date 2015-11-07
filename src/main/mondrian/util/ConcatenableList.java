@@ -32,6 +32,8 @@ public class ConcatenableList<T> extends AbstractList<T> {
     private T previousElement = null;
     private T prePreviousElement = null;
 
+    private Set<T> plainSet = new HashSet<T>();
+
     /**
      * Creates an empty ConcatenableList.
      */
@@ -59,23 +61,19 @@ public class ConcatenableList<T> extends AbstractList<T> {
         if (this.plainList == null) {
             this.plainList = new ArrayList<T>();
             for (final List<T> list : lists) {
-                // REVIEW: List.addAll is probably more efficient.
-                for (final T t : list) {
-                    this.plainList.add(t);
-                }
+                this.plainList.addAll(list);
             }
         }
+        this.plainSet.clear();
     }
 
     public boolean addAll(final Collection<? extends T> collection) {
         if (this.plainList == null) {
+            plainSet.addAll(collection);
             final List<T> list = (List<T>) collection;
             return this.lists.add(list);
         } else {
-            for (final T e : collection) {
-                this.plainList.add(e);
-            }
-            return true;
+            return this.plainList.addAll(collection);
         }
     }
 
@@ -140,6 +138,7 @@ public class ConcatenableList<T> extends AbstractList<T> {
 
     public boolean add(final T t) {
         if (this.plainList == null) {
+            plainSet.add(t);
             return this.lists.add(Collections.singletonList(t));
         } else {
             return this.plainList.add(t);
@@ -167,11 +166,7 @@ public class ConcatenableList<T> extends AbstractList<T> {
             // REVIEW: Consider consolidating here. As it stands, this loop is
             // expensive if called often on a lot of small lists. Amortized cost
             // would be lower if we consolidated, or partially consolidated.
-            int size = 0;
-            for (final List<T> list : lists) {
-                size += list.size();
-            }
-            return size;
+            return this.plainSet.size();
         } else {
             return this.plainList.size();
         }
@@ -228,25 +223,21 @@ public class ConcatenableList<T> extends AbstractList<T> {
         if (this.plainList != null) {
             return this.plainList.isEmpty();
         }
-        if (this.lists.isEmpty()) {
-            return true;
-        } else {
-            for (final List<T> l : lists) {
-                if (!l.isEmpty()) {
-                    return false;
-                }
-            }
-            return true;
-        }
+        return this.plainSet.isEmpty();
     }
 
     public void clear() {
         this.plainList = null;
+        this.plainSet.clear();
         this.lists.clear();
     }
 
     public int hashCode() {
         return this.hashCode;
+    }
+
+    public boolean contains(Object o) {
+        return this.plainList == null ? plainSet.contains(o) : plainList.contains(o);
     }
 }
 
