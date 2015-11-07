@@ -23,7 +23,12 @@ import java.sql.*;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.sql.DataSource;
 
@@ -83,6 +88,7 @@ public class SqlStatement {
     private State state = State.FRESH;
     private final long id;
     private Functor1<Void, Statement> callback;
+    private final ExecutorService executor;
 
     /**
      * Creates a SqlStatement.
@@ -119,6 +125,7 @@ public class SqlStatement {
         this.locus = locus;
         this.resultSetType = resultSetType;
         this.resultSetConcurrency = resultSetConcurrency;
+        this.executor = Util.getExecutorService(1, 1, 1, "mondrian.rolap.SqlStatement#execute", null);
     }
 
     /**
@@ -200,7 +207,26 @@ public class SqlStatement {
                     getPurpose(),
                     getCellRequestCount()));
 
-            this.resultSet = statement.executeQuery(sql);
+            if (MondrianProperties.instance().SqlSafeExecute.get()
+                && MondrianProperties.instance().QueryTimeout.isSet())
+            {
+                long timeoutMillis =
+                    locus.execution.getStartTime() +
+                    MondrianProperties.instance().QueryTimeout.get() * 1000 -
+                    System.currentTimeMillis();
+                final Statement st = statement;
+                Callable<ResultSet> callable = new Callable<ResultSet>() {
+                    @Override
+                    public ResultSet call() throws SQLException {
+                        return st.executeQuery(sql);
+                    }
+                };
+                Future<ResultSet> future = executor.submit(callable);
+                this.resultSet = future.get(timeoutMillis, TimeUnit.MILLISECONDS);
+            } else {
+                this.resultSet = statement.executeQuery(sql);
+                //InMemResultSet.getResultSet(statement, sql, maxRows);
+            }
 
             // skip to first row specified in request
             this.state = State.ACTIVE;
@@ -294,6 +320,10 @@ public class SqlStatement {
         SQLException ex = Util.close(resultSet, null, jdbcConnection);
         resultSet = null;
         jdbcConnection = null;
+
+        if (!executor.isShutdown()) {
+            executor.shutdown();
+        }
 
         if (ex != null) {
             throw Util.newError(

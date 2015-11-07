@@ -27,6 +27,19 @@ will probably reduce long before you get to their limit.</p>
         <Default>40</Default>
     </PropertyDefinition>
     <PropertyDefinition>
+        <Name>SqlSafeExecute</Name>
+        <Path>mondrian.rolap.sqlSafeExecute</Path>
+        <Description>
+            Boolean property which specifies whether to run SQL queries in
+            a separate thread or in the current one.
+            This is required if there is a need to kill a query which is being
+            processed by a JDBC driver, e.g. Vertica driver sometimes stuck
+            during query parsing. Defaults to <code>true</code>.
+        </Description>
+        <Type>boolean</Type>
+        <Default>true</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
         <Name>JdbcDrivers</Name>
         <Path>mondrian.jdbcDrivers</Path>
         <Description>
