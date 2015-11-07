@@ -17,6 +17,8 @@ import mondrian.calc.MemberCalc;
 import mondrian.mdx.*;
 import mondrian.olap.*;
 import mondrian.olap.type.MemberType;
+import mondrian.olap.type.NullType;
+import mondrian.olap.type.SetType;
 import mondrian.olap.type.StringType;
 import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.SqlQuery;
@@ -373,6 +375,161 @@ public class RolapNativeSql {
         }
     }
 
+
+    /**
+     * Compiles CurrentMember IN {} into SQL.
+     */
+    class CurrentMemberInSqlCompiler extends FunCallSqlCompilerBase {
+        SqlCompiler compiler;
+
+        protected CurrentMemberInSqlCompiler(SqlCompiler argumentCompiler) {
+            super(Category.Logical, "IN", 2);
+            compiler = argumentCompiler;
+        }
+
+        public String compile(Exp exp) {
+            if (!match(exp)) {
+                return null;
+            }
+            if (!dialect.supportsMultiValueInExpr()
+                || !(exp instanceof ResolvedFunCall)
+                || evaluator == null)
+            {
+                return null;
+            }
+
+            final Exp arg0 = ((ResolvedFunCall)exp).getArg(0);
+            final Exp arg1 = ((ResolvedFunCall)exp).getArg(1);
+
+            if (!(arg0 instanceof ResolvedFunCall)
+                || !(arg1 instanceof ResolvedFunCall)) {
+                return null;
+            }
+
+            // Must be ".CurrentMember"
+            final ResolvedFunCall currMemberExpr = (ResolvedFunCall)arg0;
+            if (currMemberExpr.getArgCount() != 1
+                || !(currMemberExpr.getType() instanceof MemberType)
+                || !currMemberExpr.getFunName().equals("CurrentMember"))
+            {
+                return null;
+            }
+
+            // Must be a dimension, a hierarchy or a level.
+            final RolapCubeDimension dimension;
+            final Exp dimExpr = currMemberExpr.getArg(0);
+            if (dimExpr instanceof DimensionExpr) {
+                dimension =
+                    (RolapCubeDimension) evaluator.getCachedResult(
+                        new ExpCacheDescriptor(dimExpr, evaluator));
+            } else if (dimExpr instanceof HierarchyExpr) {
+                final RolapCubeHierarchy hierarchy =
+                    (RolapCubeHierarchy) evaluator.getCachedResult(
+                        new ExpCacheDescriptor(dimExpr, evaluator));
+                dimension = (RolapCubeDimension) hierarchy.getDimension();
+            } else if (dimExpr instanceof LevelExpr) {
+                final RolapCubeLevel level =
+                    (RolapCubeLevel) evaluator.getCachedResult(
+                        new ExpCacheDescriptor(dimExpr, evaluator));
+                dimension = level.getDimension();
+            } else {
+                return null;
+            }
+
+            if (rolapLevel != null
+                && dimension.equals(rolapLevel.getDimension()))
+            {
+                // We can't use the evaluator because the filter is filtering
+                // a set which is uses same dimension as the predicate.
+                // We must use, in order of priority,
+                //  - caption requested: caption->name->key
+                //  - name requested: name->key
+                MondrianDef.Expression expression = rolapLevel.keyExp;
+                // If an aggregation table is used, it might be more efficient
+                // to use only the aggregate table and not the hierarchy table.
+                // Try to lookup the column bit key. If that fails, we will
+                // link the aggregate table to the hierarchy table. If no
+                // aggregate table is used, we can use the column expression
+                // directly.
+                String sourceExp;
+                if (aggStar != null && rolapLevel instanceof RolapCubeLevel)
+                {
+                    int bitPos =
+                        ((RolapCubeLevel)rolapLevel).getStarKeyColumn()
+                            .getBitPosition();
+                    mondrian.rolap.aggmatcher.AggStar.Table.Column col =
+                        aggStar.lookupColumn(bitPos);
+                    if (col != null) {
+                        sourceExp = col.generateExprString(sqlQuery);
+                    } else {
+                        // Make sure the level table is part of the query.
+                        rolapLevel.getHierarchy().addToFrom(
+                            sqlQuery,
+                            expression);
+                        sourceExp = expression.getExpression(sqlQuery);
+                    }
+                } else if (aggStar != null) {
+                    // Make sure the level table is part of the query.
+                    rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
+                    sourceExp = expression.getExpression(sqlQuery);
+                } else {
+                    sourceExp = expression.getExpression(sqlQuery);
+                }
+
+                // The dialect might require the use of the alias rather
+                // then the column exp.
+                if (dialect.requiresHavingAlias()) {
+                    sourceExp = sqlQuery.getAlias(sourceExp);
+                }
+
+                final ResolvedFunCall set = (ResolvedFunCall)arg1;
+                if (sourceExp != null
+                    && set.getType() instanceof SetType
+                    && "{}".equals(set.getFunName()))
+                {
+                    /*String[] args = compileArgs(set, compiler);
+                    if (args == null) {
+                        return null;
+                    }*/
+                    StringBuilder buf = new StringBuilder(sourceExp);
+                    buf.append(" IN (");
+                    int i = 0;
+                    for (Exp setArg : set.getArgs()) {
+                        if (setArg instanceof MemberExpr
+                            && ((MemberExpr)setArg).getMember() instanceof RolapCubeMember)
+                        {
+                            if (i++ > 0) {
+                                buf.append(", ");
+                            }
+                            RolapCubeMember cubeMember = (RolapCubeMember) ((MemberExpr) setArg).getMember();
+                            if (cubeMember.isCalculated() || cubeMember.getKey() == null) {
+                                return null;
+                            }
+                            dialect.quote(buf, cubeMember.getKey(), rolapLevel.getDatatype());
+                        }
+                        else {
+                            return null;
+                        }
+                    }
+                    buf.append(") ");
+                    return buf.toString();
+                }
+
+                return null;
+                        /*dialect.generateRegularExpression(
+                                sourceExp,
+                                String.valueOf(
+                                        evaluator.getCachedResult(
+                                                new ExpCacheDescriptor(arg1, evaluator))));*/
+            } else {
+                return null;
+            }
+        }
+        public String toString() {
+            return "CurrentMemberInSqlCompiler";
+        }
+    }
+
     /**
      * Compiles the underlying expression of a calculated member.
      */
@@ -587,6 +744,167 @@ public class RolapNativeSql {
 
         public String toString() {
             return "IsEmptySqlCompiler[" + mdx + "]";
+        }
+    }
+
+    class UpperLowerCaseSqlCompiler extends FunCallSqlCompilerBase {
+        private final SqlCompiler compiler;
+        private final boolean isUpper;
+
+        protected UpperLowerCaseSqlCompiler(
+            int category, String mdx,
+            SqlCompiler argumentCompiler)
+        {
+            super(category, mdx, 1);
+            this.isUpper = "UCase".equalsIgnoreCase(mdx);
+            this.compiler = argumentCompiler;
+        }
+
+        public String compile(Exp exp) {
+            String sourceExp = null;
+            /*String[] args = compileArgs(exp, compiler);
+            if (args != null) {
+                sourceExp = args[0];
+            } else */if (match(exp) && exp instanceof ResolvedFunCall && evaluator != null) {
+                final Exp arg0 = ((ResolvedFunCall) exp).getArg(0);
+
+                // Must finish by ".Caption" or ".Name"
+                if (!(arg0 instanceof ResolvedFunCall)
+                    || ((ResolvedFunCall) arg0).getArgCount() != 1
+                    || !(arg0.getType() instanceof StringType)
+                    || (!((ResolvedFunCall)arg0).getFunName().equals("Name")
+                    && !((ResolvedFunCall)arg0).getFunName().equals("Caption")))
+                {
+                    return null;
+                }
+
+                final boolean useCaption;
+                if (((ResolvedFunCall) arg0).getFunName().equals("Name")) {
+                    useCaption = false;
+                } else {
+                    useCaption = true;
+                }
+
+                // Must be ".CurrentMember"
+                final Exp currMemberExpr = ((ResolvedFunCall) arg0).getArg(0);
+                if (!(currMemberExpr instanceof ResolvedFunCall)
+                    || ((ResolvedFunCall) currMemberExpr).getArgCount() != 1
+                    || !(currMemberExpr.getType() instanceof MemberType)
+                    || !((ResolvedFunCall) currMemberExpr).getFunName().equals("CurrentMember"))
+                {
+                    return null;
+                }
+
+                // Must be a dimension, a hierarchy or a level.
+                final RolapCubeDimension dimension;
+                final Exp dimExpr = ((ResolvedFunCall) currMemberExpr).getArg(0);
+                if (dimExpr instanceof DimensionExpr) {
+                    dimension =
+                        (RolapCubeDimension) evaluator.getCachedResult(
+                            new ExpCacheDescriptor(dimExpr, evaluator));
+                } else if (dimExpr instanceof HierarchyExpr) {
+                    final RolapCubeHierarchy hierarchy =
+                        (RolapCubeHierarchy) evaluator.getCachedResult(
+                            new ExpCacheDescriptor(dimExpr, evaluator));
+                    dimension = (RolapCubeDimension) hierarchy.getDimension();
+                } else if (dimExpr instanceof LevelExpr) {
+                    final RolapCubeLevel level =
+                        (RolapCubeLevel) evaluator.getCachedResult(
+                            new ExpCacheDescriptor(dimExpr, evaluator));
+                    dimension = level.getDimension();
+                } else {
+                    return null;
+                }
+
+                if (rolapLevel != null
+                    && dimension.equals(rolapLevel.getDimension()))
+                {
+                    // We can't use the evaluator because the filter is filtering
+                    // a set which is uses same dimension as the predicate.
+                    // We must use, in order of priority,
+                    //  - caption requested: caption->name->key
+                    //  - name requested: name->key
+                    MondrianDef.Expression expression = useCaption
+                            ? rolapLevel.captionExp == null
+                            ? rolapLevel.nameExp == null
+                            ? rolapLevel.keyExp
+                            : rolapLevel.nameExp
+                            : rolapLevel.captionExp
+                            : rolapLevel.nameExp == null
+                            ? rolapLevel.keyExp
+                            : rolapLevel.nameExp;
+                    // If an aggregation table is used, it might be more efficient
+                    // to use only the aggregate table and not the hierarchy table.
+                    // Try to lookup the column bit key. If that fails, we will
+                    // link the aggregate table to the hierarchy table. If no
+                    // aggregate table is used, we can use the column expression
+                    // directly.
+                    if (aggStar != null
+                        && rolapLevel instanceof RolapCubeLevel
+                        && expression == rolapLevel.keyExp)
+                    {
+                        int bitPos =
+                            ((RolapCubeLevel) rolapLevel).getStarKeyColumn()
+                                .getBitPosition();
+                        mondrian.rolap.aggmatcher.AggStar.Table.Column col =
+                            aggStar.lookupColumn(bitPos);
+                        if (col != null) {
+                            sourceExp = col.generateExprString(sqlQuery);
+                        } else {
+                            // Make sure the level table is part of the query.
+                            rolapLevel.getHierarchy().addToFrom(
+                                sqlQuery,
+                                expression);
+                            sourceExp = expression.getExpression(sqlQuery);
+                        }
+                    } else if (aggStar != null) {
+                        // Make sure the level table is part of the query.
+                        rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
+                        sourceExp = expression.getExpression(sqlQuery);
+                    } else {
+                        sourceExp = expression.getExpression(sqlQuery);
+                    }
+                }
+            } else {
+                String[] args = compileArgs(exp, compiler);
+                if (args != null) {
+                    sourceExp = args[0];
+                }
+            }
+
+            return sourceExp != null ? (this.isUpper ? "UPPER(" : "LOWER(") + sourceExp + ")" : null;
+        }
+
+        public String toString() {
+            return "UpperLowerCaseSqlCompiler[" + mdx + "]";
+        }
+    }
+
+    class InStrSqlCompiler extends FunCallSqlCompilerBase {
+        private final SqlCompiler compiler;
+
+        protected InStrSqlCompiler(
+            int category, SqlCompiler argumentCompiler)
+        {
+            super(category, "InStr", 2);
+            this.compiler = argumentCompiler;
+        }
+
+        public String compile(Exp exp) {
+            String[] args = compileArgs(exp, compiler);
+            if (args == null) {
+                return null;
+            }
+            StringBuilder sb = new StringBuilder("POSITION(");
+            dialect.quoteStringLiteral(sb, args[1]);
+            sb.append(" IN ");
+            sb.append(args[0]);
+            sb.append(")");
+            return sb.toString();
+        }
+
+        public String toString() {
+            return "InStrSqlCompiler[" + mdx + "]";
         }
     }
 
@@ -978,7 +1296,8 @@ public class RolapNativeSql {
                         validMember = !member.isCalculated() && !member.isMeasure();
                     }
                     return validMember || supportsExp(funcall.getArg(0));
-                } else if (funcall.getFunName().equalsIgnoreCase("Name")
+                } else if ((funcall.getFunName().equalsIgnoreCase("Name")
+                            || funcall.getFunName().equalsIgnoreCase("Caption"))
                     && funcall.getArgCount() == 1) {
                     boolean validMember = false;
                     if (funcall.getArg(0) instanceof MemberExpr) {
@@ -1082,6 +1401,15 @@ public class RolapNativeSql {
                 Category.Numeric, "*", "*", numericCompiler));
         numericCompiler.add(
             new IifSqlCompiler(Category.Numeric, numericCompiler));
+        numericCompiler.add(
+            new UpperLowerCaseSqlCompiler(
+                Category.String, "UCase", numericCompiler));
+        numericCompiler.add(
+            new UpperLowerCaseSqlCompiler(
+                Category.String, "LCase", numericCompiler));
+        numericCompiler.add(
+            new InStrSqlCompiler(
+                Category.String, numericCompiler));
 
         booleanCompiler.add(
             new InfixOpSqlCompiler(
@@ -1122,6 +1450,7 @@ public class RolapNativeSql {
             new ParenthesisSqlCompiler(Category.Logical, booleanCompiler));
         booleanCompiler.add(
             new IifSqlCompiler(Category.Logical, booleanCompiler));
+        //booleanCompiler.add(new CurrentMemberInSqlCompiler(numericCompiler));
     }
 
     /**
