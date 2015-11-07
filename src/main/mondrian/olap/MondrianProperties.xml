@@ -1302,6 +1302,22 @@ not conform to SSAS, but is useful in some applications.</p>
         <Default>false</Default>
     </PropertyDefinition>
     <PropertyDefinition>
+        <Name>NullOrZeroDenominatorProducesNull</Name>
+        <Path>mondrian.olap.NullOrZeroDenominatorProducesNull</Path>
+        <Description>
+            <p>Property that defines
+                the behavior of division if the denominator evaluates to null or zero.</p>
+            <p>If false (the default), if a division has a non-null numerator and
+                a null denominator, it evaluates to "Infinity", which conforms to SSAS
+                behavior.</p>
+            <p>If true, the result is null if the denominator is null or zero. Setting to
+                true enables the old semantics of evaluating this to null; this does
+                not conform to SSAS, but is useful in some applications.</p>
+        </Description>
+        <Type>boolean</Type>
+        <Default>false</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
         <Name>EnableGroupingSets</Name>
         <Path>mondrian.rolap.groupingsets.enable</Path>
         <Category>SQL generation</Category>

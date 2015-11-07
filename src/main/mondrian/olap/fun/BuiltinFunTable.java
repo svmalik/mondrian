@@ -1600,6 +1600,9 @@ public class BuiltinFunTable extends FunTableImpl {
                 final boolean isNullDenominatorProducesNull =
                     MondrianProperties.instance().NullDenominatorProducesNull
                         .get();
+                final boolean isNullOrZeroDenominatorProducesNull =
+                    MondrianProperties.instance().NullOrZeroDenominatorProducesNull
+                        .get();
 
                 // If the mondrian property
                 //   mondrian.olap.NullOrZeroDenominatorProducesNull
@@ -1609,7 +1612,7 @@ public class BuiltinFunTable extends FunTableImpl {
                 // If this property is true, Null or zero in denominator returns
                 // Null. This is only used by certain applications and does not
                 // conform to MSAS behavior.
-                if (!isNullDenominatorProducesNull) {
+                if (!isNullDenominatorProducesNull && !isNullOrZeroDenominatorProducesNull) {
                     return new AbstractDoubleCalc(
                         call, new Calc[] {calc0, calc1})
                     {
@@ -1623,6 +1626,22 @@ public class BuiltinFunTable extends FunTableImpl {
                             } else if (v1 == DoubleNull) {
                                 // Null only in denominator returns Infinity.
                                 return Double.POSITIVE_INFINITY;
+                            } else {
+                                return v0 / v1;
+                            }
+                        }
+                    };
+                } else if (isNullOrZeroDenominatorProducesNull){
+                    return new AbstractDoubleCalc(
+                        call, new Calc[] {calc0, calc1})
+                    {
+                        public double evaluateDouble(Evaluator evaluator) {
+                            final double v0 = calc0.evaluateDouble(evaluator);
+                            final double v1 = calc1.evaluateDouble(evaluator);
+                            // Null in numerator or denominator returns
+                            // DoubleNull.
+                            if (v0 == DoubleNull || v1 == DoubleNull  || v1 == 0.0) {
+                                return DoubleNull;
                             } else {
                                 return v0 / v1;
                             }
