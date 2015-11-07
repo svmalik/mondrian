@@ -16,6 +16,7 @@ import mondrian.olap.*;
 import mondrian.olap.Role.RollupPolicy;
 import mondrian.olap.fun.*;
 import mondrian.olap.type.HierarchyType;
+import mondrian.olap.type.SetType;
 import mondrian.olap.type.Type;
 import mondrian.rolap.*;
 
@@ -179,6 +180,9 @@ public class CrossJoinArgFactory {
         if ("{}".equalsIgnoreCase(fun.getName()) && args.length == 1) {
             return checkCrossJoinArg(evaluator, args[0], returnAny, true);
         }
+        if ("()".equalsIgnoreCase(fun.getName()) && args.length == 1) {
+            return checkCrossJoinArg(evaluator, args[0], returnAny, true);
+        }
         if ("NativizeSet".equalsIgnoreCase(fun.getName()) && args.length == 1) {
             return checkCrossJoinArg(evaluator, args[0], returnAny, true);
         }
@@ -226,6 +230,12 @@ public class CrossJoinArgFactory {
            }
            return allArgs;
         }
+
+        cjArgs = checkOrderFun(evaluator, funCall);
+        if (cjArgs != null) {
+            return Collections.singletonList(cjArgs);
+        }
+
         return checkCrossJoin(evaluator, fun, args, returnAny);
     }
 
@@ -401,9 +411,7 @@ public class CrossJoinArgFactory {
         final boolean returnAny)
     {
         // is this "CrossJoin([A].children, [B].children)"
-        if (!"Crossjoin".equalsIgnoreCase(fun.getName())
-            && !"NonEmptyCrossJoin".equalsIgnoreCase(fun.getName()))
-        {
+        if (!(fun instanceof CrossJoinFunDef)) {
             return null;
         }
         if (args.length != 2) {
@@ -1145,6 +1153,32 @@ public class CrossJoinArgFactory {
             checkEnumeration(
                 evaluator, predSecondArgFun, predSecondArgList, exclude);
         return predCJArgs;
+    }
+
+    private CrossJoinArg[] checkOrderFun(RolapEvaluator evaluator, ResolvedFunCall funCall)
+    {
+        FunDef fun = funCall.getFunDef();
+        Exp[] args = funCall.getArgs();
+        if (!"Order".equalsIgnoreCase(fun.getName()) || args.length == 0) {
+            return null;
+        }
+        if (args[0] instanceof ResolvedFunCall) {
+            ResolvedFunCall call = (ResolvedFunCall)args[0];
+            while (("{}".equals(call.getFunName()) || "()".equals(call.getFunName()))
+                    && call.getArgCount() == 1
+                    && call.getArg(0) instanceof ResolvedFunCall)
+            {
+                call = (ResolvedFunCall)call.getArg(0);
+            }
+
+            for (Exp arg1 : call.getArgs()) {
+                if (!(arg1 instanceof MemberExpr)) {
+                    return null;
+                }
+            }
+            return expandNonNative(evaluator, funCall);
+        }
+        return null;
     }
 
     private CrossJoinArg[] expandNonNative(
