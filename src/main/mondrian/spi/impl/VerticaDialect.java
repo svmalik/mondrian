@@ -19,6 +19,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -168,6 +170,30 @@ public class VerticaDialect extends JdbcDialectImpl {
 
     public boolean supportsWithClause() {
         return true;
+    }
+
+    @Override
+    public boolean allowsRegularExpressionInWhereClause() {
+        return true;
+    }
+
+    @Override
+    public String generateRegularExpression(String source, String javaRegExp) {
+        try {
+            Pattern.compile(javaRegExp);
+        } catch (PatternSyntaxException e) {
+            // Not a valid Java regex. Too risky to continue.
+            return null;
+        }
+        final StringBuilder sb = new StringBuilder("REGEXP_LIKE(");
+        sb.append(source);
+        sb.append(", ");
+        quoteStringLiteral(sb, javaRegExp);
+        // Treat strings as binary octets rather than UTF-8 characters.
+        // Otherwise, it leads to many "Regexp encountered an invalid UTF-8
+        // character" errors.
+        sb.append(", 'b')");
+        return sb.toString();
     }
 }
 
