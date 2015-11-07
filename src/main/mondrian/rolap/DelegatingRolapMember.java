@@ -80,7 +80,9 @@ public class DelegatingRolapMember extends RolapMemberBase {
     }
 
     public boolean isChildOrEqualTo(Member member2) {
-        return member.isChildOrEqualTo(member2);
+        Member other = member2 instanceof DelegatingRolapMember
+            ? ((DelegatingRolapMember) member2).member : member2;
+        return member.isChildOrEqualTo(other);
     }
 
     public boolean isCalculated() {
