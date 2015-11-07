@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import mondrian.mdx.DimensionExpr;
 import mondrian.mdx.HierarchyExpr;
 import mondrian.mdx.MdxVisitorImpl;
+import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.Dimension;
 import mondrian.olap.Exp;
@@ -81,8 +82,12 @@ public class RolapNativeCount extends RolapNativeSet {
         ResolvedFunCall call = (ResolvedFunCall)args[0];
 
         if (call.getFunDef().getName().equals("Cache")) {
-            if (call.getArg( 0 ) instanceof ResolvedFunCall) {
-                call = (ResolvedFunCall)call.getArg(0);
+            Exp arg0 = call.getArg(0);
+            if (arg0 instanceof NamedSetExpr) {
+                arg0 = ((NamedSetExpr)arg0).getNamedSet().getExp();
+            }
+            if (arg0 instanceof ResolvedFunCall) {
+                call = (ResolvedFunCall)arg0;
             } else {
                 return null;
             }
