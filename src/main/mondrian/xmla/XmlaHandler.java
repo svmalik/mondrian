@@ -205,10 +205,12 @@ public class XmlaHandler {
         String roleName = request.getProperties().get(
             PropertyDefinition.Roles.name());
 
-        if (roleName != null) {
+        if (roleName != null && !roleName.isEmpty()) {
             try {
                 connection.setRoleName(roleName);
             } catch (OlapException e) {
+                throw Util.newInternal(
+                    e, "Could not set connection role to '" + roleName + "'");
                 // ignore
             }
         }
