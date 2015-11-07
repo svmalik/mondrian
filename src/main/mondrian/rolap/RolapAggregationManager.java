@@ -653,25 +653,37 @@ public abstract class RolapAggregationManager {
              * {
              */
             StarPredicate compoundGroupPredicate = null;
+            List<StarPredicate> predicateList = new ArrayList<StarPredicate>(group.size());
             for (RolapCubeMember[] tuple : group) {
                /*
                 * [USA].[CA]
                 */
-                StarPredicate tuplePredicate = null;
-
+                List<StarPredicate> groupPredicates = new ArrayList<StarPredicate>(tuple.length);
                 for (RolapCubeMember member : tuple) {
-                    tuplePredicate = makeCompoundPredicateForMember(
-                        member, baseCube, tuplePredicate);
-                }
-                if (tuplePredicate != null) {
-                    if (compoundGroupPredicate == null) {
-                        compoundGroupPredicate = tuplePredicate;
-                    } else {
-                        compoundGroupPredicate =
-                            compoundGroupPredicate.or(tuplePredicate);
+                    while (member != null) {
+                        RolapCubeLevel level = member.getLevel();
+                        if (!level.isAll()) {
+                            RolapStar.Column column = level.getBaseStarKeyColumn(baseCube);
+                            StarPredicate memberPredicate =
+                                new ValueColumnPredicate(column, member.getKey());
+                            groupPredicates.add(memberPredicate);
+                        }
+                        // Don't need to constrain USA if CA is unique
+                        if (member.getLevel().isUnique()) {
+                            break;
+                        }
+                        member = member.getParentMember();
                     }
                 }
-                
+                if (!groupPredicates.isEmpty()) {
+                    predicateList.add(new AndPredicate(groupPredicates));
+                }
+            }
+
+            if (predicateList.size() == 1) {
+                compoundGroupPredicate = predicateList.get(0);
+            } else if (predicateList.size() > 1){
+                compoundGroupPredicate = new OrPredicate(predicateList);
             }
 
             if (compoundGroupPredicate != null
@@ -753,33 +765,6 @@ public abstract class RolapAggregationManager {
             }
             list.add(valuePredicate);
         }
-    }
-
-    private static StarPredicate makeCompoundPredicateForMember(
-        RolapCubeMember member,
-        RolapCube baseCube,
-        StarPredicate memberPredicate)
-    {
-        while (member != null) {
-            RolapCubeLevel level = member.getLevel();
-            if (!level.isAll()) {
-                RolapStar.Column column = level.getBaseStarKeyColumn(baseCube);
-                if (memberPredicate == null) {
-                    memberPredicate =
-                        new ValueColumnPredicate(column, member.getKey());
-                } else {
-                    memberPredicate =
-                        memberPredicate.and(
-                            new ValueColumnPredicate(column, member.getKey()));
-                }
-            }
-            // Don't need to constrain USA if CA is unique
-            if (member.getLevel().isUnique()) {
-                break;
-            }
-            member = member.getParentMember();
-        }
-        return memberPredicate;
     }
 
     /**
