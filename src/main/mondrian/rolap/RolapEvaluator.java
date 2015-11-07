@@ -880,7 +880,10 @@ public class RolapEvaluator implements Evaluator {
                 root.activeCellCalcs.remove(cellCalc);
             }
         }
-        if (o == Util.nullValue) {
+        if (Util.nullValue.equals(o)) {
+            /*if (Util.nullValue != o) {
+                throw new InvalidArgumentException("Double != double");
+            }*/
             return null;
         }
         return o;
