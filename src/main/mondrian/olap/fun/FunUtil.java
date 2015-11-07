@@ -17,6 +17,7 @@ import mondrian.olap.*;
 import mondrian.olap.type.*;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.*;
+import mondrian.server.Locus;
 import mondrian.util.*;
 
 import org.apache.commons.collections.ComparatorUtils;
@@ -1582,6 +1583,9 @@ public class FunUtil extends Util {
         SetWrapper retval = new SetWrapper();
         final TupleCursor cursor = members.tupleCursor();
         while (cursor.forward()) {
+            // Check if the MDX query was canceled.
+            Locus.peek().execution.checkCancelOrTimeout();
+
             cursor.setContext(evaluator);
             Object o = calc.evaluate(evaluator);
             if (o == null || o == Util.nullValue) {
