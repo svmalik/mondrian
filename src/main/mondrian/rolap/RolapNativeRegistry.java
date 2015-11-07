@@ -43,6 +43,7 @@ public class RolapNativeRegistry extends RolapNative {
         register("Order".toUpperCase(), new RolapNativeOrder());
         register("Exists".toUpperCase(), new RolapNativeExists());
         register("Except".toUpperCase(), new RolapNativeExcept());
+        register("Aggregate".toUpperCase(), new RolapNativeAggregate());
     }
 
     /**

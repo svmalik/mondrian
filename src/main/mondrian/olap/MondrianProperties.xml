@@ -900,6 +900,16 @@ If enabled some Order will be computed in SQL.
         <Default>true</Default>
     </PropertyDefinition>
     <PropertyDefinition>
+        <Name>EnableNativeAggregate</Name>
+        <Path>mondrian.native.aggregate.enable</Path>
+        <Category>SQL generation</Category>
+        <Description>
+            <p>If enabled some AGGREGATE() calls will be computed in SQL.</p>
+        </Description>
+        <Type>boolean</Type>
+        <Default>false</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
         <Name>AlertNativeEvaluationUnsupported</Name>
         <Path>mondrian.native.unsupported.alert</Path>
         <Category>SQL generation</Category>

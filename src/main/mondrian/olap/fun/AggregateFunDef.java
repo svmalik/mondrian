@@ -107,6 +107,21 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                     evaluator.setContext(member);
                 }
 
+                if(exp instanceof ResolvedFunCall) {
+                    ResolvedFunCall call = (ResolvedFunCall) exp;
+                    RolapEvaluator manyToManyEval =
+                        ManyToManyUtil.getManyToManyEvaluator(
+                            (RolapEvaluator)evaluator);
+                    SchemaReader schemaReader = evaluator.getSchemaReader();
+                    NativeEvaluator nativeEvaluator =
+                        schemaReader.getNativeSetEvaluator(
+                            call.getFunDef(), call.getArgs(), manyToManyEval, this);
+                    if (nativeEvaluator != null) {
+                        Double d = (Double) nativeEvaluator.execute(ResultStyle.VALUE);
+                        return d == FunUtil.DoubleNull ? null : d;
+                    }
+                }
+
                 TupleList list = evaluateCurrentList(listCalc, evaluator);
                 boolean pushdownAggregation = true;
                 if (member == null && exp instanceof ResolvedFunCall
