@@ -18,6 +18,8 @@ import mondrian.rolap.ManyToManyUtil;
 import mondrian.rolap.RolapAggregator;
 import mondrian.rolap.RolapCubeHierarchy;
 import mondrian.rolap.RolapEvaluator;
+import mondrian.rolap.RolapResult;
+import mondrian.rolap.SqlConstraintUtils;
 
 import org.apache.log4j.Logger;
 
@@ -101,11 +103,32 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
             evaluator.getTiming().markStart(TIMING_NAME);
             final int savepoint = evaluator.savepoint();
             try {
-                TupleList list = evaluateCurrentList(listCalc, evaluator);
                 if (member != null) {
                     evaluator.setContext(member);
                 }
-                return aggregate(calc, evaluator, list, false);
+
+                TupleList list = evaluateCurrentList(listCalc, evaluator);
+                boolean pushdownAggregation = true;
+                if (member == null && exp instanceof ResolvedFunCall
+                    && ((ResolvedFunCall)exp).getArgCount() > 1)
+                {
+                    pushdownAggregation = false;
+                } else if (!(exp instanceof DummyExp)) {
+                    Set<Member> members = new HashSet<Member>();
+                    exp.accept(new MemberExtractingVisitor(members, null, false));
+                    checkParents:
+                    for (Member m : members) {
+                        Member parent = m.getParentMember();
+                        while (parent != null && !parent.isAll()) {
+                            if (members.contains(parent)) {
+                                pushdownAggregation = false;
+                                break checkParents;
+                            }
+                            parent = parent.getParentMember();
+                        }
+                    }
+                }
+                return aggregate(calc, evaluator, list, pushdownAggregation);
             } finally {
                 evaluator.restore(savepoint);
                 evaluator.getTiming().markEnd(TIMING_NAME);
@@ -142,20 +165,8 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                     null,
                     "Don't know how to rollup aggregator '" + aggregator + "'");
             }
-            if (!shouldPushdownAggregation(pushdownAggregation, aggregator, tupleList)) {
-                tupleList =
-                    ManyToManyUtil.processManyToManyMembers(
-                        evaluator, tupleList);
-                final int savepoint = evaluator.savepoint();
-                try {
-                    evaluator.setNonEmpty(false);
-                    final Object o =
-                        rollup.aggregate(
-                            evaluator, tupleList, calc);
-                    return o;
-                } finally {
-                    evaluator.restore(savepoint);
-                }
+            if (!shouldPushdownAggregation(pushdownAggregation, aggregator, tupleList, evaluator)) {
+                return aggregate(evaluator, calc, rollup, tupleList);
             }
 
             // All that follows is logic for distinct count and aggregations
@@ -185,7 +196,11 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                 // very slow.  May want to revisit this if someone
                 // improves the algorithm.
             } else {
-                tupleList = optimizeTupleList(evaluator, tupleList, true);
+                tupleList = optimizeTupleList(evaluator, tupleList);
+                if (checkIfAggregationSizeIsTooLarge(
+                        tupleList, requiresPushdownAggregation(aggregator))) {
+                    return aggregate(evaluator, calc, rollup, tupleList);
+                }
             }
 
             // Can't aggregate distinct-count values in the same way
@@ -206,19 +221,83 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
             return evaluator2.evaluateCurrent();
         }
 
+        private static Object aggregate(Evaluator evaluator, Calc calc, Aggregator rollup, TupleList tupleList) {
+            tupleList =
+                ManyToManyUtil.processManyToManyMembers(
+                    evaluator, tupleList);
+            final int savepoint = evaluator.savepoint();
+            try {
+                evaluator.setNonEmpty(false);
+                final Object o =
+                    rollup.aggregate(
+                        evaluator, tupleList, calc);
+                return o;
+            } finally {
+                evaluator.restore(savepoint);
+            }
+        }
+
         /**
          * We should push down aggregations for distinct counts and
          * for slicers that contain many to many dimensions to avoid
          * large slicers due to many to many use cases.
          */
-        private static boolean shouldPushdownAggregation(boolean pushdownAggregation, Aggregator aggregator, TupleList tupleList) {
-          if (aggregator == RolapAggregator.DistinctCount
-              || aggregator == RolapAggregator.Avg) {
-              return true;
+        private static boolean shouldPushdownAggregation(
+            boolean pushdownAggregation,
+            Aggregator aggregator,
+            TupleList tupleList,
+            Evaluator ev)
+        {
+          if (requiresPushdownAggregation(aggregator)) {
+              //return true;
           }
           if (!pushdownAggregation) {
               return false;
           }
+            RolapEvaluator rolapEvaluator = null;
+            //List<Member> slicerMembers = new ArrayList<Member>();
+            if (ev instanceof RolapEvaluator) {
+                rolapEvaluator = (RolapEvaluator)ev;
+                //slicerMembers = rolapEvaluator.getSlicerMembers();
+            }
+
+            //Set<Member> argMembers = new HashSet<Member>();
+            for (List<Member> members : tupleList) {
+                for (Member member : members) {
+                    if (member.isMeasure() || member.isCalculated())
+                    {
+                        return false;
+                    }
+                    /*if (!slicerMembers.contains(member)) {
+                        argMembers.add(member);
+                    }*/
+                }
+            }
+            /*for (Member m : argMembers) {
+                Member parentMember = m.getParentMember();
+                while (parentMember != null && !parentMember.isAll()) {
+                    if (argMembers.contains(parentMember)) {
+                        return false;
+                    }
+                    parentMember = parentMember.getParentMember();
+                }
+            }*/
+            if (rolapEvaluator != null) {
+                for (Member member : rolapEvaluator.getNonAllMembers()) {
+                    if (member instanceof RolapResult.CompoundSlicerRolapMember) {
+                        return false;
+                    }
+                }
+                for (Member member : rolapEvaluator.getSlicerMembers()) {
+                    if (member.isCalculated()
+                        && member != rolapEvaluator.getExpanding())
+                    {
+                        return false;
+                    }
+                }
+            }
+            return true;
+          /*
           // if Many to Many Dimensions are at play, push down the aggregation
           if (tupleList.size() > 0) {
               for (Member member : tupleList.get(0)) {
@@ -233,7 +312,12 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                   }
               }
           }
-          return false;
+          return false;/**/
+        }
+
+        private static boolean requiresPushdownAggregation(Aggregator aggregator) {
+            return aggregator == RolapAggregator.DistinctCount
+                || aggregator == RolapAggregator.Avg;
         }
 
         /**
@@ -241,17 +325,29 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
          * be safely optimized. If a member of the tuple list is on
          * a hierarchy for which a rollup policy of PARTIAL is set,
          * it is not safe to optimize that list.
+         * Same for levels with non-unique members.
          */
         private static boolean canOptimize(
             Evaluator evaluator,
             TupleList tupleList)
         {
+            if (SqlConstraintUtils.isDisjointTuple(tupleList)) {
+                return false;
+            }
             // If members of this hierarchy are controlled by a role which
             // enforces a rollup policy of partial, we cannot safely
             // optimize the tuples list as it might end up rolling up to
             // the parent while not all children are actually accessible.
             for (List<Member> tupleMembers : tupleList) {
                 for (Member member : tupleMembers) {
+                    if (!member.getLevel().areMembersUnique()) {
+                        //return false;
+                    }
+                    if (member.getHierarchy() instanceof RolapCubeHierarchy
+                        && ((RolapCubeHierarchy)member.getHierarchy()).isManyToMany())
+                    {
+                        //return false;
+                    }
                     final RollupPolicy policy =
                         evaluator.getSchemaReader().getRole()
                             .getAccessDetails(member.getHierarchy())
@@ -265,7 +361,7 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
         }
 
         public static TupleList optimizeTupleList(
-            Evaluator evaluator, TupleList tupleList, boolean checkSize)
+            Evaluator evaluator, TupleList tupleList)
         {
             if (!canOptimize(evaluator, tupleList)) {
                 return tupleList;
@@ -286,9 +382,6 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                     tupleList,
                     evaluator.getSchemaReader(),
                     evaluator.getMeasureCube());
-            if (checkSize) {
-                checkIfAggregationSizeIsTooLarge(tupleList);
-            }
             return tupleList;
         }
 
@@ -364,17 +457,23 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
             return parentLevelCount > 0;
         }
 
-        private static void checkIfAggregationSizeIsTooLarge(List list) {
+        private static boolean checkIfAggregationSizeIsTooLarge(
+            List list, boolean fail)
+        {
             final IntegerProperty property =
                 MondrianProperties.instance().MaxConstraints;
             final int maxConstraints = property.get();
             if (list.size() > maxConstraints) {
-                throw newEvalException(
-                    null,
-                    "Aggregation is not supported over a list"
-                    + " with more than " + maxConstraints + " predicates"
-                    + " (see property " + property.getPath() + ")");
+                if (fail) {
+                    throw newEvalException(
+                        null,
+                        "Aggregation is not supported over a list"
+                        + " with more than " + maxConstraints + " predicates"
+                        + " (see property " + property.getPath() + ")");
+                }
+                return true;
             }
+            return false;
         }
 
         public boolean dependsOn(Hierarchy hierarchy) {
@@ -524,7 +623,7 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                 }
                 if (childCountOfParent != -1
                     && membersToBeOptimized.size() == childCountOfParent
-                    && canOptimize(firstParentMember, baseCubeForMeasure))
+                    && canOptimize(firstParentMember, baseCubeForMeasure, reader))
                 {
                     optimizedMembers.add(firstParentMember);
                     didOptimize = true;
@@ -563,8 +662,20 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
 
         private static boolean canOptimize(
             Member parentMember,
-            Cube baseCube)
+            Cube baseCube,
+            SchemaReader reader)
         {
+            if (parentMember.isAll()
+                && parentMember.getHierarchy() instanceof RolapCubeHierarchy
+                && ((RolapCubeHierarchy)parentMember.getHierarchy()).isManyToMany())
+            {
+                return false;
+            }
+            if (reader.getRole().getAccessDetails(parentMember.getHierarchy())
+                    .hasInaccessibleDescendants(parentMember))
+            {
+                return false;
+            }
             return dimensionJoinsToBaseCube(
                 parentMember.getDimension(), baseCube)
                 || !parentMember.isAll();
