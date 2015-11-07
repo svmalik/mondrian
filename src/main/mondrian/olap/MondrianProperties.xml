@@ -890,6 +890,16 @@ If enabled some Order will be computed in SQL.
         <Default>true</Default>
     </PropertyDefinition>
     <PropertyDefinition>
+        <Name>EnableNativeExcept</Name>
+        <Path>mondrian.native.except.enable</Path>
+        <Category>SQL generation</Category>
+        <Description>
+            <p>If enabled some EXCEPT() calls will be computed in SQL.</p>
+        </Description>
+        <Type>boolean</Type>
+        <Default>true</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
         <Name>AlertNativeEvaluationUnsupported</Name>
         <Path>mondrian.native.unsupported.alert</Path>
         <Category>SQL generation</Category>

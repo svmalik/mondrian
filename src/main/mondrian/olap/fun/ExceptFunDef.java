@@ -14,6 +14,8 @@ import mondrian.calc.impl.AbstractListCalc;
 import mondrian.calc.impl.ArrayTupleList;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
+import mondrian.rolap.ManyToManyUtil;
+import mondrian.rolap.RolapEvaluator;
 
 import java.util.*;
 
@@ -36,13 +38,28 @@ class ExceptFunDef extends FunDefBase {
         super(dummyFunDef);
     }
 
-    public Calc compileCall(ResolvedFunCall call, ExpCompiler compiler) {
+    public Calc compileCall(final ResolvedFunCall call, ExpCompiler compiler) {
         // todo: implement ALL
         final ListCalc listCalc0 = compiler.compileList(call.getArg(0));
         final ListCalc listCalc1 = compiler.compileList(call.getArg(1));
         return new AbstractListCalc(call, new Calc[] {listCalc0, listCalc1})
         {
             public TupleList evaluateList(Evaluator evaluator) {
+
+                RolapEvaluator manyToManyEval =
+                    ManyToManyUtil.getManyToManyEvaluator(
+                        (RolapEvaluator) evaluator);
+                NativeEvaluator nativeEvaluator =
+                    evaluator.getSchemaReader().getNativeSetEvaluator(
+                        call.getFunDef(),
+                        call.getArgs(),
+                        manyToManyEval,
+                        this);
+                if (nativeEvaluator != null) {
+                    return (TupleList)
+                        nativeEvaluator.execute(ResultStyle.LIST);
+                }
+
                 TupleList list0 = listCalc0.evaluateList(evaluator);
                 if (list0.isEmpty()) {
                     return list0;
