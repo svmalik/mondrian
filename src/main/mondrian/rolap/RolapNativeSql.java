@@ -1144,10 +1144,14 @@ public class RolapNativeSql {
             String cond = booleanCompiler.compile(args[0]);
             String val1 = valueCompiler.compile(args[1]);
             String val2 = valueCompiler.compile(args[2]);
-            if (cond == null || val1 == null || val2 == null) {
+            if (cond == null || (val1 == null && !isNullLiteral(args[1])) || (val2 == null && !isNullLiteral(args[2]))) {
                 return null;
             }
             return sqlQuery.getDialect().caseWhenElse(cond, val1, val2);
+        }
+
+        private boolean isNullLiteral(Exp exp) {
+            return exp instanceof Literal && exp.getType() instanceof NullType;
         }
     }
 
