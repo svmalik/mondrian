@@ -23,8 +23,7 @@ import java.util.*;
  * @author jhyde
  */
 public abstract class ListPredicate implements StarPredicate {
-    protected final List<StarPredicate> children =
-        new ArrayList<StarPredicate>();
+    protected final List<StarPredicate> children;
 
     /**
      * Hash map of children predicates, keyed off of the hash code of each
@@ -48,8 +47,8 @@ public abstract class ListPredicate implements StarPredicate {
         // Ensure that columns are sorted by bit-key, for determinacy.
         final SortedSet<RolapStar.Column> columnSet =
             new TreeSet<RolapStar.Column>(RolapStar.Column.COMPARATOR);
+        children = new ArrayList<StarPredicate>(predicateList);
         for (StarPredicate predicate : predicateList) {
-            children.add(predicate);
             columnSet.addAll(predicate.getConstrainedColumnList());
         }
         columns = new ArrayList<RolapStar.Column>(columnSet);

@@ -15,8 +15,6 @@ import mondrian.rolap.sql.SqlQuery;
 
 import java.util.*;
 
-import javax.management.Query;
-
 /**
  * Predicate which is the union of a list of predicates, each of which applies
  * to the same, single column. It evaluates to
@@ -44,7 +42,8 @@ public class ListColumnPredicate extends AbstractColumnPredicate {
      * Set of child values, if all child predicates are value predicates; null
      * otherwise.
      */
-    private final Set<Object> values;
+    private Set<Object> values;
+    private boolean createdValues = false;
 
     /**
      * Pre-computed hash code for this list column predicate
@@ -68,7 +67,8 @@ public class ListColumnPredicate extends AbstractColumnPredicate {
         values = createValues(list);
     }
 
-    private static Set<Object> createValues(List<StarColumnPredicate> list) {
+    private Set<Object> createValues(List<StarColumnPredicate> list) {
+        createdValues = true;
         final HashSet<Object> set = new HashSet<Object>();
         for (StarColumnPredicate predicate : list) {
             if (predicate instanceof ValueColumnPredicate) {
@@ -117,6 +117,9 @@ public class ListColumnPredicate extends AbstractColumnPredicate {
     }
 
     public void values(Collection<Object> collection) {
+        if (!createdValues) {
+            values = createValues(children);
+        }
         if (values != null) {
             collection.addAll(values);
         } else {
@@ -286,20 +289,23 @@ public class ListColumnPredicate extends AbstractColumnPredicate {
         assert predicate.getConstrainedColumn() == getConstrainedColumn();
         if (predicate instanceof ListColumnPredicate) {
             ListColumnPredicate that = (ListColumnPredicate) predicate;
-            final List<StarColumnPredicate> list =
+            /*final List<StarColumnPredicate> list =
                 new ArrayList<StarColumnPredicate>(children);
             list.addAll(that.children);
             return new ListColumnPredicate(
                 getConstrainedColumn(),
-                list);
+                list);*/
+            children.addAll(that.children);
         } else {
-            final List<StarColumnPredicate> list =
+            /*final List<StarColumnPredicate> list =
                 new ArrayList<StarColumnPredicate>(children);
             list.add(predicate);
             return new ListColumnPredicate(
                 getConstrainedColumn(),
-                list);
+                list);*/
+            children.add(predicate);
         }
+        return this;
     }
 
     public StarColumnPredicate cloneWithColumn(RolapStar.Column column) {
