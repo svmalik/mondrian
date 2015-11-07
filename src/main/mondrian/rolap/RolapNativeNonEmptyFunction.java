@@ -10,6 +10,7 @@
 package mondrian.rolap;
 
 import mondrian.mdx.MemberExpr;
+import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.Exp;
 import mondrian.olap.FunDef;
@@ -240,6 +241,9 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             for (Exp arg : args) {
                 findMeasures(arg, baseCubes, baseCubeList, foundMeasures);
             }
+        } else if (exp instanceof NamedSetExpr) {
+            Exp namedSetExp = ((NamedSetExpr)exp).getNamedSet().getExp();
+            findMeasures(namedSetExp, baseCubes, baseCubeList, foundMeasures);
         }
     }
 
