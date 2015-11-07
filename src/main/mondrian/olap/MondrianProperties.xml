@@ -840,6 +840,30 @@ level.members and member descendants will be computed in SQL.</p>
         <Default>true</Default>
     </PropertyDefinition>
     <PropertyDefinition>
+        <Name>EnableNativeNonEmptyFunctionDifferentCubes</Name>
+        <Path>mondrian.native.nonemptyfunction.enable.differentCubes</Path>
+        <Category>SQL generation</Category>
+        <Description>
+            <p>If enabled, some NonEmpty() calls will be computed in SQL.
+            This optimization tries to group measures by cubes and run separately.
+            Non-native groups are not supported.</p>
+        </Description>
+        <Type>boolean</Type>
+        <Default>true</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
+        <Name>EnableNativeNonEmptyFunctionDifferentCubesAndNonNative</Name>
+        <Path>mondrian.native.nonemptyfunction.enable.differentCubesAnNonNative</Path>
+        <Category>SQL generation</Category>
+        <Description>
+            <p>If enabled, some NonEmpty() calls will be computed in SQL.
+            This optimization tries to group measures by cubes and run separately,
+            including non-native groups.</p>
+        </Description>
+        <Type>boolean</Type>
+        <Default>true</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
         <Name>EnableNativeCount</Name>
         <Path>mondrian.native.count.enable</Path>
         <Category>SQL generation</Category>
