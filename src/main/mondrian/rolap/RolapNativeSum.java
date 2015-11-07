@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import mondrian.mdx.MemberExpr;
+import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.Evaluator;
 import mondrian.olap.Exp;
@@ -88,7 +89,15 @@ public class RolapNativeSum extends RolapNativeSet {
         if (call.getFunDef().getName().equals("Cache")) {
             if (call.getArg( 0 ) instanceof ResolvedFunCall) {
                 call = (ResolvedFunCall)call.getArg(0);
-            } else {
+            } else if (call.getArg(0) instanceof NamedSetExpr) {
+                Exp exp = ((NamedSetExpr)call.getArg(0)).getNamedSet().getExp();
+                if (exp instanceof ResolvedFunCall) {
+                    call = (ResolvedFunCall)exp;
+                } else {
+                    return null;
+                }
+            }
+            else {
                 return null;
             }
         }
