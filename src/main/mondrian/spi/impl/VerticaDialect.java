@@ -172,6 +172,10 @@ public class VerticaDialect extends JdbcDialectImpl {
         return true;
     }
 
+    public boolean supportsUnlimitedValueList() {
+        return true;
+    }
+
     @Override
     public boolean allowsRegularExpressionInWhereClause() {
         return true;
