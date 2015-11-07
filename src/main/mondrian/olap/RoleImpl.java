@@ -903,11 +903,21 @@ public class RoleImpl implements Role {
             return rollupPolicy;
         }
 
+        private final HashSet<Member> hasInaccessibleDescendantsTrue =
+            new HashSet<Member>();
+        private final HashSet<Member> hasInaccessibleDescendantsFalse =
+                new HashSet<Member>();
         /**
          * Tells whether a given member has some of its children being
          * restricted by the access controls of this role instance.
          */
         public boolean hasInaccessibleDescendants(Member member) {
+            if (hasInaccessibleDescendantsFalse.contains(member)) {
+                return false;
+            }
+            /*if (hasInaccessibleDescendantsTrue.contains(member)) {
+                return true;
+            }*/
             for (MemberAccess access : memberGrants.values()) {
                 switch (access.access) {
                 case NONE:
@@ -915,11 +925,13 @@ public class RoleImpl implements Role {
                     if (access.isSubGrant(member)) {
                         // At least one of the limited member is
                         // part of the descendants of this member.
+                        //hasInaccessibleDescendantsTrue.add(member);
                         return true;
                     }
                 }
             }
             // All descendants are accessible.
+            hasInaccessibleDescendantsFalse.add(member);
             return false;
         }
     }
@@ -939,6 +951,9 @@ public class RoleImpl implements Role {
         // on high cardinality dimensions.
         private final Map<String, Boolean> parentsCache =
             new WeakHashMap<String, Boolean>();
+        private final boolean enableRolapCubeMemberCache =
+            MondrianProperties.instance().EnableRolapCubeMemberCache.get();
+
         public MemberAccess(
             Member member,
             Access access)
@@ -954,24 +969,24 @@ public class RoleImpl implements Role {
          * very often.
          */
         private boolean isSubGrant(Member parentMember) {
-            if (parentsCache.containsKey(parentMember.getUniqueName())) {
-                return parentsCache.get(parentMember.getUniqueName());
+            final String uniqueName = parentMember.getUniqueName();
+            if (parentsCache.containsKey(uniqueName)) {
+                return parentsCache.get(uniqueName);
             }
             for (Member m = member; m != null; m = m.getParentMember()) {
                 if (m.equals(parentMember)) {
                     // We have proved that this granted member is a
                     // descendant of 'member'. Cache it and return.
                     parentsCache.put(
-                        parentMember.getUniqueName(), Boolean.TRUE);
+                        uniqueName, Boolean.TRUE);
                     return true;
                 }
             }
             // Not a parent. Cache it and return.
-            if (MondrianProperties.instance()
-                .EnableRolapCubeMemberCache.get())
+            if (enableRolapCubeMemberCache)
             {
                 parentsCache.put(
-                    parentMember.getUniqueName(), Boolean.FALSE);
+                    uniqueName, Boolean.FALSE);
             }
             return false;
         }

@@ -422,7 +422,7 @@ public class FastBatchingCellReader implements CellReader {
                 // Then we insert the segment body into the SlotFuture.
                 // This has to be done on the SegmentCacheManager's
                 // Actor thread to ensure thread safety.
-                if (!MondrianProperties.instance().DisableCaching.get()) {
+                if (cacheEnabled) {
                     final Locus locus = Locus.peek();
                     cacheMgr.execute(
                         new SegmentCacheManager.Command<Void>() {
@@ -708,6 +708,8 @@ class BatchLoader {
         }
     }
 
+    private final boolean disableCaching =
+        MondrianProperties.instance().DisableCaching.get();
     /**
      * Loads a cell from caches. If the cell is successfully loaded,
      * we return true.
@@ -717,7 +719,7 @@ class BatchLoader {
         final AggregationKey key,
         final SegmentBuilder.SegmentConverterImpl converter)
     {
-        if (MondrianProperties.instance().DisableCaching.get()) {
+        if (disableCaching) {
             // Caching is disabled. Return always false.
             return false;
         }

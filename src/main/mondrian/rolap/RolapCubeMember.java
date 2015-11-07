@@ -31,6 +31,10 @@ public class RolapCubeMember
 {
     protected final RolapCubeLevel cubeLevel;
     protected final RolapCubeMember parentCubeMember;
+    private String nativeUniqueName = null;
+    private final boolean ssasNativeMemberUniqueNameStyle =
+        MondrianProperties.instance().SsasNativeMemberUniqueNameStyle.get()
+        && MondrianProperties.instance().SsasCompatibleNaming.get();
 
     /**
      * Creates a RolapCubeMember.
@@ -58,10 +62,11 @@ public class RolapCubeMember
         // expensive and use significantly more memory, so we don't do that.
         // That meakes each call to getUniqueName more expensive, so we try to
         // minimize the number of calls to this method.
-
-        String nativeUniqueName = "";
-        if (MondrianProperties.instance().SsasNativeMemberUniqueNameStyle.get()
-            && MondrianProperties.instance().SsasCompatibleNaming.get()) {
+        if (nativeUniqueName != null) {
+            return nativeUniqueName;
+        }
+        nativeUniqueName = "";
+        if (ssasNativeMemberUniqueNameStyle) {
             RolapMember currMember = member;
             do {
                 if (currMember.isAll()) {
@@ -89,7 +94,8 @@ public class RolapCubeMember
             nativeUniqueName = member.getUniqueName();
         }
 
-        return cubeLevel.getHierarchy().convertMemberName(nativeUniqueName);
+        nativeUniqueName = cubeLevel.getHierarchy().convertMemberName(nativeUniqueName);
+        return nativeUniqueName;
     }
 
     /**
@@ -132,8 +138,10 @@ public class RolapCubeMember
         return getUniqueName();
     }
 
+    private int hashCode;
     public int hashCode() {
-        return member.hashCode();
+        if (hashCode != 0) return hashCode;
+        return hashCode = member.hashCode();
     }
 
     public boolean equals(Object o) {
