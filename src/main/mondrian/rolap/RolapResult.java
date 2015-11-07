@@ -316,12 +316,13 @@ public class RolapResult extends ResultBase {
                         removeUnaryMembersFromTupleList(
                             tupleList, evaluator);
 
-                    // TODO: This function is not working for a two member level disjoint tuple
-                    tupleList =
-                        AggregateFunDef.AggregateCalc.optimizeTupleList(
-                            evaluator,
-                            tupleList,
-                            false);
+                    if (!evaluator.getDialect().supportsUnlimitedValueList()) {
+                        // TODO: This function is not working for a two member level disjoint tuple
+                        tupleList =
+                            AggregateFunDef.AggregateCalc.optimizeTupleList(
+                                evaluator,
+                                tupleList);
+                    }
                     evaluator.setSlicerTuples(tupleList);
 
                     final Calc valueCalc =
