@@ -48,7 +48,7 @@ class GenerateFunDef extends FunDefBase {
 
     public Type getResultType(Validator validator, Exp[] args) {
         final Type type = args[1].getType();
-        if (type instanceof StringType) {
+        if (type instanceof StringType || type instanceof ScalarType) {
             // Generate(<Set>, <String>[, <String>])
             return type;
         } else {
@@ -59,7 +59,7 @@ class GenerateFunDef extends FunDefBase {
 
     public Calc compileCall(ResolvedFunCall call, ExpCompiler compiler) {
         final IterCalc iterCalc = compiler.compileIter(call.getArg(0));
-        if (call.getArg(1).getType() instanceof StringType) {
+        if (call.getArg(1).getType() instanceof StringType || call.getArg(1).getType() instanceof ScalarType) {
             final StringCalc stringCalc =
                 compiler.compileString(call.getArg(1));
             final StringCalc delimCalc;
