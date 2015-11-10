@@ -41,16 +41,19 @@ public class RolapNativeOrder extends RolapNativeSet {
         Exp orderByExpr;
         boolean ascending;
         Map<String, String> preEval;
+        RolapLevel level;
 
         public OrderConstraint(
             CrossJoinArg[] args, RolapEvaluator evaluator,
             Exp orderByExpr, boolean ascending, Map<String, String> preEval,
+            RolapLevel level,
             SetConstraint parentConstraint)
         {
             super(args, evaluator, true, parentConstraint);
             this.orderByExpr = orderByExpr;
             this.ascending = ascending;
             this.preEval = preEval;
+            this.level = level;
         }
 
         /**
@@ -71,7 +74,7 @@ public class RolapNativeOrder extends RolapNativeSet {
             if (orderByExpr != null) {
                 RolapNativeSql sql =
                     new RolapNativeSql(
-                        sqlQuery, aggStar, getEvaluator(), null, preEval);
+                        sqlQuery, aggStar, getEvaluator(), level, preEval);
                 final String orderBySql =
                     sql.generateTopCountOrderBy(orderByExpr);
                 boolean nullable =
@@ -171,6 +174,56 @@ public class RolapNativeOrder extends RolapNativeSet {
             isHierarchical = !val.startsWith("B");
         }
 
+        SetEvaluator eval = getNestedEvaluator(args[0], evaluator);
+        CrossJoinArg[] cjArgs;
+        List<CrossJoinArg[]> allArgs = null;
+        SetConstraint parentConstraint = null;
+        RolapLevel firstCrossjoinLevel = null;
+        if (eval == null) {
+            if (!evaluator.isNonEmpty()) {
+                // requires OUTER JOIN which is not yet supported
+                return null;
+            }
+
+            // extract the set expression
+            allArgs = crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0]);
+
+            // checkCrossJoinArg returns a list of CrossJoinArg arrays.  The first
+            // array is the CrossJoin dimensions.  The second array, if any,
+            // contains additional constraints on the dimensions. If either the list
+            // or the first array is null, then native cross join is not feasible.
+            if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+                return null;
+            }
+
+            cjArgs = allArgs.get(0);
+            if (isPreferInterpreter(cjArgs, false)) {
+                return null;
+            }
+
+            if (isHierarchical && !isParentLevelAll(cjArgs)) {
+                // cannot natively evaluate, parent-child hierarchies in play
+                return null;
+            }
+
+            firstCrossjoinLevel = cjArgs[0].getLevel();
+        } else {
+            if (isHierarchical && !isParentLevelAll(eval.getArgs())) {
+                // cannot natively evaluate, parent-child hierarchies in play
+                return null;
+            }
+
+            parentConstraint = (SetConstraint) eval.getConstraint();
+            if (!(parentConstraint instanceof RolapNativeFilter.FilterConstraint)
+                && !(parentConstraint instanceof RolapNativeNonEmptyFunction.NonEmptyFunctionConstraint))
+            {
+                return null;
+            }
+
+            cjArgs = new CrossJoinArg[0];
+            firstCrossjoinLevel = ((SetConstraint)eval.getConstraint()).getArgs()[0].getLevel();
+        }
+
         // extract "order by" expression
         SchemaReader schemaReader = evaluator.getSchemaReader();
         DataSource ds = schemaReader.getDataSource();
@@ -182,7 +235,7 @@ public class RolapNativeOrder extends RolapNativeSet {
         SqlQuery sqlQuery = SqlQuery.newQuery(ds, "NativeOrder");
         RolapNativeSql sql =
             new RolapNativeSql(
-                sqlQuery, null, evaluator, null, new HashMap<String, String>());
+                sqlQuery, null, evaluator, firstCrossjoinLevel, new HashMap<String, String>());
         Exp orderByExpr = null;
         if (args.length >= 2) {
             orderByExpr = args[1];
@@ -197,36 +250,7 @@ public class RolapNativeOrder extends RolapNativeSet {
             return null;
         }
 
-        SetEvaluator eval = getNestedEvaluator(args[0], evaluator);
-
         if (eval == null) {
-            if (!evaluator.isNonEmpty()) {
-                // requires OUTER JOIN which is not yet supported
-                return null;
-            }
-
-            // extract the set expression
-            List<CrossJoinArg[]> allArgs =
-                crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0]);
-
-            // checkCrossJoinArg returns a list of CrossJoinArg arrays.  The first
-            // array is the CrossJoin dimensions.  The second array, if any,
-            // contains additional constraints on the dimensions. If either the list
-            // or the first array is null, then native cross join is not feasible.
-            if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
-                return null;
-            }
-
-            CrossJoinArg[] cjArgs = allArgs.get(0);
-            if (isPreferInterpreter(cjArgs, false)) {
-                return null;
-            }
-
-            if (isHierarchical && !isParentLevelAll(cjArgs)) {
-                // cannot natively evaluate, parent-child hierarchies in play
-                return null;
-            }
-
             LOGGER.debug("using native order");
             final int savepoint = evaluator.savepoint();
             try {
@@ -244,13 +268,13 @@ public class RolapNativeOrder extends RolapNativeSet {
                     // Combined the CJ and the additional predicate args
                     // to form the TupleConstraint.
                     combinedArgs =
-                            Util.appendArrays(cjArgs, predicateArgs);
+                        Util.appendArrays(cjArgs, predicateArgs);
                 } else {
                     combinedArgs = cjArgs;
                 }
                 TupleConstraint constraint =
                     new OrderConstraint(
-                        combinedArgs, evaluator, orderByExpr, ascending, sql.preEvalExprs, null);
+                        combinedArgs, evaluator, orderByExpr, ascending, sql.preEvalExprs, firstCrossjoinLevel, parentConstraint);
                 SetEvaluator sev =
                     new SetEvaluator(cjArgs, schemaReader, constraint, sql.getStoredMeasure());
                 return sev;
@@ -258,21 +282,9 @@ public class RolapNativeOrder extends RolapNativeSet {
                 evaluator.restore(savepoint);
             }
         } else {
-            if (isHierarchical && !isParentLevelAll(eval.getArgs())) {
-                // cannot natively evaluate, parent-child hierarchies in play
-                return null;
-            }
-
-            SetConstraint parentConstraint = (SetConstraint) eval.getConstraint();
-            if (!(parentConstraint instanceof RolapNativeFilter.FilterConstraint)
-                && !(parentConstraint instanceof RolapNativeNonEmptyFunction.NonEmptyFunctionConstraint)) {
-                return null;
-            }
-
-            CrossJoinArg[] cjArgs = new CrossJoinArg[0];
             TupleConstraint constraint =
                 new OrderConstraint(
-                    cjArgs, evaluator, orderByExpr, ascending, sql.preEvalExprs, parentConstraint);
+                    cjArgs, evaluator, orderByExpr, ascending, sql.preEvalExprs, firstCrossjoinLevel, parentConstraint);
             eval.setConstraint(constraint);
             LOGGER.debug("using nested native order");
             return eval;
