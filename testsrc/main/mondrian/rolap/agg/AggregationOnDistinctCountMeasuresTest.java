@@ -407,15 +407,12 @@ public class AggregationOnDistinctCountMeasuresTest extends BatchTestCase {
 
     public void testAggregationOverLargeListGeneratesError() {
         propSaver.set(props.MaxConstraints, 7);
-
-        // LucidDB has no limit on the size of IN list
-        final boolean isLuciddb =
-            getTestContext().getDialect().getDatabaseProduct()
-            == Dialect.DatabaseProduct.LUCIDDB;
+        final boolean supportsUnlimitedValueList =
+            getTestContext().getDialect().supportsUnlimitedValueList();
 
         assertQueryReturns(
             makeQuery("[MEASURES].[CUSTOMER COUNT]"),
-            isLuciddb
+                supportsUnlimitedValueList
             ? "Axis #0:\n"
               + "{}\n"
               + "Axis #1:\n"
