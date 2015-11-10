@@ -130,6 +130,7 @@ public class RolapNativeSum extends RolapNativeSet {
         }
 
         if (measure.isCalculated()) {
+            alertNonNative(evaluator, fun, measure.getExpression());
             return null;
         }
 
@@ -138,11 +139,19 @@ public class RolapNativeSum extends RolapNativeSet {
         SetEvaluator eval = (SetEvaluator)evaluator.getSchemaReader().getSchema().getNativeRegistry().createEvaluator(
             evaluator, call.getFunDef(), call.getArgs());
         if (eval != null) {
+            CrossJoinArg[] evalArgs =
+                ((SetConstraint)eval.getConstraint()).args;
+            for (CrossJoinArg evalArg : evalArgs) {
+                // The level must be related to the base cube.  If not,
+                // the SQL generated is bogus.
+                if (!areFromSameCube(evalArg.getLevel(), (RolapStoredMeasure) measure)) {
+                    return null;
+                }
+            }
+
             // If TopCount or Filter measure does not share the same cube as the sum measure,
             // we may not be able to support the virtual cube scenario.
             if (eval.getMeasure() != null && !areFromSameCube(eval.getMeasure(), measure)) {
-                CrossJoinArg[] evalArgs =
-                    ((SetConstraint)eval.getConstraint()).args;
                 if (evalArgs.length != 1) {
                     LOGGER.debug("Sum() Cannot go native due to measures from "
                         + "multiple base cubes and multiple members in tuple");
@@ -158,13 +167,12 @@ public class RolapNativeSum extends RolapNativeSet {
                     return null;
                 }
 
-                // also, the level must be related to both base cubes.  If not,
-                // the SQL generated is bogus.
-                if (((RolapStoredMeasure)measure).getCube().findBaseCubeLevel(evalArgs[0].getLevel()) == null 
-                    || ((RolapStoredMeasure)eval.getMeasure()).getCube().findBaseCubeLevel(evalArgs[0].getLevel()) == null) 
-                {
-                    LOGGER.debug("Sum() Cannot go native due to level not existing in both cubes.");
-                    return null;
+                for (CrossJoinArg evalArg : evalArgs) {
+                    // also, the level must be related to both base cubes.  If not,
+                    // the SQL generated is bogus.
+                    if (!areFromSameCube(evalArg.getLevel(), (RolapStoredMeasure) eval.getMeasure())) {
+                        return null;
+                    }
                 }
             }
             // create a delegating sum constraint
@@ -182,10 +190,26 @@ public class RolapNativeSum extends RolapNativeSet {
                     eval.getMeasure());
             eval.setConstraint(sumConstraint);
         } else {
+            if (((RolapStoredMeasure)measure).getCube() != evaluator.getCube()) {
+                List<RolapCube> cubes = evaluator.getBaseCubes();
+                if (cubes == null || !cubes.contains(((RolapStoredMeasure)measure).getCube())) {
+                    // TEST THIS!
+                    alertNonNative(evaluator, fun, new MemberExpr(measure));
+                    return null;
+                }
+            }
+
             List<CrossJoinArg[]> allArgs =
                 crossJoinArgFactory().checkCrossJoinArg(evaluator, call, false, false);
             if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
                 return null;
+            }
+
+            // Check if arg levels are unrelated.
+            for (CrossJoinArg evalArg : allArgs.get(0)) {
+                if (!areFromSameCube(evalArg.getLevel(), (RolapStoredMeasure)measure)) {
+                    return null;
+                }
             }
             int cardinality = estimateCardinality(allArgs.get(0));
             // TODO: change to a reasonable default, configurable cardinality limit.
@@ -222,6 +246,15 @@ public class RolapNativeSum extends RolapNativeSet {
         }
         return getStar((RolapStoredMeasure)m1) 
                 == getStar((RolapStoredMeasure)m2);
+    }
+
+    private static boolean areFromSameCube(RolapLevel level, RolapStoredMeasure measure) {
+        if (measure.getCube().findBaseCubeLevel(level) == null)
+        {
+            LOGGER.debug("Sum() Cannot go native due to level not existing in both cubes.");
+            return false;
+        }
+        return true;
     }
 
     private static RolapStar getStar(RolapStoredMeasure m) {
