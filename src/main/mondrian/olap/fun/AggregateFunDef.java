@@ -264,7 +264,7 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
             Evaluator ev)
         {
           if (requiresPushdownAggregation(aggregator)) {
-              //return true;
+              return true;
           }
           if (!pushdownAggregation) {
               return false;
