@@ -443,7 +443,8 @@ public class SegmentBuilderTest extends BatchTestCase {
         segmentColumns.add(new SegmentColumn(
             "col" + (i + 1),
             colValues[i].length,
-            toSortedSet(colValues[i])));
+            toSortedSet(colValues[i]),
+            true));
       }
       SegmentHeader header = makeDummySegmentHeader(segmentColumns);
       SegmentBody body = new DenseIntSegmentBody(nulls, values, axes);
