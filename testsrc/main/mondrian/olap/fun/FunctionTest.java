@@ -13699,6 +13699,38 @@ Intel platforms):
             + "Row #3: 3,261\n");
     }
 
+    public void testExpCacheWithAggregationLists(){
+        assertQueryReturns(
+            "WITH MEMBER [Product].[Other] AS \n"
+            + "Aggregate(\n"
+            + "{\n"
+            + "[Product].[All Products].[Drink],\n"
+            + "[Product].[All Products].[Food]\n"
+            + "}\n"
+            + ")\n"
+            + "SELECT\n"
+            + "[Measures].[Customer Count]\n"
+            + "ON 0,\n"
+            + "{\n"
+            + "[Product].[Other],\n"
+            + "[Product].[All Products]\n"
+            + "}\n"
+            + "ON 1\n"
+            + "FROM [Sales]\n"
+            + "WHERE\n"
+            + "{[Time].[1997].[Q1], [Time].[1997].[Q2]}",
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "{[Time].[1997].[Q2]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Customer Count]}\n"
+            + "Axis #2:\n"
+            + "{[Product].[Other]}\n"
+            + "{[Product].[All Products]}\n"
+            + "Row #0: 4,211\n"
+            + "Row #1: 4,257\n"
+        );
+    }
 }
 
 // End FunctionTest.java

@@ -1160,6 +1160,9 @@ public class RolapEvaluator implements Evaluator {
                 key.add(member);
             }
         }
+        if (aggregationLists != null) {
+            key.add(aggregationLists);
+        }
         return key;
     }
 
