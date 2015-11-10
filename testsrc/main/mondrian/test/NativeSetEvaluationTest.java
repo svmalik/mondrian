@@ -2210,6 +2210,57 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #0: 3\n");
     }
 
+    public void testNativeCountWithoutMeasuresInVirtualCubeWithRole() {
+        // Mondrian tried to apply role restrictions by joining restricted
+        // dimension which lead to NPE since star column for it is not defined.
+        // Neither base cube nor dimensions need to be joined to
+        // calculate the count measure here.
+        String mdx =
+            "WITH MEMBER [Measures].[MyMeasure] AS 'Count([Product].[All Products].Children)'\n"
+            + "SELECT [Measures].[MyMeasure] ON 0 FROM [Warehouse and Sales]";
+        TestContext testContext = TestContext.instance().create(
+            null, null, null, null, null,
+            "<Role name=\"VCRole\">\n"
+            + "  <SchemaGrant access=\"none\">\n"
+            + "    <CubeGrant cube=\"Warehouse and Sales\" access=\"all\">\n"
+            + "      <HierarchyGrant hierarchy=\"[Store]\" access=\"custom\" rollupPolicy=\"partial\">\n"
+            + "        <MemberGrant member=\"[Store].[USA].[CA]\" access=\"all\"/>\n"
+            + "        <MemberGrant member=\"[Store].[USA].[CA].[Los Angeles]\" access=\"none\"/>\n"
+            + "      </HierarchyGrant>\n"
+            + "    </CubeGrant>\n"
+            + "  </SchemaGrant>\n"
+            + "</Role>").withRole("VCRole");
+
+        propSaver.set(propSaver.properties.UseAggregates, false);
+        if (MondrianProperties.instance().EnableNativeCount.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysqlQuery =
+                "select\n" +
+                "    COUNT(*)\n" +
+                "from\n" +
+                "    (select\n" +
+                "    `product_class`.`product_family` as `c0`\n" +
+                "from\n" +
+                "    `product` as `product`,\n" +
+                "    `product_class` as `product_class`\n" +
+                "where\n" +
+                "    `product`.`product_class_id` = `product_class`.`product_class_id`\n" +
+                "group by\n" +
+                "    `product_class`.`product_family`) as `countQuery`";
+            SqlPattern mysqlPattern =
+                new SqlPattern(Dialect.DatabaseProduct.MYSQL, mysqlQuery, null);
+            assertQuerySql(testContext, mdx, new SqlPattern[]{mysqlPattern});
+        }
+
+        testContext.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[MyMeasure]}\n"
+            + "Row #0: 3\n");
+    }
+
     public void testNativeCountWithChildren() {
         propSaver.set(propSaver.properties.GenerateFormattedSql, true);
 

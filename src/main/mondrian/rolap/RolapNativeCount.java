@@ -24,6 +24,7 @@ import mondrian.olap.FunDef;
 import mondrian.olap.Hierarchy;
 import mondrian.olap.Level;
 import mondrian.olap.Literal;
+import mondrian.olap.Member;
 import mondrian.olap.MondrianProperties;
 import mondrian.olap.NativeEvaluator;
 import mondrian.rolap.sql.CrossJoinArg;
@@ -165,10 +166,40 @@ public class RolapNativeCount extends RolapNativeSet {
                 return null;
             }
 
+            CrossJoinArg[] cjArgs = allArgs.get(0);
+            List<Member> resetMembers = new ArrayList<Member>();
+            if (!mustJoin.get()) {
+                //check restricted hierarchies
+                for (Member member : evaluator.getMembers()) {
+                    if (member instanceof RolapHierarchy.LimitedRollupMember) {
+                        Hierarchy hierarchy = member.getHierarchy();
+                        if (hierarchy == null) {
+                            continue;
+                        }
+                        for (CrossJoinArg carg : cjArgs) {
+                            RolapLevel level = carg.getLevel();
+                            if (level != null) {
+                                if (hierarchy.equals(level.getHierarchy())) {
+                                    // cannot run native
+                                    return null;
+                                } else {
+                                    // reset restricted hierarchy if it is not in the args
+                                    // so that it does not try to join
+                                    resetMembers.add(hierarchy.getAllMember());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             final int savepoint = evaluator.savepoint();
             try {
-                overrideContext(evaluator, allArgs.get(0), null);
-                eval = new SetEvaluator(allArgs.get(0), evaluator.getSchemaReader(), new CountConstraint(allArgs.get( 0 ), evaluator, false, addlCount, mustJoin.get()));
+                overrideContext(evaluator, cjArgs, null);
+                if (!resetMembers.isEmpty()) {
+                    evaluator.setContext(resetMembers);
+                }
+                eval = new SetEvaluator(cjArgs, evaluator.getSchemaReader(), new CountConstraint(cjArgs, evaluator, false, addlCount, mustJoin.get()));
             } finally {
                 evaluator.restore(savepoint);
             }
