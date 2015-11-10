@@ -3051,9 +3051,9 @@ public class NativeSetEvaluationTest extends BatchTestCase {
 
       mysqlQuery =
           "select\n"
-              + "    sum(case when `m2` = 'Drink' then `m1` else 0 end) as `sum0`,\n"
-              + "    sum(case when `m2` = 'Food' then `m1` else 0 end) as `sum1`,\n"
-              + "    sum(case when `m2` = 'Non-Consumable' then `m1` else 0 end) as `sum2`\n"
+              + "    case when count( case when `m2` = 'Drink' then 1 else null end) = 0 then null else sum( case when `m2` = 'Drink' then `m1` else 0 end) end as `sum0`,\n"
+              + "    case when count( case when `m2` = 'Food' then 1 else null end) = 0 then null else sum( case when `m2` = 'Food' then `m1` else 0 end) end as `sum1`,\n"
+              + "    case when count( case when `m2` = 'Non-Consumable' then 1 else null end) = 0 then null else sum( case when `m2` = 'Non-Consumable' then `m1` else 0 end) end as `sum2`\n"
               + "from\n"
               + "    (select\n"
               + "    sum(`sales_fact_1997`.`unit_sales`) as `m1`,\n"
@@ -3111,9 +3111,9 @@ public class NativeSetEvaluationTest extends BatchTestCase {
 
       mysqlQuery =
           "select\n"
-              + "    sum(case when `m2` = 'Drink' then `m1` else 0 end) as `sum0`,\n"
-              + "    sum(case when `m2` = 'Food' then `m1` else 0 end) as `sum1`,\n"
-              + "    sum(case when `m2` = 'Non-Consumable' then `m1` else 0 end) as `sum2`\n"
+              + "    case when count( case when `m2` = 'Drink' then 1 else null end) = 0 then null else sum( case when `m2` = 'Drink' then `m1` else 0 end) end as `sum0`,\n"
+              + "    case when count( case when `m2` = 'Food' then 1 else null end) = 0 then null else sum( case when `m2` = 'Food' then `m1` else 0 end) end as `sum1`,\n"
+              + "    case when count( case when `m2` = 'Non-Consumable' then 1 else null end) = 0 then null else sum( case when `m2` = 'Non-Consumable' then `m1` else 0 end) end as `sum2`\n"
               + "from\n"
               + "    (select\n"
               + "    sum(`sales_fact_1997`.`unit_sales`) as `m1`,\n"
@@ -3182,9 +3182,9 @@ public class NativeSetEvaluationTest extends BatchTestCase {
 
         String mysqlQuery =
             "select\n"
-                + "    sum(case when `m2` = 'Drink' then `m1` else 0 end) as `sum0`,\n"
-                + "    sum(case when `m2` = 'Food' then `m1` else 0 end) as `sum1`,\n"
-                + "    sum(case when `m2` = 'Non-Consumable' then `m1` else 0 end) as `sum2`\n"
+                + "    case when count( case when `m2` = 'Drink' then 1 else null end) = 0 then null else sum( case when `m2` = 'Drink' then `m1` else 0 end) end as `sum0`,\n"
+                + "    case when count( case when `m2` = 'Food' then 1 else null end) = 0 then null else sum( case when `m2` = 'Food' then `m1` else 0 end) end as `sum1`,\n"
+                + "    case when count( case when `m2` = 'Non-Consumable' then 1 else null end) = 0 then null else sum( case when `m2` = 'Non-Consumable' then `m1` else 0 end) end as `sum2`\n"
                 + "from\n"
                 + "    (select\n"
                 + "    count(`sales_fact_1997`.`product_id`) as `m1`,\n"
@@ -3254,9 +3254,9 @@ public class NativeSetEvaluationTest extends BatchTestCase {
 
         String mysqlQuery =
             "select\n"
-                + "    sum(case when `m2` = 'Drink' then `m1` else 0 end) as `sum0`,\n"
-                + "    sum(case when `m2` = 'Food' then `m1` else 0 end) as `sum1`,\n"
-                + "    sum(case when `m2` = 'Non-Consumable' then `m1` else 0 end) as `sum2`\n"
+                + "    case when count( case when `m2` = 'Drink' then 1 else null end) = 0 then null else sum( case when `m2` = 'Drink' then `m1` else 0 end) end as `sum0`,\n"
+                + "    case when count( case when `m2` = 'Food' then 1 else null end) = 0 then null else sum( case when `m2` = 'Food' then `m1` else 0 end) end as `sum1`,\n"
+                + "    case when count( case when `m2` = 'Non-Consumable' then 1 else null end) = 0 then null else sum( case when `m2` = 'Non-Consumable' then `m1` else 0 end) end as `sum2`\n"
                 + "from\n"
                 + "    (select\n"
                 + "    sum(`sales_fact_1997`.`store_cost`) as `m1`,\n"
@@ -3396,9 +3396,9 @@ public class NativeSetEvaluationTest extends BatchTestCase {
 
         String mysqlQuery =
             "select\n"
-                + "    sum(case when `m2` = 'CA' then `m1` else 0 end) as `sum0`,\n"
-                + "    sum(case when `m2` = 'OR' then `m1` else 0 end) as `sum1`,\n"
-                + "    sum(case when `m2` = 'WA' then `m1` else 0 end) as `sum2`\n"
+                + "    case when count( case when `m2` = 'CA' then 1 else null end) = 0 then null else sum( case when `m2` = 'CA' then `m1` else 0 end) end as `sum0`,\n"
+                + "    case when count( case when `m2` = 'OR' then 1 else null end) = 0 then null else sum( case when `m2` = 'OR' then `m1` else 0 end) end as `sum1`,\n"
+                + "    case when count( case when `m2` = 'WA' then 1 else null end) = 0 then null else sum( case when `m2` = 'WA' then `m1` else 0 end) end as `sum2`\n"
                 + "from\n"
                 + "    (select\n"
                 + "    sum(`inventory_fact_1997`.`warehouse_sales`) as `m1`,\n"
@@ -3507,9 +3507,9 @@ public class NativeSetEvaluationTest extends BatchTestCase {
 
         String mysqlQuery =
             "select\n"
-                + "    sum(case when `m2` = 'Drink' then `m1` else 0 end) as `sum0`,\n"
-                + "    sum(case when `m2` = 'Food' then `m1` else 0 end) as `sum1`,\n"
-                + "    sum(case when `m2` = 'Non-Consumable' then `m1` else 0 end) as `sum2`\n"
+                + "    case when count( case when `m2` = 'Drink' then 1 else null end) = 0 then null else sum( case when `m2` = 'Drink' then `m1` else 0 end) end as `sum0`,\n"
+                + "    case when count( case when `m2` = 'Food' then 1 else null end) = 0 then null else sum( case when `m2` = 'Food' then `m1` else 0 end) end as `sum1`,\n"
+                + "    case when count( case when `m2` = 'Non-Consumable' then 1 else null end) = 0 then null else sum( case when `m2` = 'Non-Consumable' then `m1` else 0 end) end as `sum2`\n"
                 + "from\n"
                 + "    (select\n"
                 + "    count(`sales_fact_1997`.`product_id`) as `m1`,\n"
@@ -3600,9 +3600,9 @@ public class NativeSetEvaluationTest extends BatchTestCase {
 
         String mysqlQuery =
             "select\n"
-                + "    sum(case when `m2` = 'Drink' then `m1` else 0 end) as `sum0`,\n"
-                + "    sum(case when `m2` = 'Food' then `m1` else 0 end) as `sum1`,\n"
-                + "    sum(case when `m2` = 'Non-Consumable' then `m1` else 0 end) as `sum2`\n"
+                + "    case when count( case when `m2` = 'Drink' then 1 else null end) = 0 then null else sum( case when `m2` = 'Drink' then `m1` else 0 end) end as `sum0`,\n"
+                + "    case when count( case when `m2` = 'Food' then 1 else null end) = 0 then null else sum( case when `m2` = 'Food' then `m1` else 0 end) end as `sum1`,\n"
+                + "    case when count( case when `m2` = 'Non-Consumable' then 1 else null end) = 0 then null else sum( case when `m2` = 'Non-Consumable' then `m1` else 0 end) end as `sum2`\n"
                 + "from\n"
                 + "    (select\n"
                 + "    count(`sales_fact_1997`.`product_id`) as `m1`,\n"
@@ -4766,6 +4766,83 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #0: 1\n";
         assertQueryReturns(mdx, result);
 
+        propSaver.reset();
+    }
+
+    public void testNativeConsolidatedSumReturnsNullNotZeroWhenNoRows() {
+        propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+        
+        String mdx = "WITH MEMBER [Measures].[NegativeSales] AS '- [Measures].[Store Sales]' "
+            + "MEMBER [Product].[SameName] AS 'Sum(Filter("
+            + "[Product].[Product Name].members,([Measures].[Store Sales] > 0)))' "
+            + "MEMBER [Measures].[SameName] AS "
+            + "'([Measures].[Store Sales],[Product].[SameName])' "
+            + "select {[Measures].[Store Sales], [Measures].[NegativeSales], "
+            + "[Measures].[SameName]} ON COLUMNS, "
+            + "[Store].[Store Country].members ON ROWS "
+            + "from [Sales] "
+            + "where [Time].[1997]";
+        
+        String mysql = "select\n"
+            + "    case when count( case when `m2` = 'Canada' then 1 else null end) = 0 then null else sum( case when `m2` = 'Canada' then `m1` else 0 end) end as `sum0`,\n"
+            + "    case when count( case when `m2` = 'Mexico' then 1 else null end) = 0 then null else sum( case when `m2` = 'Mexico' then `m1` else 0 end) end as `sum1`,\n"
+            + "    case when count( case when `m2` = 'USA' then 1 else null end) = 0 then null else sum( case when `m2` = 'USA' then `m1` else 0 end) end as `sum2`\n"
+            + "from\n"
+            + "    (select\n"
+            + "    sum(`sales_fact_1997`.`store_sales`) as `m1`,\n"
+            + "    `store`.`store_country` as `m2`\n"
+            + "from\n"
+            + "    `product_class` as `product_class`,\n"
+            + "    `product` as `product`,\n"
+            + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+            + "    `store` as `store`,\n"
+            + "    `time_by_day` as `time_by_day`\n"
+            + "where\n"
+            + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
+            + "and\n"
+            + "    `product`.`product_class_id` = `product_class`.`product_class_id`\n"
+            + "and\n"
+            + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+            + "and\n"
+            + "    `store`.`store_country` in ('Canada', 'Mexico', 'USA')\n"
+            + "and\n"
+            + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+            + "and\n"
+            + "    `time_by_day`.`the_year` = 1997\n"
+            + "group by\n"
+            + "    `product_class`.`product_family`,\n"
+            + "    `product_class`.`product_department`,\n"
+            + "    `product_class`.`product_category`,\n"
+            + "    `product_class`.`product_subcategory`,\n"
+            + "    `product`.`brand_name`,\n"
+            + "    `product`.`product_name`,\n"
+            + "    `store`.`store_country`\n"
+            + "having\n"
+            + "    ((sum(`sales_fact_1997`.`store_sales`) > 0)) ) as `sumQuery`";
+
+
+        SqlPattern mysqlPattern = new SqlPattern(Dialect.DatabaseProduct.MYSQL, mysql, null);
+        assertQuerySql(mdx, new SqlPattern[] {mysqlPattern});
+
+        assertQueryReturns(mdx, "Axis #0:\n"
+                + "{[Time].[1997]}\n"
+                + "Axis #1:\n"
+                + "{[Measures].[Store Sales]}\n"
+                + "{[Measures].[NegativeSales]}\n"
+                + "{[Measures].[SameName]}\n"
+                + "Axis #2:\n"
+                + "{[Store].[Canada]}\n"
+                + "{[Store].[Mexico]}\n"
+                + "{[Store].[USA]}\n"
+                + "Row #0: \n"
+                + "Row #0: \n"
+                + "Row #0: \n"
+                + "Row #1: \n"
+                + "Row #1: \n"
+                + "Row #1: \n"
+                + "Row #2: 565,238.13\n"
+                + "Row #2: -565,238.13\n"
+                + "Row #2: 565,238.13\n");
         propSaver.reset();
     }
 

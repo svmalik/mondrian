@@ -363,12 +363,22 @@ public class ConsolidationQuery {
                     String v1 = sb.toString();
                     sb.setLength(0);
 
-                    String select = "sum(case when "
-                        + dialect.quoteIdentifier(colAlias)
-                        + " = "
-                        + v1
-                        + " then " + dialect.quoteIdentifier("m1") + " else 0 end)";
-                    wrapper.addSelect(select, SqlStatement.Type.DOUBLE, "sum" + (cnt++));
+                    // return null, not 0, if there are no matching rows. 
+                    // e.g.: case when count( case when `m2` ='Drink' then 1 else null end) = 0
+                    // then NULL
+                    // else sum(case when `m2` = 'Drink' then `m1` else 0 end) end as `sum0`,
+                    StringBuilder select = new StringBuilder("case when count( case when ");
+                    select.append(dialect.quoteIdentifier(colAlias))
+                          .append(" = ")
+                          .append(v1)
+                          .append(" then 1 else null end) = 0 then null else sum( case when ")
+                          .append(dialect.quoteIdentifier(colAlias))
+                          .append(" = ")
+                          .append(v1)
+                          .append(" then ")
+                          .append(dialect.quoteIdentifier("m1"))
+                          .append(" else 0 end) end");
+                    wrapper.addSelect(select.toString(), SqlStatement.Type.DOUBLE, "sum" + (cnt++));
                 }
                 wrapper.addFrom(configured, "sumQuery", true);
                 return wrapper;
@@ -667,12 +677,13 @@ public class ConsolidationQuery {
                     String v1 = sb.toString();
                     sb.setLength(0);
 
-                    String select = "count(case when "
-                        + dialect.quoteIdentifier(colAlias)
-                        + " = "
-                        + v1
-                        + " then 1 else null end)";
-                    wrapper.addSelect(select, SqlStatement.Type.LONG, "count" + (cnt++));
+                    StringBuilder select = new StringBuilder("count(case when ");
+                    select.append(dialect.quoteIdentifier(colAlias))
+                          .append(" = ")
+                          .append(v1)
+                          .append(" then 1 else null end)");
+                    wrapper.addSelect(select.toString(), SqlStatement.Type.LONG, "count" + (cnt++));
+                
                 }
                 wrapper.addFrom(configured, "countQuery", true);
                 return wrapper;

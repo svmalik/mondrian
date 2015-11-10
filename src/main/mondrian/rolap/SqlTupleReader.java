@@ -27,6 +27,7 @@ import mondrian.util.Pair;
 
 import org.apache.log4j.Logger;
 
+import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
@@ -973,13 +974,17 @@ public class SqlTupleReader implements TupleReader {
             if (countRows) {
                 while (resultSet.next()) {
                     ++stmt.rowCount;
-                    ret.add(resultSet.getDouble(1));
+                    Object obj = resultSet.getObject(1);
+                    Double o = getDouble(obj);
+                    ret.add(o);
                 }
             } else {
                 if (resultSet.next()) {
                     ++stmt.rowCount;
                     for (int i = 0; i < width; i++) {
-                        ret.add(resultSet.getDouble(i + 1));
+                        Object obj = resultSet.getObject(i + 1);
+                        Double o = getDouble(obj);
+                        ret.add(o);
                     }
                 }
 
@@ -996,6 +1001,31 @@ public class SqlTupleReader implements TupleReader {
             }
         }
         return ret;
+    }
+
+    /**
+     * get a double value from a SQL result object, including
+     * returning FunUtil.DoubleNull if the value is null 
+     * @param obj
+     * @return
+     */
+    private Double getDouble(Object obj) {
+        if (obj == null) {
+            return FunUtil.DoubleNull;
+        }
+        if (obj instanceof Double) {
+            return (Double) obj;
+        }
+        if (obj instanceof BigDecimal) {
+            return ((BigDecimal) obj).doubleValue();
+        }
+        if (obj instanceof Long) {
+            return ((Long)obj).doubleValue();
+        }
+        if (obj instanceof String) {
+            return Double.valueOf((String) obj);
+        }
+        return null;
     }
 
     /**
