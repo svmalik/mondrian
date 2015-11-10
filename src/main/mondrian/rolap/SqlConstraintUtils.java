@@ -829,12 +829,13 @@ public class SqlConstraintUtils {
         }
         if (expression instanceof ResolvedFunCall) {
             ResolvedFunCall fun = (ResolvedFunCall)expression;
-
+            String[] simpleFunctions = {"+", "-", "*", "/"};
             if (fun.getFunDef() instanceof ParenthesesFunDef) {
                 assert (fun.getArgCount() == 1);
                 listOfMembers.addAll(
                     expandExpressions(member, fun.getArg(0), evaluator));
-            } else if (fun.getFunName().equals("+")) {
+            } else if (Arrays.asList(simpleFunctions).contains(fun.getFunName()))
+            {
                 Exp[] expressions = fun.getArgs();
                 for (Exp innerExp : expressions) {
                     listOfMembers.addAll(
@@ -897,7 +898,8 @@ public class SqlConstraintUtils {
               return true;
           }
 
-          if (fun.getFunDef().getName().equals("+")) {
+          String name = fun.getFunName();
+          if (name.equals("+") || name.equals("-") || name.equals("/") || name.equals("*")) {
               for (Exp argsExp : fun.getArgs()) {
                   if (!isSupportedExpressionForCalculatedMember(argsExp)) {
                       return false;
