@@ -849,6 +849,7 @@ public class RolapStar {
         private final Dialect.Datatype datatype;
         private final SqlStatement.Type internalType;
         private final String name;
+        private boolean isOptimized = false;
 
         /**
          * When a Column is a column, and not a Measure, the parent column
@@ -1069,6 +1070,14 @@ public class RolapStar {
 
         public MondrianDef.Expression getExpression() {
             return expression;
+        }
+
+        public boolean isOptimized() {
+            return this.isOptimized;
+        }
+
+        public void setOptimized(boolean isOptimized) {
+            this.isOptimized = isOptimized;
         }
 
         /**

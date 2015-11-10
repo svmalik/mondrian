@@ -503,6 +503,8 @@ public class SqlConstraintUtils {
                 // otherwise, it would lead to cartesian product.
                 optimized = column;
                 table = column.getTable();
+            } else {
+                column.setOptimized(true);
             }
             table.addToFrom(sqlQuery, false, true);
             expr = optimized.generateExprString(sqlQuery);

@@ -346,6 +346,9 @@ public class ConsolidationQuery {
                     configured.addGroupBy(columnExpr, colAlias);
                 }
                 RolapStar.Column column = members.getStarColumn();
+                if (column.isOptimized()) {
+                    column = column.optimize();
+                }
 
                 configured.addFrom(column.getTable().getRelation(),
                     column.getTable().getRelation().getAlias(), false);
