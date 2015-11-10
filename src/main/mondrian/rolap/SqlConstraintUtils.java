@@ -276,8 +276,11 @@ public class SqlConstraintUtils {
     {
         List<StarPredicate> tupleListPredicate = new ArrayList<StarPredicate>();
         for (List<Member> tuple : tupleList) {
-            tupleListPredicate.add(
-                getTupleConstraint(tuple, baseCube, aggStar, sqlQuery));
+            AndPredicate predicate =
+                getTupleConstraint(tuple, baseCube, aggStar, sqlQuery);
+            if (predicate != null) {
+                tupleListPredicate.add(predicate);
+            }
         }
         return new OrPredicate(tupleListPredicate);
     }
@@ -335,6 +338,9 @@ public class SqlConstraintUtils {
         Map<String, SqlQuery> subqueryMap = new HashMap<String, SqlQuery>();
         List<StarPredicate> predicateList = new ArrayList<StarPredicate>();
         for (Member member : tuple) {
+            if (member.getLevel().isAll()) {
+                continue;
+            }
             addMember(
                 (RolapMember) member,
                 predicateList,
@@ -343,7 +349,9 @@ public class SqlConstraintUtils {
                 sqlQuery,
                 subqueryMap);
         }
-        return new AndPredicate(predicateList, subqueryMap);
+        return predicateList.size() > 0
+            ? new AndPredicate(predicateList, subqueryMap)
+            : null;
     }
 
     /**
@@ -361,7 +369,7 @@ public class SqlConstraintUtils {
           new ArrayList<MemberColumnPredicate>();
         // add parents until a unique level is reached
         for (RolapMember currMember = member;
-            currMember != null;
+            currMember != null && !currMember.isAll();
             currMember = currMember.getParentMember())
         {
             RolapLevel level = currMember.getLevel();
