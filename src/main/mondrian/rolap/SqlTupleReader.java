@@ -613,10 +613,17 @@ public class SqlTupleReader implements TupleReader {
     public SqlQuery getSumSql(DataSource dataSource) {
         SqlQuery sql = getUnwrappedSumSql(dataSource);
         SqlQuery sumQuery = SqlQuery.newQuery(dataSource, "");
+        String alias = "m1"; 
+        String zeroAlias = sql.getAlias("0");
+        if(zeroAlias != null && sql.getCurrentSelectListSize() == 1) {
+            // the query has one select which is selecting 0, so we'll sum that
+            // The select 0 is created in the sqlQueryForEmptyTuple method.
+            alias = zeroAlias;
+        }
         // Add the subquery to the wrapper query.
         sumQuery.addFromQuery(sql.toString(), "sumQuery", true);
         // Don't forget to select all columns.
-        sumQuery.addSelect("sum(" + sumQuery.getDialect().quoteIdentifier("m1") + ")", null, null);
+        sumQuery.addSelect("sum(" + sumQuery.getDialect().quoteIdentifier(alias) + ")", null, null);
         return sumQuery;
     }
 

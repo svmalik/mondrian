@@ -3658,6 +3658,74 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #2: 1,433\n");
     }
 
+    // This tests that sum does not try to use an 'm1' alias when it
+    // it does not exist in the inner query. This can happen when an empty
+    // tuple sql query is generated in a virtual cube situation where
+    // SqlTupleConstraint.getFullyJoiningBaseCubes returns an empty set.
+    // If SqlTupleReader does generate bad SQL, it looks like this:
+    // select
+    //    sum(`m1`)
+    // from(select 0
+    //    as `c0`
+    // from
+    //    `sales_fact_1997` as `sales_fact_1997`
+    // where 1=0) as `sumQuery`
+    public void testNativeSumInVirtualCubeWithEmptyTuple() {
+
+        propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+        propSaver.set(propSaver.properties.EnableNativeSum, true);
+        TestContext myContext
+            = TestContext.instance()
+           .create(null, null,
+               "<VirtualCube name=\"Warehouse and Sales2\" defaultMeasure=\"Store Sales\">\n"
+                   + "   <VirtualCubeDimension cubeName=\"Sales\" name=\"Gender\"/>\n"
+                   + "   <VirtualCubeDimension name=\"Store\"/>\n"
+                   + "   <VirtualCubeDimension name=\"Product\"/>\n"
+                   + "   <VirtualCubeDimension cubeName=\"Warehouse\" name=\"Warehouse\"/>\n"
+                   + "   <VirtualCubeMeasure cubeName=\"Sales\" name=\"[Measures].[Store Sales]\"/>\n"
+                   + "   <VirtualCubeMeasure cubeName=\"Sales\" name=\"[Measures].[Customer Count]\"/>\n"
+                   + "</VirtualCube>"
+                   + "<VirtualCube name=\"Warehouse and Sales3\" defaultMeasure=\"Store Invoice\">\n"
+                   + "  <CubeUsages>\n"
+                   + "       <CubeUsage cubeName=\"Sales\" ignoreUnrelatedDimensions=\"true\"/>"
+                   + "   </CubeUsages>\n"
+                   + "   <VirtualCubeDimension cubeName=\"Sales\" name=\"Gender\"/>\n"
+                   + "   <VirtualCubeDimension name=\"Store\"/>\n"
+                   + "   <VirtualCubeDimension name=\"Product\"/>\n"
+                   + "   <VirtualCubeDimension cubeName=\"Warehouse\" name=\"Warehouse\"/>\n"
+                   + "   <VirtualCubeMeasure cubeName=\"Sales\" name=\"[Measures].[Customer Count]\"/>\n"
+                   + "</VirtualCube>", null, null, null);
+
+        String mdx = "WITH MEMBER WAREHOUSE.X as "
+            + "'SUM({WAREHOUSE.[STATE PROVINCE].MEMBERS})'"
+            + "SELECT WAREHOUSE.X  ON ROWS, "
+            + "{[MEASURES].[CUSTOMER COUNT]} ON COLUMNS\n"
+            + "FROM [WAREHOUSE AND SALES2]";
+
+        String mysql = "select\n"
+            + "    sum(`c0`)\n"
+            + "from\n"
+            + "    (select\n"
+            + "    0 as `c0`\n"
+            + "from\n"
+            + "    `sales_fact_1997` as `sales_fact_1997`\n"
+            + "where\n"
+            + "    1 = 0) as `sumQuery`";
+
+        SqlPattern mysqlPattern = new SqlPattern(Dialect.DatabaseProduct.MYSQL, mysql, null);
+        assertQuerySqlOrNot(myContext, mdx, new SqlPattern[] {mysqlPattern}, false, true, true);
+        propSaver.reset();
+
+
+        myContext.assertQueryReturns(mdx, "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Customer Count]}\n"
+            + "Axis #2:\n"
+            + "{[Warehouse].[X]}\n"
+            + "Row #0: \n");
+    }
+    
     public void testNativeFilterWithCompoundSlicer() {
         String mdx =
             "WITH MEMBER [Measures].[TotalVal] AS 'Aggregate(Filter({[Store].[Store City].members},[Measures].[Unit Sales] > 1000))'\n"
