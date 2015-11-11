@@ -919,7 +919,7 @@ public class RolapEvaluator implements Evaluator {
      *
      * @return Calculated member currently being expanded
      */
-    Member getExpanding() {
+    public Member getExpanding() {
         return expandingMember;
     }
 
