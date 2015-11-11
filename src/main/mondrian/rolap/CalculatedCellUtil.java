@@ -297,7 +297,7 @@ public class CalculatedCellUtil {
         SchemaReader reader;
         Query query;
         public CellValidator(FunTable funTable, SchemaReader reader, RolapCube cube) {
-            super(funTable);
+            super(funTable, new HashMap<QueryPart, QueryPart>());
             this.reader = reader;
             final Statement statement =
                 reader.getSchema().getInternalConnection().getInternalStatement();

@@ -447,7 +447,7 @@ public class IdBatchResolverTest  extends BatchTestCase {
                 axes,
                 slicerAxis,
                 cellProps,
-                new Parameter[0],
+                Collections.<Parameter>emptyList(),
                 strictValidation);
         }
 
