@@ -14,6 +14,7 @@ import mondrian.calc.TupleList;
 import mondrian.mdx.MemberExpr;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
+import mondrian.olap.fun.FunUtil;
 import mondrian.rolap.RestrictedMemberReader.MultiCardinalityDefaultMember;
 import mondrian.rolap.RolapHierarchy.LimitedRollupMember;
 import mondrian.rolap.aggmatcher.AggStar;
@@ -133,6 +134,16 @@ public class SqlContextConstraint
                 && !SqlConstraintUtils.isSupportedCalculatedMember(members[i]))
             {
                 return false;
+            }
+            if (members[i] instanceof RolapResult.CompoundSlicerRolapMember){
+                Collection<? extends Member> expanded = FunUtil.expandMember(members[i], context);
+                for (Member member : expanded) {
+                    if (member.isCalculated()
+                        && !SqlConstraintUtils.isSupportedCalculatedMember(member))
+                    {
+                        return false;
+                    }
+                }
             }
         }
 

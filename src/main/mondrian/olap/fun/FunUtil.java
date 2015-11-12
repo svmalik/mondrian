@@ -2774,7 +2774,7 @@ public class FunUtil extends Util {
         return isOnSameHierarchyChain(mA, mB);
     }
 
-    private static Collection<? extends Member> expandMember(Member member, Evaluator eval) {
+    public static Collection<? extends Member> expandMember(Member member, Evaluator eval) {
         if (member instanceof RolapResult.CompoundSlicerRolapMember
             && eval instanceof RolapEvaluator) {
             return  ((RolapEvaluator)eval).getSlicerMembers(member.getHierarchy());
