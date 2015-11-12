@@ -421,6 +421,7 @@ public abstract class RolapNativeSet extends RolapNative {
 
         public static final String KEY_SET_EVALUATOR_CROSSJOIN_ARGS = "mondrian.rolap.RolapNativeSet.SetEvaluator.crossjoin.args";
         public static final String KEY_SET_EVALUATOR_MAX_ROWS = "mondrian.rolap.RolapNativeSet.SetEvaluator.max.rows";
+        public static final String KEY_SET_EVALUATOR_ROLE = "mondrian.rolap.RolapNativeSet.SetEvaluator.role";
         private final CrossJoinArg[] args;
         private final SchemaReaderWithMemberReaderAvailable schemaReader;
         private TupleConstraint constraint;
@@ -922,7 +923,7 @@ public abstract class RolapNativeSet extends RolapNative {
             // schemaReader would apply the roles, but we cache the lists over
             // its head.
             CacheKey key = tr.getCacheKey();
-            key.add(schemaReader.getRole());
+            key.setValue(KEY_SET_EVALUATOR_ROLE, schemaReader.getRole());
             key.setValue(KEY_SET_EVALUATOR_CROSSJOIN_ARGS, Arrays.asList(args));
             key.setValue(KEY_SET_EVALUATOR_MAX_ROWS, maxRows);
             return key;
