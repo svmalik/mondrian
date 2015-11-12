@@ -120,7 +120,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
             }
             key.setValue(getClass().getName() + ".ascending", ascending);
             key.setValue(getClass().getName() + ".topCount", topCount);
-            key.add(this.getEvaluator().isNonEmpty());
+            key.setValue(getClass().getName() + ".isNonEmpty", this.getEvaluator().isNonEmpty());
 
             return key;
         }
@@ -263,7 +263,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
                         parentConstraint);
                 eval.setConstraint(constraint);
                 eval.setMaxRows(count);
-                sev.setCompleteWithNullValues(!evaluator.isNonEmpty());
+                eval.setCompleteWithNullValues(!evaluator.isNonEmpty());
                 LOGGER.debug("using nested native topcount");
                 return eval;
             }
@@ -275,7 +275,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
     // package-local visibility for testing purposes
     boolean isValidContext(RolapEvaluator evaluator) {
         return TopCountConstraint.isValidContext(
-            evaluator, restrictMemberTypes());
+            evaluator, false, new Level[]{}, restrictMemberTypes());
     }
 }
 

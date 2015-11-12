@@ -71,7 +71,8 @@ class MemberExcludeConstraint implements TupleConstraint {
         SqlQuery query,
         RolapCube baseCube,
         AggStar aggStar,
-        RolapLevel level)
+        RolapLevel level,
+        boolean optimize)
     {
         if (level.equals(this.level)) {
             SqlConstraintUtils.addMemberConstraint(
