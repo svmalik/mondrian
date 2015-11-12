@@ -194,7 +194,7 @@ public class RolapNativeFilter extends RolapNativeSet {
             }
 
             if (SqlConstraintUtils.measuresConflictWithMembers(
-                    evaluator.getQuery().getMeasuresMembers(), cjArgs))
+                    cjArgs, evaluator))
             {
                 RolapUtil.alertNonNative("NativeFilter",
                     "One or more calculated measures conflict with crossjoin args");

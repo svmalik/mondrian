@@ -112,8 +112,7 @@ public class SqlContextConstraint
             context.setBaseCubes(baseCubeList);
         }
 
-        if (SqlConstraintUtils.measuresConflictWithMembers(
-                context.getQuery().getMeasuresMembers(), context.getMembers()))
+        if (nonempty && SqlConstraintUtils.measuresConflictWithMembers(context))
         {
             // one or more dimension members referenced within measure calcs
             // conflict with the context members.  Not safe to apply

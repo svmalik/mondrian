@@ -2302,7 +2302,7 @@ public class SqlConstraintUtils {
      * being constructed.
      */
     public static boolean measuresConflictWithMembers(
-        Set<Member> measures, Member[] members)
+        Iterable<Member> measures, Member[] members, Evaluator evaluator)
     {
         Set<Member> membersNestedInMeasures = new HashSet<Member>();
         for (Member m : measures) {
@@ -2314,7 +2314,7 @@ public class SqlConstraintUtils {
             }
         }
         for (Member memberInMeasure : membersNestedInMeasures) {
-            if (!anyMemberOverlaps(members, memberInMeasure)) {
+            if (!anyMemberOverlaps(members, memberInMeasure, (RolapEvaluator)evaluator)) {
                 return true;
             }
         }
@@ -2322,10 +2322,25 @@ public class SqlConstraintUtils {
     }
 
     public static boolean measuresConflictWithMembers(
-        Set<Member> measuresMembers, CrossJoinArg[] cjArgs)
+        CrossJoinArg[] cjArgs, Evaluator evaluator)
     {
         return measuresConflictWithMembers(
-            measuresMembers, getCJArgMembers(cjArgs));
+            getCJArgMembers(cjArgs), evaluator);
+    }
+
+    private static boolean measuresConflictWithMembers(
+            Member[] members, Evaluator evaluator)
+    {
+        Iterable<Member> measuresToCheck =
+            evaluator instanceof RolapEvaluator
+            && ((RolapEvaluator)evaluator).getExpanding() != null
+                ? Collections.singletonList(((RolapEvaluator) evaluator).getExpanding())
+                : evaluator.getQuery().getMeasuresMembers();
+        return measuresConflictWithMembers(measuresToCheck, members, evaluator);
+    }
+
+    public static boolean measuresConflictWithMembers(Evaluator evaluator) {
+        return measuresConflictWithMembers(evaluator.getMembers(), evaluator);
     }
 
     /**
@@ -2341,7 +2356,7 @@ public class SqlConstraintUtils {
      * we may exclude members incorrectly.
      */
     private static boolean anyMemberOverlaps(
-        Member[] members, Member memberInMeasure)
+        Member[] members, Member memberInMeasure, RolapEvaluator evaluator)
     {
         boolean memberIsCovered = false;
         boolean encounteredHierarchy = false;
@@ -2352,9 +2367,21 @@ public class SqlConstraintUtils {
             boolean childOrEqual = false;
             if (sameHierarchy) {
                 encounteredHierarchy = true;
-                childOrEqual = memberCheckedForConflict.isAll()
-                    || memberInMeasure
-                    .isChildOrEqualTo(memberCheckedForConflict);
+                if (memberCheckedForConflict.isAll()
+                    || memberCheckedForConflict.isCalculated()
+                    || memberCheckedForConflict.getHierarchy().getDimension().isHanger())
+                {
+                    childOrEqual = true;
+                } else if (memberCheckedForConflict instanceof RolapResult.CompoundSlicerRolapMember) {
+                    for (Member slicerMember : replaceCompoundSlicerPlaceholder(memberCheckedForConflict, evaluator))
+                    {
+                        if (childOrEqual = memberInMeasure.isChildOrEqualTo(slicerMember)) {
+                            break;
+                        }
+                    }
+                } else {
+                    childOrEqual = memberInMeasure.isChildOrEqualTo(memberCheckedForConflict);
+                }
             }
             if (sameHierarchy && childOrEqual) {
                 memberIsCovered = true;

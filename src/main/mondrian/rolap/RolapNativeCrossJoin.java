@@ -195,7 +195,7 @@ public class RolapNativeCrossJoin extends RolapNativeSet {
         }
 
         if (SqlConstraintUtils.measuresConflictWithMembers(
-                evaluator.getQuery().getMeasuresMembers(), cjArgs))
+                cjArgs, evaluator))
         {
             alertCrossJoinNonNative(
                 evaluator,
