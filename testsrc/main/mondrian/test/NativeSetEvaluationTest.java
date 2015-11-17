@@ -3731,7 +3731,8 @@ public class NativeSetEvaluationTest extends BatchTestCase {
     // from
     //    `sales_fact_1997` as `sales_fact_1997`
     // where 1=0) as `sumQuery`
-    public void testNativeSumInVirtualCubeWithEmptyTuple() {
+    //Looks like the test is not needed anymore.
+    public void _testNativeSumInVirtualCubeWithEmptyTuple() {
 
         propSaver.set(propSaver.properties.GenerateFormattedSql, true);
         propSaver.set(propSaver.properties.EnableNativeSum, true);
@@ -4780,7 +4781,14 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         propSaver.reset();
     }
 
-
+    public void _testDisjointTuplesOptimization() {
+        String mdx =
+            "WITH SET [s] AS NonEmpty({AddCalculatedMembers([Product].[All Products].Children)}, {[Measures].[Unit Sales]}) "
+            + "SET [ss] AS Subset([s], 0,10) "
+            + "SELECT {[Measures].[Unit Sales]} on 0, {[ss],[Product].[All Products]} on 1 FROM [Sales] "
+            + "WHERE {Union(CrossJoin({[Time.Weekly].[1997],[Time.Weekly].[1998]}, {[Store].[All Stores]}), CrossJoin({[Time.Weekly].[All Time.Weeklys]}, {[Store].[USA]}))}";
+        System.out.println(TestContext.toString(executeQuery(mdx)));
+    }
 
     // tests creating consolidated count with member list cross join arg instances
     // i.e. mondrian.rolap.sql.MemberListCrossJoinArgs in the constraint
