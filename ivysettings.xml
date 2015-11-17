@@ -11,11 +11,6 @@
   <!-- Repository for External-hosted artifacts (Optional. Defaults to Pentaho-hosted.) -->
   <property name="public.resolve.repo" value="${pentaho.resolve.repo}" override="false" />
 
-  <!-- Repository for Pentaho-hosted artifacts -->
-  <property name="pentaho.resolve.repo" value="http://ivy-nexus.pentaho.org/content/groups/omni" override="false" />
-  <!-- Repository for External-hosted artifacts (Optional. Defaults to Pentaho-hosted.) -->
-  <property name="public.resolve.repo" value="${pentaho.resolve.repo}" override="false" />
-
   <settings defaultResolver="pentaho-chained-resolver" />
   <include url="${ivy.default.settings.dir}/ivysettings-public.xml" />
   <include url="${ivy.default.settings.dir}/ivysettings-local.xml" />

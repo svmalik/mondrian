@@ -64,7 +64,6 @@
                 conf="sources->default">
             <artifact name="olap4j" type="source" ext="jar"
                     m:classifier="sources"/>
-                <artifact name="olap4j"/>        
         </dependency>
         <dependency org="org.olap4j" name="olap4j-tck" rev="${dependency.olap4j-tck.revision}"
                 conf="test->default" changing="true">
