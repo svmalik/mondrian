@@ -452,7 +452,7 @@ public class IdBatchResolverTest  extends BatchTestCase {
         }
 
         @Override
-        public void resolve() {
+        public void resolve(List<Parameter> parameters) {
             // for testing purposes we want to defer resolution till after
             //  Query init (resolve is called w/in constructor).
             // We do still need formulas to be created, though.
