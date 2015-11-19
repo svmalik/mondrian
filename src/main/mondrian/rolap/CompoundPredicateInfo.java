@@ -12,6 +12,9 @@ package mondrian.rolap;
 
 import mondrian.olap.Member;
 import mondrian.olap.fun.VisualTotalsFunDef;
+import mondrian.rolap.agg.AndPredicate;
+import mondrian.rolap.agg.ListColumnPredicate;
+import mondrian.rolap.agg.ListPredicate;
 import mondrian.rolap.agg.OrPredicate;
 import mondrian.rolap.agg.ValueColumnPredicate;
 import mondrian.rolap.sql.SqlQuery;
@@ -286,22 +289,43 @@ public class CompoundPredicateInfo {
         for (List<RolapCubeMember[]> group : compoundGroupMap.values()) {
             // e.g {[USA].[CA], [Canada].[BC]}
             StarPredicate compoundGroupPredicate = null;
+            List<StarPredicate> predicateList = new ArrayList<StarPredicate>(group.size());
             for (RolapCubeMember[] tuple : group) {
                 // [USA].[CA]
-                StarPredicate tuplePredicate = null;
-
+                List<StarPredicate> groupPredicates = new ArrayList<StarPredicate>(tuple.length);
                 for (RolapCubeMember member : tuple) {
-                    tuplePredicate = makeCompoundPredicateForMember(
-                        member, baseCube, tuplePredicate);
-                }
-                if (tuplePredicate != null) {
-                    if (compoundGroupPredicate == null) {
-                        compoundGroupPredicate = tuplePredicate;
-                    } else {
-                        compoundGroupPredicate =
-                            compoundGroupPredicate.or(tuplePredicate);
+                    while (member != null) {
+                        RolapCubeLevel level = member.getLevel();
+                        if (!level.isAll()) {
+                            RolapStar.Column column = level.getBaseStarKeyColumn(baseCube);
+                            StarPredicate memberPredicate =
+                                new ValueColumnPredicate(column, member.getKey());
+                            groupPredicates.add(memberPredicate);
+                        }
+                        // Don't need to constrain USA if CA is unique
+                        if (member.getLevel().isUnique()) {
+                            break;
+                        }
+                        member = member.getParentMember();
                     }
                 }
+                if (!groupPredicates.isEmpty()) {
+                    predicateList.add(new AndPredicate(groupPredicates));
+                }
+            }
+
+            if (predicateList.size() == 1) {
+                compoundGroupPredicate = predicateList.get(0);
+            } else if (predicateList.size() > 1){
+                compoundGroupPredicate = new OrPredicate(predicateList);
+            }
+
+            if (compoundGroupPredicate != null
+                && compoundGroupPredicate instanceof OrPredicate)
+            {
+                // try to go for a column-based approach if full crossjoin
+                compoundGroupPredicate =
+                    toColumnPredicates(compoundGroupPredicate, group.size());
             }
 
             if (compoundGroupPredicate != null) {
@@ -322,31 +346,57 @@ public class CompoundPredicateInfo {
         return compoundPredicate;
     }
 
-    private StarPredicate makeCompoundPredicateForMember(
-        RolapCubeMember member,
-        RolapCube baseCube,
-        StarPredicate memberPredicate)
+    /**
+     * Convert a full crossjoin tuple-based predicate to a column-based one
+     */
+    private static StarPredicate toColumnPredicates(
+            final StarPredicate predicate, final int nbrRows)
     {
-        while (member != null) {
-            RolapCubeLevel level = member.getLevel();
-            if (!level.isAll()) {
-                RolapStar.Column column = level.getBaseStarKeyColumn(baseCube);
-                if (memberPredicate == null) {
-                    memberPredicate =
-                        new ValueColumnPredicate(column, member.getKey());
-                } else {
-                    memberPredicate =
-                        memberPredicate.and(
-                            new ValueColumnPredicate(column, member.getKey()));
-                }
-            }
-            // Don't need to constrain USA if CA is unique
-            if (member.getLevel().isUnique()) {
-                break;
-            }
-            member = member.getParentMember();
+        HashMap<RolapStar.Column, Set<StarColumnPredicate>> map =
+            new HashMap<RolapStar.Column, Set<StarColumnPredicate>>();
+        extractColumnPredicates(predicate, map);
+        List<StarPredicate> predicates = new ArrayList<StarPredicate>(map.size());
+        // convert to column in (val0..valn)
+        int columnCardinalities = 1;
+        for (Map.Entry<RolapStar.Column, Set<StarColumnPredicate>> entry : map.entrySet()) {
+            Set<StarColumnPredicate> columnPredicates = entry.getValue();
+            columnCardinalities *= columnPredicates.size();
+            ArrayList<StarColumnPredicate> list =
+                new ArrayList<StarColumnPredicate>(columnPredicates.size());
+            list.addAll(columnPredicates);
+            predicates.add(new ListColumnPredicate(entry.getKey(), list));
         }
-        return memberPredicate;
+        if (columnCardinalities > nbrRows) {
+            // may not be a total crossjoin at column level
+            // return original
+            return predicate;
+        }
+        return new AndPredicate(predicates);
+    }
+
+    /**
+     * extract all distinct ValueColumnPredicate instances and map by column
+     */
+    private static void extractColumnPredicates(
+        StarPredicate predicate,
+        HashMap<RolapStar.Column, Set<StarColumnPredicate>> map)
+    {
+        if (predicate instanceof ListPredicate) {
+            ListPredicate listPredicate = (ListPredicate) predicate;
+            for (StarPredicate childPredicate : listPredicate.getChildren()) {
+                extractColumnPredicates(childPredicate, map);
+            }
+        } else if (predicate instanceof ValueColumnPredicate) {
+            ValueColumnPredicate valuePredicate =
+                (ValueColumnPredicate) predicate;
+            Set<StarColumnPredicate> list =
+                map.get(valuePredicate.getConstrainedColumn());
+            if (list == null) {
+                list = new HashSet<StarColumnPredicate>();
+                map.put(valuePredicate.getConstrainedColumn(), list);
+            }
+            list.add(valuePredicate);
+        }
     }
 }
 
