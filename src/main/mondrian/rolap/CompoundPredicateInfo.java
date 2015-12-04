@@ -353,7 +353,7 @@ public class CompoundPredicateInfo {
             final StarPredicate predicate, final int nbrRows)
     {
         HashMap<RolapStar.Column, Set<StarColumnPredicate>> map =
-            new HashMap<RolapStar.Column, Set<StarColumnPredicate>>();
+            new LinkedHashMap<RolapStar.Column, Set<StarColumnPredicate>>();
         extractColumnPredicates(predicate, map);
         List<StarPredicate> predicates = new ArrayList<StarPredicate>(map.size());
         // convert to column in (val0..valn)
@@ -392,7 +392,7 @@ public class CompoundPredicateInfo {
             Set<StarColumnPredicate> list =
                 map.get(valuePredicate.getConstrainedColumn());
             if (list == null) {
-                list = new HashSet<StarColumnPredicate>();
+                list = new LinkedHashSet<StarColumnPredicate>();
                 map.put(valuePredicate.getConstrainedColumn(), list);
             }
             list.add(valuePredicate);
