@@ -686,12 +686,8 @@ public class RolapSchema implements Schema {
             final Parser xmlParser = XOMUtil.createDefaultParser();
             final DOMWrapper def = xmlParser.parse(xml);
             MondrianDef.Role xmlRole = new MondrianDef.Role(def);
-            if (MondrianProperties.instance().LazyLoadRoles.get()) {
-                mapNameToRole.put(xmlRole.name, null);
-            } else {
-                Role role = createRole(xmlRole);
-                mapNameToRole.put(xmlRole.name, role);
-            }
+            Role role = createRole(xmlRole);
+            mapNameToRole.put(xmlRole.name, role);
             if(LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Added role created from XML [" + xml + "]");
             }
@@ -700,7 +696,6 @@ public class RolapSchema implements Schema {
                 "Error while adding role from XML [" + xml + "]");
         }
     }
-    
 
     static Scripts.ScriptDefinition toScriptDef(MondrianDef.Script script) {
         if (script == null) {

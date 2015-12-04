@@ -37,7 +37,7 @@ public class RoleTemplateTest extends FoodMartTestCase {
     public RoleTemplateTest(String name) {
         super(name);
         propSaver.set(MondrianProperties.instance().RoleLoader,
-            "mondrian.test.RoleTemplateTest$CustomDataRoleLoader");
+            CustomDataRoleLoader.class.getName());
     }
 
     private void assertMemberAccess(final Connection connection, Access expectedAccess,
@@ -79,7 +79,7 @@ public class RoleTemplateTest extends FoodMartTestCase {
             + "</Role>\n"
             + "]]>\n"
             + "</RoleTemplate>";
-        
+
         TestContext context = withRoleTemplates(getTestContext(), roleTemaplte);
         Util.PropertyList properties = context.getConnectionProperties()
                                               .clone();
@@ -102,6 +102,11 @@ public class RoleTemplateTest extends FoodMartTestCase {
         assertMemberAccess(connection, Access.NONE, "[Store].[USA].[WA]");
         // above top level
         assertMemberAccess(connection, Access.NONE, "[Store].[All Stores]");
+    }
+
+    public void testRoleMemberAccessWithLazyLoadRoleTemplate() {
+        propSaver.set(propSaver.properties.LazyLoadRoles, true);
+        testRoleMemberAccessWithRoleTemplate();
     }
 
     public static class CustomDataRoleLoader extends RoleLoaderImpl {
