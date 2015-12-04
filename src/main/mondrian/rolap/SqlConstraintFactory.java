@@ -123,6 +123,9 @@ public class SqlConstraintFactory {
         if (levels != null) {
             long totalCard = 1;
             for (Level level : levels) {
+                if (level.getDimension().getName().contains("$M2M$")) {
+                    return false;
+                }
                 totalCard *=
                     getLevelCardinality((RolapLevel) level);
                 if (totalCard > threshold) {
