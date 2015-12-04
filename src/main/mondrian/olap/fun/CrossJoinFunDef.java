@@ -822,6 +822,9 @@ public class CrossJoinFunDef extends FunDefBase {
             // Measure and non-All Members evaluation is non-null, then
             // add it to the result List.
             final TupleCursor cursor = list.tupleCursor();
+            final int checkCancelPeriod =
+                MondrianProperties.instance().CancelPhaseInterval.get();
+            int currentIteration = 0;
             while (cursor.forward()) {
                 cursor.setContext(evaluator);
                 for (Member member : memberSet) {
@@ -832,7 +835,15 @@ public class CrossJoinFunDef extends FunDefBase {
                     // hierarchies.
                     evaluator.setContext(member.getHierarchy().getAllMember());
                 }
-
+                // Check if the MDX query was canceled.
+                // Throws an exception in case of timeout is exceeded
+                // see MONDRIAN-2425
+                if (checkCancelPeriod > 0
+                    && currentIteration % checkCancelPeriod == 0)
+                {
+                    query.getStatement().getCurrentExecution()
+                        .checkCancelOrTimeout();
+                }
                 if (checkData(
                         nonAllMembers,
                         nonAllMembers.length - 1,
@@ -841,6 +852,7 @@ public class CrossJoinFunDef extends FunDefBase {
                 {
                     result.addCurrent(cursor);
                 }
+                ++currentIteration;
             }
             return result;
         } finally {
