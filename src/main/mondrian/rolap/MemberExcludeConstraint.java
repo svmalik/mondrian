@@ -134,6 +134,11 @@ class MemberExcludeConstraint implements TupleConstraint {
             return null;
         }
     }
+
+    @Override
+    public boolean supportsAggTables() {
+        return true;
+    }
 }
 
 // End MemberExcludeConstraint.java

@@ -441,6 +441,11 @@ public class SqlContextConstraint
     public Evaluator getEvaluator() {
         return evaluator;
     }
+
+    @Override
+    public boolean supportsAggTables() {
+        return true;
+    }
 }
 
 // End SqlContextConstraint.java
