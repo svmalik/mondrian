@@ -15,6 +15,7 @@ import mondrian.calc.ExpCompiler;
 import mondrian.calc.MemberCalc;
 import mondrian.mdx.*;
 import mondrian.olap.*;
+import mondrian.olap.fun.MondrianEvaluationException;
 import mondrian.olap.type.MemberType;
 import mondrian.olap.type.NullType;
 import mondrian.olap.type.SetType;
@@ -150,6 +151,14 @@ public class RolapNativeSql {
             }
             Literal literal = (Literal) exp;
             String expr = String.valueOf(literal.getValue());
+            try {
+                // MONDRIAN-2436: reject everything except valid decimals
+                Double.parseDouble(expr);
+            } catch (NumberFormatException e) {
+                throw new MondrianEvaluationException(
+                    "Expected to get decimal, but got " + expr);
+            }
+
             if (dialect.getDatabaseProduct().getFamily()
                 == Dialect.DatabaseProduct.DB2)
             {
