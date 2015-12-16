@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.apache.log4j.Logger;
 
@@ -44,6 +45,9 @@ public class RolapNativeSql {
 
     protected static final Logger LOGGER =
         Logger.getLogger(RolapNativeSql.class);
+
+    private static final Pattern DECIMAL =
+        Pattern.compile("[+-]?((\\d+(\\.\\d*)?)|(\\.\\d+))");
 
     private SqlQuery sqlQuery;
     private Dialect dialect;
@@ -151,10 +155,7 @@ public class RolapNativeSql {
             }
             Literal literal = (Literal) exp;
             String expr = String.valueOf(literal.getValue());
-            try {
-                // MONDRIAN-2436: reject everything except valid decimals
-                Double.parseDouble(expr);
-            } catch (NumberFormatException e) {
+            if (!DECIMAL.matcher(expr).matches()) {
                 throw new MondrianEvaluationException(
                     "Expected to get decimal, but got " + expr);
             }
