@@ -390,6 +390,7 @@ public class Main extends TestSuite {
             addTest(suite, CodeSetTest.class);
             addTest(suite, ExplicitRecognizerTest.class);
             addTest(suite, AggregationOverAggTableTest.class);
+            addTest(suite, CancellationTest.class);
             addTest(suite, ManyToManyTest.class);
             addTest(suite, CalculatedCellTest.class);
 
