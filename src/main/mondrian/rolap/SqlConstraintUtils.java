@@ -6,7 +6,7 @@
 //
 // Copyright (C) 2004-2005 TONBELLER AG
 // Copyright (C) 2005-2005 Julian Hyde
-// Copyright (C) 2005-2015 Pentaho and others
+// Copyright (C) 2005-2016 Pentaho and others
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -793,6 +793,18 @@ public class SqlConstraintUtils {
                 false);
     }
 
+    public static List<Member> expandSupportedCalculatedMembers(
+        List<Member> members,
+        Evaluator evaluator,
+        boolean disjointSlicerTuples)
+    {
+        Member[] expanded = expandSupportedCalculatedMembers(
+            members.toArray(new Member[members.size()]),
+            evaluator,
+            disjointSlicerTuples);
+        return Arrays.asList(expanded);
+    }
+
     public static Member[] expandSupportedCalculatedMembers(
             Member[] members,
             Evaluator evaluator)
@@ -805,27 +817,11 @@ public class SqlConstraintUtils {
         Evaluator evaluator,
         boolean disjointSlicerTuples)
     {
-        ArrayList<Member> listOfMembers = new ArrayList<Member>();
+        ArrayList<Member> expanded = new ArrayList<Member>();
         for (Member member : members) {
-            if (member.isCalculated()
-                && isSupportedCalculatedMember(member))
-            {
-                listOfMembers.addAll(
-                    expandExpressions(member, null, evaluator));
-            } else if (member instanceof RolapResult.CompoundSlicerRolapMember)
-            {
-                // if the slicer is disjoint, it handles the SQL generation in
-                // a different way
-                if (!disjointSlicerTuples) {
-                    listOfMembers.addAll(
-                        replaceCompoundSlicerPlaceholder(
-                            member,
-                            (RolapEvaluator) evaluator));
-                }
-            } else {
-                // just add the member
-                listOfMembers.add(member);
-            }
+            final List<Member> expandedMember = expandSupportedCalculatedMember(
+                member, evaluator, disjointSlicerTuples);
+            expanded.addAll(expandedMember);
         }
 
         // also expand calculated cells if applicable
@@ -833,17 +829,48 @@ public class SqlConstraintUtils {
         // unique ordinal members, calculated cells will override their
         // counterpart objects.
         for (Exp exp : evaluator.getCurrentCellExpressions()) {
-            listOfMembers.addAll(1, expandExpressions(null, exp, evaluator));
+            expanded.addAll(1, expandExpressions(null, exp, evaluator));
         }
 
-        members = listOfMembers.toArray(new Member[listOfMembers.size()]);
+        members = expanded.toArray(new Member[expanded.size()]);
         return members;
+    }
+
+    public static List<Member> expandSupportedCalculatedMember(
+        Member member,
+        Evaluator evaluator)
+    {
+        return expandSupportedCalculatedMember(
+            member,
+            evaluator,
+            false);
+    }
+
+    public static List<Member> expandSupportedCalculatedMember(
+        Member member,
+        Evaluator evaluator,
+        boolean disjointSlicerTuples)
+    {
+        if (member.isCalculated() && isSupportedCalculatedMember(member)) {
+            return expandExpressions(member, null, evaluator);
+        } else if (member instanceof RolapResult.CompoundSlicerRolapMember) {
+            if (disjointSlicerTuples) {
+                return Collections.emptyList();
+            } else {
+                return replaceCompoundSlicerPlaceholder(
+                    member,
+                    (RolapEvaluator) evaluator);
+            }
+        } else {
+            // just the member
+            return Collections.singletonList(member);
+        }
     }
 
     static List<Member> replaceCompoundSlicerPlaceholder(
         Member member,
         RolapEvaluator evaluator)
-{
+    {
         List<Member> members = new ArrayList<Member>();
         for (Member slicerMember : evaluator.getSlicerMembers()) {
             if (slicerMember.getHierarchy().equals(member.getHierarchy())) {
