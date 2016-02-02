@@ -7448,7 +7448,7 @@ public class FunctionTest extends FoodMartTestCase {
     }
 
     public void testFilterWillTimeout() {
-        propSaver.set(propSaver.properties.QueryTimeout, 5);
+        propSaver.set(propSaver.properties.QueryTimeout, 3);
         propSaver.set(propSaver.properties.EnableNativeNonEmpty, false);
         try {
             getTestContext().executeAxis(
