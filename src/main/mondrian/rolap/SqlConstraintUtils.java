@@ -840,7 +840,7 @@ public class SqlConstraintUtils {
         return members;
     }
 
-    private static List<Member> replaceCompoundSlicerPlaceholder(
+    static List<Member> replaceCompoundSlicerPlaceholder(
         Member member,
         RolapEvaluator evaluator)
 {
