@@ -10,9 +10,15 @@
 */
 package mondrian.rolap;
 
+
+import mondrian.calc.TupleIterable;
+import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.Evaluator;
+import mondrian.olap.Exp;
 import mondrian.olap.Member;
 import mondrian.olap.fun.VisualTotalsFunDef;
+import mondrian.olap.type.SetType;
+import mondrian.olap.type.Type;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.agg.AndPredicate;
 import mondrian.rolap.agg.ListColumnPredicate;
@@ -23,12 +29,14 @@ import mondrian.rolap.sql.SqlQuery;
 import mondrian.util.Pair;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
 /**
  * Constructs a Pair<BitKey, StarPredicate> based on an tuple list and
  * measure, along with the string representation of the predicate.
@@ -47,10 +55,11 @@ public class CompoundPredicateInfo {
     public CompoundPredicateInfo(
         List<List<Member>> tupleList, RolapMeasure measure, Evaluator evaluator)
     {
+        this.measure = measure;
         this.predicate = predicateFromTupleList(tupleList, measure, evaluator);
         this.predicateString = getPredicateString(
             getStar(measure), getPredicate());
-        this.measure = measure;
+        assert measure != null;
     }
 
     public StarPredicate getPredicate() {
@@ -414,32 +423,80 @@ public class CompoundPredicateInfo {
     private StarPredicate makeCalculatedMemberPredicate(
         RolapCubeMember member, RolapCube baseCube, Evaluator evaluator)
     {
-        List<Member> expandedMemberList = SqlConstraintUtils
-            .expandSupportedCalculatedMember(member, evaluator);
-        for (Member checkMember : expandedMemberList) {
-            if (checkMember == null
-                || checkMember.isCalculated()
-                || !(checkMember instanceof RolapCubeMember))
-            {
-                throw MondrianResource.instance()
-                    .UnsupportedCalculatedMember.ex(member.getName(), null);
-            }
-        }
-        List<StarPredicate> predicates =
-            new ArrayList<StarPredicate>(expandedMemberList.size());
-        for (Member iMember : expandedMemberList) {
-            RolapCubeMember iCubeMember = ((RolapCubeMember)iMember);
-            RolapCubeLevel iLevel = iCubeMember.getLevel();
-            RolapStar.Column iColumn = iLevel.getBaseStarKeyColumn(baseCube);
-            Object iKey = iCubeMember.getKey();
-            StarPredicate iPredicate = new ValueColumnPredicate(iColumn, iKey);
-            predicates.add(iPredicate);
-        }
-        if (predicates.size() == 1) {
-            return (predicates.get(0));
+        assert member.getExpression() instanceof ResolvedFunCall;
+
+        ResolvedFunCall fun = (ResolvedFunCall) member.getExpression();
+
+        final Exp exp = fun.getArg(0);
+        final Type type = exp.getType();
+
+        if (type instanceof SetType) {
+            return makeSetPredicate(exp, evaluator);
+        } else if (type.getArity() == 1) {
+            return makeUnaryPredicate(member, baseCube, evaluator);
         } else {
-            return new OrPredicate(predicates);
+            throw MondrianResource.instance()
+                .UnsupportedCalculatedMember.ex(member.getName(), null);
         }
+    }
+
+    private StarPredicate makeUnaryPredicate(
+        RolapCubeMember member, RolapCube baseCube, Evaluator evaluator)
+    {
+      List<Member> expandedMemberList = SqlConstraintUtils
+          .expandSupportedCalculatedMember(member, evaluator);
+      for (Member checkMember : expandedMemberList) {
+          if (checkMember == null
+              || checkMember.isCalculated()
+              || !(checkMember instanceof RolapCubeMember))
+          {
+              throw MondrianResource.instance()
+                  .UnsupportedCalculatedMember.ex(member.getName(), null);
+          }
+      }
+      List<StarPredicate> predicates =
+          new ArrayList<StarPredicate>(expandedMemberList.size());
+      for (Member iMember : expandedMemberList) {
+          RolapCubeMember iCubeMember = ((RolapCubeMember)iMember);
+          RolapCubeLevel iLevel = iCubeMember.getLevel();
+          RolapStar.Column iColumn = iLevel.getBaseStarKeyColumn(baseCube);
+          Object iKey = iCubeMember.getKey();
+          StarPredicate iPredicate = new ValueColumnPredicate(iColumn, iKey);
+          predicates.add(iPredicate);
+      }
+      StarPredicate r = null;
+      if (predicates.size() == 1) {
+          r = predicates.get(0);
+      } else {
+          r = new OrPredicate(predicates);
+      }
+      return r;
+    }
+
+    private StarPredicate makeSetPredicate(
+        final Exp exp, Evaluator evaluator)
+    {
+      TupleIterable evaluatedSet =
+          evaluator.getSetEvaluator(
+              exp, true).evaluateTupleIterable();
+      ArrayList<StarPredicate> orList = new ArrayList<StarPredicate>();
+      OrPredicate orPredicate = null;
+      for (List<Member> complexSetItem : evaluatedSet) {
+          List<StarPredicate> andList = new ArrayList<StarPredicate>();
+          for (Member singleSetItem : complexSetItem) {
+              final List<List<Member>> singleItemList =
+                  Collections.singletonList(
+                      Collections.singletonList(singleSetItem));
+              StarPredicate singlePredicate = predicateFromTupleList(
+                  singleItemList,
+                  measure, evaluator).getValue();
+              andList.add(singlePredicate);
+          }
+          AndPredicate andPredicate = new AndPredicate(andList);
+          orList.add(andPredicate);
+          orPredicate  = new OrPredicate(orList);
+      }
+      return orPredicate;
     }
 }
 
