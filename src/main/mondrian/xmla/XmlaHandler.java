@@ -15,6 +15,7 @@ import mondrian.olap.Parameter;
 import mondrian.olap.Util;
 import mondrian.olap4j.IMondrianOlap4jProperty;
 import mondrian.olap4j.MondrianOlap4jConnection;
+import mondrian.rolap.RolapConnectionProperties;
 import mondrian.util.CompositeList;
 import mondrian.xmla.XmlaSessionConnectionManager.SessionConnection;
 import mondrian.xmla.impl.DefaultSaxWriter;
@@ -183,15 +184,26 @@ public class XmlaHandler {
             }
         }
 
+        final String customData = request.getProperties().get(
+            PropertyDefinition.CustomData.name());
+        if (customData != null) {
+            props.put(PropertyDefinition.CustomData.name(), customData);
+        }
+
+        // Add the role name as a property if the request has no role name.
+        // If the request does have a role name, then this will be
+        // set on the connect string down the line.
+        String roleName = request.getProperties()
+            .get(PropertyDefinition.Roles.name());
+        if (roleName != null && request.getRoleName() == null) {
+            props.put(RolapConnectionProperties.Role.name(), roleName);
+        }
+
         OlapConnection connection = getConnection(
             databaseName,
             catalogName,
             request.getRoleName(),
             props);
-
-
-        final String customData = request.getProperties().get(
-            PropertyDefinition.CustomData.name());
 
         if (customData != null) {
             try {
@@ -199,19 +211,6 @@ public class XmlaHandler {
                     customData);
             } catch (OlapException e) {
                 //ignore
-            }
-        }
-
-        String roleName = request.getProperties().get(
-            PropertyDefinition.Roles.name());
-
-        if (roleName != null && !roleName.isEmpty()) {
-            try {
-                connection.setRoleName(roleName);
-            } catch (OlapException e) {
-                throw Util.newInternal(
-                    e, "Could not set connection role to '" + roleName + "'");
-                // ignore
             }
         }
 
