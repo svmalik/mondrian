@@ -3776,6 +3776,29 @@ public class FunUtil extends Util {
             return "<" + t + ", " + i + ">";
         }
     }
+
+    public static ResolvedFunCall extractResolvedFunCall(Exp exp) {
+        ResolvedFunCall call = null;
+        while (true) {
+            if (exp instanceof ResolvedFunCall) {
+                call = (ResolvedFunCall) exp;
+                if (("{}".equals(call.getFunName())
+                        || "()".equals(call.getFunName())
+                        || "Cache".equalsIgnoreCase(call.getFunName()))
+                    && call.getArgCount() == 1)
+                {
+                    exp = call.getArg(0);
+                } else {
+                    break;
+                }
+            } else if (exp instanceof NamedSetExpr) {
+                exp = ((NamedSetExpr)exp).getNamedSet().getExp();
+            } else {
+                break;
+            }
+        }
+        return call;
+    }
 }
 
 // End FunUtil.java

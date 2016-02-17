@@ -1163,20 +1163,25 @@ public class CrossJoinArgFactory {
             return null;
         }
         if (args[0] instanceof ResolvedFunCall) {
-            ResolvedFunCall call = (ResolvedFunCall)args[0];
-            while (("{}".equals(call.getFunName()) || "()".equals(call.getFunName()))
-                    && call.getArgCount() == 1
-                    && call.getArg(0) instanceof ResolvedFunCall)
-            {
-                call = (ResolvedFunCall)call.getArg(0);
-            }
+            ResolvedFunCall call = FunUtil.extractResolvedFunCall(args[0]);
 
-            for (Exp arg1 : call.getArgs()) {
-                if (!(arg1 instanceof MemberExpr)) {
-                    return null;
+            // check if non-native expand is enabled
+            if (!MondrianProperties.instance().ExpandNonNative.get()
+                || evaluator.getSlicerMembers().isEmpty())
+            {
+                for (Exp arg1 : call.getArgs()) {
+                    if (!(arg1 instanceof MemberExpr)) {
+                        return null;
+                    }
                 }
             }
-            return expandNonNative(evaluator, funCall);
+
+            CrossJoinArg[] cjArgs = expandNonNative(evaluator, funCall);
+            if (cjArgs == null || cjArgs.length == 0 || cjArgs[0].getLevel() == null) {
+                // empty set is not supported
+                return null;
+            }
+            return cjArgs;
         }
         return null;
     }
