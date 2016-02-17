@@ -19,6 +19,7 @@ import mondrian.calc.TupleIterable;
 import mondrian.calc.TupleList;
 import mondrian.calc.impl.AbstractListCalc;
 import mondrian.mdx.MemberExpr;
+import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.Evaluator;
 import mondrian.olap.Exp;
@@ -32,16 +33,21 @@ import mondrian.olap.Validator;
 import mondrian.olap.type.MemberType;
 import mondrian.olap.type.SetType;
 import mondrian.olap.type.TupleType;
+import mondrian.rolap.RolapCalculatedMember;
 import mondrian.rolap.RolapCube;
+import mondrian.rolap.RolapMeasure;
 import mondrian.rolap.RolapStoredMeasure;
+import mondrian.rolap.SqlConstraintUtils;
 import mondrian.server.Locus;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 public class NonEmptyFunDef extends FunDefBase {
     static final MultiResolver NonEmptyResolver =
@@ -108,34 +114,25 @@ public class NonEmptyFunDef extends FunDefBase {
                         Exp[] args = call.getArgs();
                         if (args.length == 2) {
                             if (args[1] instanceof ResolvedFunCall) {
-                                ResolvedFunCall call = (ResolvedFunCall)args[1];
-                                while (("{}".equals(call.getFunName()) || "()".equals(call.getFunName()))
-                                    && call.getArgCount() == 1
-                                    && call.getArg(0) instanceof ResolvedFunCall)
-                                {
-                                    call = (ResolvedFunCall)call.getArg(0);
-                                }
-                                Map<RolapCube, List<Exp>> measureMap =
-                                    new HashMap<RolapCube, List<Exp>>();
-                                for (Exp arg1 : call.getArgs()) {
-                                    if (arg1 instanceof MemberExpr) {
-                                        Member member = ((MemberExpr)arg1).getMember();
-                                        RolapCube cube = null;
-                                        if (member instanceof RolapStoredMeasure) {
-                                            cube = ((RolapStoredMeasure) member).getCube();
+                                ResolvedFunCall call = FunUtil.extractResolvedFunCall(args[1]);
+                                Map<List<String>, List<Exp>> measureMap = new HashMap<List<String>, List<Exp>>();
+                                if ("{}".equals(call.getFunName())) {
+                                    for (Exp arg1 : call.getArgs()) {
+                                        if (arg1 instanceof MemberExpr
+                                            && ((MemberExpr)arg1).getMember() instanceof RolapMeasure)
+                                        {
+                                            Set<String> cubes = new HashSet<String>();
+                                            Set<Member> foundMeasures = new HashSet<Member>();
+                                            findMeasures(arg1, measureMap, cubes, foundMeasures);
+                                        } else {
+                                            measureMap.clear();
+                                            break;
                                         }
-                                        List<Exp> measures = measureMap.get(cube);
-                                        if (measures == null) {
-                                            measures = new ArrayList<Exp>();
-                                            measureMap.put(cube, measures);
-                                        }
-                                        measures.add(arg1);
                                     }
                                 }
 
-                                List<TupleList> nonEmptyTuples;
                                 if (measureMap.keySet().size() > 1) {
-                                    nonEmptyTuples = new ArrayList<TupleList>();
+                                    List<TupleList> nonEmptyTuples = new ArrayList<TupleList>();
                                     ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
                                     Validator validator = expCompiler.getValidator();
                                     for (List<Exp> measures : measureMap.values()) {
@@ -242,6 +239,11 @@ public class NonEmptyFunDef extends FunDefBase {
             auxCursor = aux.tupleCursor();
             mainCursor.currentToArray(currentMembers, 0);
             inner : while (auxCursor.forward()) {
+                rowCount++;
+                if (checkCancelPeriod > 0 && rowCount % checkCancelPeriod == 0) {
+                    Locus.peek().execution.checkCancelOrTimeout();
+                }
+
                 auxCursor.currentToArray(currentMembers, arityMain);
                 eval.setContext(currentMembers);
                 Object currval = eval.evaluateCurrent();
@@ -257,14 +259,47 @@ public class NonEmptyFunDef extends FunDefBase {
             if (isNonEmpty) {
                 result.add(mainCursor.current());
             }
-
-            rowCount++;
-            if (checkCancelPeriod > 0 && rowCount % checkCancelPeriod == 0) {
-                Locus.peek().execution.checkCancelOrTimeout();
-            }
         }
         return result;
     }
 
+    private void findMeasures(
+        Exp exp, Map<List<String>, List<Exp>> measureMap, Set<String> cubes, Set<Member> foundMeasures)
+    {
+        if (exp instanceof MemberExpr) {
+            Member member = ((MemberExpr)exp).getMember();
+            if (member.isAll()) {
+                return;
+            }
+            if (member instanceof RolapStoredMeasure) {
+                foundMeasures.add(member);
+                RolapCube cube = ((RolapStoredMeasure) member).getCube();
+                cubes.add(cube.getName());
+            } else if (member instanceof RolapCalculatedMember && foundMeasures.add(member)) {
+                findMeasures(member.getExpression(), measureMap, cubes, foundMeasures);
+                if (!SqlConstraintUtils.isSupportedCalculatedMember(member)) {
+                    cubes.add(UUID.randomUUID().toString());
+                }
+            }
+
+            List<String> cubeList = new ArrayList<String>(cubes);
+            Collections.sort(cubeList, String.CASE_INSENSITIVE_ORDER);
+            List<Exp> measures = measureMap.get(cubeList);
+            if (measures == null) {
+                measures = new ArrayList<Exp>();
+                measureMap.put(cubeList, measures);
+            }
+            measures.add(exp);
+        } else if (exp instanceof ResolvedFunCall) {
+            ResolvedFunCall funCall = (ResolvedFunCall) exp;
+            Exp [] args = funCall.getArgs();
+            for (Exp arg : args) {
+                findMeasures(arg, measureMap, cubes, foundMeasures);
+            }
+        } else if (exp instanceof NamedSetExpr) {
+            Exp namedSetExp = ((NamedSetExpr)exp).getNamedSet().getExp();
+            findMeasures(namedSetExp, measureMap, cubes, foundMeasures);
+        }
+    }
 }
 // End NonEmptyFunDef.java
