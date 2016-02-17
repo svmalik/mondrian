@@ -543,6 +543,19 @@ public class RolapSchemaReader
         return childMembers;
     }
 
+    public List<Member> lookupMemberChildrenByKeys(
+        Member parent, List<Id.KeySegment> childKeys, MatchType matchType)
+    {
+        MemberChildrenConstraint constraint = sqlConstraintFactory
+            .getChildrenByKeysConstraint(
+                (RolapMember) parent, childKeys);
+        List<RolapMember> children =
+            internalGetMemberChildren(parent, constraint);
+        List<Member> childMembers = new ArrayList<Member>();
+        childMembers.addAll(children);
+        return childMembers;
+    }
+
     public Member getCalculatedMember(List<Id.Segment> nameParts) {
         // There are no calculated members defined against a schema.
         return null;

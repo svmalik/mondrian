@@ -468,6 +468,14 @@ public interface SchemaReader {
         MatchType matchType);
 
     /**
+     * Finds a list of child members by the given keys.
+     */
+    List<Member> lookupMemberChildrenByKeys(
+        Member parent,
+        List<Id.KeySegment> childKeys,
+        MatchType matchType);
+
+    /**
      * Returns an object which can evaluate an expression in native SQL, or
      * null if this is not possible.
      *

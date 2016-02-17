@@ -15,19 +15,29 @@ import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.SqlQuery;
 
 import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * Constrains children request by key, for providing ssas-like key access.
  */
 class ChildByKeyConstraint extends DefaultMemberChildrenConstraint {
 
-    private final Comparable<?> childKey;
+    private final String[] childKeys;
     private final Object cacheKey;
 
     public ChildByKeyConstraint(Id.KeySegment childKey) {
 
-        this.childKey = getKeyValue(childKey);
+        this.childKeys = new String[] { getKeyValue(childKey) };
         this.cacheKey = Arrays.asList(ChildByKeyConstraint.class, childKey);
+    }
+
+    public ChildByKeyConstraint(Collection<Id.KeySegment> childKeys) {
+        this.childKeys = new String[childKeys.size()];
+        int i = 0;
+        for (Id.KeySegment childKey : childKeys) {
+            this.childKeys[i++] = getKeyValue(childKey);
+        }
+        this.cacheKey = Arrays.asList(ChildByKeyConstraint.class, this.childKeys);
     }
 
     public void addLevelConstraint(
@@ -39,7 +49,7 @@ class ChildByKeyConstraint extends DefaultMemberChildrenConstraint {
     {
         super.addLevelConstraint(query, baseCube, aggStar, level, optimize);
         query.addWhere(SqlConstraintUtils.constrainLevel2(
-            query, level.getKeyExp(), level.getDatatype(), childKey));
+            query, level.getKeyExp(), level.getDatatype(), childKeys));
     }
 
     public boolean equals(Object obj) {
@@ -51,17 +61,13 @@ class ChildByKeyConstraint extends DefaultMemberChildrenConstraint {
         return getCacheKey().hashCode();
     }
 
-    private Comparable<?> getKeyValue(Id.KeySegment key) {
+    private String getKeyValue(Id.KeySegment key) {
         // assuming only one key segment, discarding the rest
-        Comparable<?> value = key.getKeyParts().get(0).name;
-        if (value.equals(RolapUtil.mdxNullLiteral())) {
-            return RolapUtil.sqlNullValue;
-        }
-        return value;
+        return key.getKeyParts().get(0).name;
     }
 
     public String toString() {
-        return "ChildByKeyConstraint(" + childKey + ")";
+        return "ChildByKeyConstraint(" + Arrays.toString(childKeys) + ")";
     }
 
     public Object getCacheKey() {

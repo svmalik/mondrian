@@ -11,6 +11,7 @@ package mondrian.olap;
 
 import mondrian.mdx.*;
 
+import mondrian.rolap.RolapMember;
 import org.apache.commons.collections.*;
 import org.apache.log4j.Logger;
 
@@ -59,6 +60,9 @@ public final class IdBatchResolver {
     // Set of identifiers, sorted via IdComparator, which orders based
     // first on segment length (shortest to longest), then alphabetically.
     private  SortedSet<Id> identifiers = new TreeSet<Id>(new IdComparator());
+
+    private final boolean ssasCompatibleNaming =
+        MondrianProperties.instance().SsasCompatibleNaming.get();
 
     public IdBatchResolver(Query query) {
         this.query = query;
@@ -147,7 +151,7 @@ public final class IdBatchResolver {
             Id parent = identifiers.first();
             identifiers.remove(parent);
 
-            if (!supportedIdentifier(parent)) {
+            if (!supportedIdentifier(parent, true, true) && !supportedIdentifierKey(parent, true)) {
                 continue;
             }
             Exp exp = (Exp)resolvedIdentifiers.get(parent);
@@ -155,11 +159,23 @@ public final class IdBatchResolver {
                 exp = lookupExp(resolvedIdentifiers, parent);
             }
             Member parentMember = getMemberFromExp(exp);
-            if (!supportedMember(parentMember)) {
-                continue;
+            if (supportedMember(parentMember)) {
+                if (getLastSegment(parent) instanceof Id.NameSegment) {
+                    batchResolveChildren(
+                        parent, parentMember, identifiers, resolvedIdentifiers);
+                } else if (getLastSegment(parent) instanceof Id.KeySegment) {
+                    batchResolveChildrenByKey(
+                        parent, parentMember, identifiers, resolvedIdentifiers);
+                }
             }
-            batchResolveChildren(
-                parent, parentMember, identifiers, resolvedIdentifiers);
+            if (exp instanceof LevelExpr) {
+                Level level = ((LevelExpr)exp).getLevel();
+                if (level.getHierarchy().hasAll()) {
+                    parentMember = level.getHierarchy().getAllMember();
+                    batchResolveChildrenByKey(
+                        parent, parentMember, identifiers, resolvedIdentifiers);
+                }
+            }
         }
         return resolvedIdentifiers;
     }
@@ -174,6 +190,7 @@ public final class IdBatchResolver {
         Map<QueryPart, QueryPart> resolvedIdentifiers)
     {
         final List<Id> children = findChildIds(parent, identifiers);
+        if (children.size() == 0) return;
         final List<Id.NameSegment> childNameSegments =
             collectChildrenNameSegments(parentMember, children);
 
@@ -213,11 +230,16 @@ public final class IdBatchResolver {
     {
         for (Member child : childMembers) {
             for (Id childId : children) {
-                if (!resolvedIdentifiers.containsKey(childId)
-                    && getLastSegment(childId).matches(child.getName()))
+                if (!resolvedIdentifiers.containsKey(childId))
                 {
-                    resolvedIdentifiers.put(
-                        childId, (QueryPart)Util.createExpr(child));
+                    Id.Segment segment = getLastSegment(childId);
+                    if ((segment instanceof Id.NameSegment && segment.matches(child.getName()))
+                        || (segment instanceof Id.KeySegment && child instanceof RolapMember
+                            && segment.getKeyParts().get(0).getName().equals(((RolapMember)child).getKey())))
+                    {
+                        resolvedIdentifiers.put(
+                            childId, (QueryPart) Util.createExpr(child));
+                    }
                 }
             }
         }
@@ -263,7 +285,7 @@ public final class IdBatchResolver {
                 {
                     Id id = (Id)theId;
                     return !Util.matches(parentMember, id.getSegments())
-                        && supportedIdentifier(id);
+                        && supportedIdentifier(id, false, false);
                 }
             });
         return new ArrayList(
@@ -287,13 +309,86 @@ public final class IdBatchResolver {
      * Checks various conditions to determine whether
      * the given identifier is likely to be resolvable at this point.
      */
-    private boolean supportedIdentifier(Id id) {
+    private boolean supportedIdentifier(Id id, boolean acceptLevel, boolean acceptHierarchy) {
         Id.Segment seg = getLastSegment(id);
         if (!(seg instanceof Id.NameSegment)) {
             // we can't batch resolve members identified by key
             return false;
         }
-        return (isPossibleMemberRef(id))
+        return isPossibleMemberRef(id, acceptLevel, acceptHierarchy)
+            && !segmentIsCalcMember(id.getSegments())
+            && !id.getSegments().get(0).matches("Measures");
+    }
+
+    private void batchResolveChildrenByKey(
+        Id parent, Member parentMember, SortedSet<Id> identifiers,
+        Map<QueryPart, QueryPart> resolvedIdentifiers)
+    {
+        final List<Id> children = findChildIds(parent, identifiers);
+        if (children.size() == 0) return;
+        final List<Id.KeySegment> childKeySegments =
+            collectChildrenKeySegments(parentMember, children);
+        if (childKeySegments.size() > 0) {
+            List<Member> childMembers =
+                lookupChildrenByKeys(parentMember, childKeySegments);
+            addChildrenToResolvedMap(
+                resolvedIdentifiers, children, childMembers);
+        }
+    }
+
+    private List<Member> lookupChildrenByKeys(
+        Member parentMember,
+        List<Id.KeySegment> childKeySegments)
+    {
+        try {
+            return query.getSchemaReader(true)
+                .lookupMemberChildrenByKeys(
+                    parentMember,
+                    childKeySegments, MatchType.EXACT);
+        } catch (Exception e) {
+            LOGGER.info(
+                String.format(
+                    "Failure while looking up children of '%s' during  "
+                    + "batch member resolution.  Child member refs:  %s",
+                    parentMember,
+                    Arrays.toString(childKeySegments.toArray())), e);
+        }
+        // don't want to fail at this point.  Member resolution still has
+        // another chance to succeed.
+        return Collections.emptyList();
+    }
+
+    private List<Id.KeySegment> collectChildrenKeySegments(
+        final Member parentMember, List<Id> children)
+    {
+        filter(
+            children, new Predicate() {
+                // remove children we can't support
+                public boolean evaluate(Object theId)
+                {
+                    Id id = (Id)theId;
+                    return !Util.matches(parentMember, id.getSegments())
+                        && supportedIdentifierKey(id, false);
+                }
+            });
+        return new ArrayList(
+            CollectionUtils.collect(
+                children, new Transformer()
+                {
+                    // convert the collection to a list of NameSegments
+                    public Object transform(Object theId) {
+                        Id id = (Id)theId;
+                        return getLastSegment(id);
+                    }
+                }));
+    }
+
+    private boolean supportedIdentifierKey(Id id, boolean acceptHierarchy) {
+        Id.Segment seg = getLastSegment(id);
+        if (!(seg instanceof Id.KeySegment)) {
+            return false;
+        }
+        return isPossibleMemberRef(id, true, acceptHierarchy)
             && !segmentIsCalcMember(id.getSegments())
             && !id.getSegments().get(0).matches("Measures");
     }
@@ -355,23 +450,22 @@ public final class IdBatchResolver {
      * This filters out references that we'd be unlikely to effectively
      * handle.
      */
-    private boolean isPossibleMemberRef(Id id) {
+    private boolean isPossibleMemberRef(Id id, boolean acceptLevel, boolean acceptHierarchy) {
         int size = id.getSegments().size();
 
         if (size == 1) {
             //Id.Segment seg = id.getSegments().get(0);
             return segListMatchInUniqueNames(
                 id.getSegments(), dimensionUniqueNames)
-                || segListMatchInUniqueNames(
-                    id.getSegments(), hierarchyUniqueNames);
+                || (segListMatchInUniqueNames(
+                    id.getSegments(), hierarchyUniqueNames) && acceptHierarchy);
         }
-        if (MondrianProperties.instance().SsasCompatibleNaming.get()
-            && size == 2)
+        if (ssasCompatibleNaming && size == 2)
         {
             return segListMatchInUniqueNames(
-                id.getSegments(), hierarchyUniqueNames);
+                id.getSegments(), hierarchyUniqueNames) && acceptHierarchy;
         }
-        if (segMatchInNames(getLastSegment(id), levelNames)) {
+        if (!acceptLevel && segMatchInNames(getLastSegment(id), levelNames)) {
             // conservative.  false on any match of any level name
             return false;
         }

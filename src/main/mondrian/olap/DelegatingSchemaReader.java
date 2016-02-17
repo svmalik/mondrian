@@ -270,6 +270,13 @@ public abstract class DelegatingSchemaReader implements SchemaReader {
             parent, childNames, matchType);
     }
 
+    public List<Member> lookupMemberChildrenByKeys(
+        Member parent, List<Id.KeySegment> childKyes, MatchType matchType)
+    {
+        return schemaReader.lookupMemberChildrenByKeys(
+            parent, childKyes, matchType);
+    }
+
     public NativeEvaluator getNativeSetEvaluator(
         FunDef fun, Exp[] args, Evaluator evaluator, Calc calc)
     {

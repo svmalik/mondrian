@@ -170,6 +170,16 @@ public class SqlConstraintFactory {
         return new ChildByNameConstraint(childNames);
     }
 
+    public MemberChildrenConstraint getChildrenByKeysConstraint(
+        RolapMember parent,
+        List<Id.KeySegment> childKeys)
+    {
+        if (useDefaultMemberChildrenConstraint(parent)) {
+            return DefaultMemberChildrenConstraint.instance();
+        }
+        return new ChildByKeyConstraint(childKeys);
+    }
+
     private boolean useDefaultMemberChildrenConstraint(RolapMember parent) {
         int threshold = MondrianProperties.instance()
             .LevelPreCacheThreshold.get();

@@ -90,6 +90,30 @@ public class IdBatchResolverTest  extends BatchTestCase {
         assertEquals(
             "[[Dairy], [Deli], [Eggs], [Produce], [Starchy Foods]]",
             sortedNames(childNames.getAllValues().get(1)));
+
+        // verify members referenced via keys
+        propSaver.set(propSaver.properties.SsasCompatibleNaming, true);
+        propSaver.set(propSaver.properties.SsasNativeMemberUniqueNameStyle, true);
+        propSaver.set(propSaver.properties.FullHierarchyNames, true);
+        assertContains(
+            "Resolved map omitted one or more members",
+            batchResolve(
+                "SELECT "
+                + "{[Store].[Store].[Store Country].&[USA]"
+                + "} on 0 FROM SALES"),
+            list(
+                "[Store].[Store].[Store Country].&[USA]"));
+
+        assertContains(
+            "Resolved map omitted one or more members",
+            batchResolve(
+                "SELECT "
+                + "{[Product].[Product].[Product Department].&[Dairy]&[Food],"
+                + "[Product].[Product].[Product Department].&[Food].&[Deli]}"
+                + "on 0 FROM SALES"),
+            list(
+                "[Product].[Product].[Product Department].&[Dairy]&[Food]",
+                "[Product].[Product].[Product Department].&[Food].&[Deli]"));
     }
 
     public void testCalcMemsNotResolved() {

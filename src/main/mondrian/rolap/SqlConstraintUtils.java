@@ -1869,6 +1869,16 @@ public class SqlConstraintUtils {
         }
     }
 
+    public static String constrainLevel2(
+        SqlQuery query,
+        MondrianDef.Expression exp,
+        Dialect.Datatype datatype,
+        String[] columnValues)
+    {
+        String columnString = exp.getExpression(query);
+        return getColumnValueConstraint(query, columnValues, false, columnString, datatype);
+    }
+
     /**
      * Generates a multi-value IN expression corresponding to a list of
      * member expressions, and adds the expression to the WHERE clause
