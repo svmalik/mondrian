@@ -550,7 +550,7 @@ public class CrossJoinArgFactory {
         if (funcall.getFunName().equalsIgnoreCase("strtomember")) {
           return supportsPreEval(funcall.getArg(0));
         }
-      } else if (exp instanceof ParameterExpr) {
+      } else if (exp instanceof ParameterExpr || exp instanceof Literal) {
         return true;
       }
       return false;
