@@ -2454,6 +2454,30 @@ public class FunctionTest extends FoodMartTestCase {
             result.getCell(coords).getFormattedValue());
     }
 
+    public void testCurrentMembers() {
+        // <Dimension>.CurrentMember
+        assertAxisReturns("[Gender].CurrentMembers.Item(0)", "[Gender].[All Gender]");
+        // <Hierarchy>.CurrentMember
+        assertAxisReturns(
+            "[Gender].Hierarchy.CurrentMembers.Item(0)", "[Gender].[All Gender]");
+
+        Result result = executeQuery(
+            "with member [Measures].[Foo] as "
+            + "Generate([Gender].CurrentMembers, [Gender].CurrentMember.Name, \",\")\n"
+            + "select {[Measures].[Foo]} on columns\n"
+            + "from Sales where {[Gender].[F], [Gender].[M]}");
+        Assert.assertEquals("F,M", result.getCell(new int[]{0}).getValue());
+
+        propSaver.set(MondrianProperties.instance().ExpandNonNative, true);
+        result = executeQuery(
+            "with member [Measures].[Foo] as "
+            + "Generate([Gender].CurrentMembers, [Gender].CurrentMember.Name, \",\")\n"
+            + "member [Gender].[F+M] as Aggregate({[Gender].[F], [Gender].[M]})\n"
+            + "select {[Measures].[Foo]} on columns\n"
+            + "from Sales where [Gender].[F+M]");
+        Assert.assertEquals("F,M", result.getCell(new int[]{0}).getValue());
+    }
+
     public void testDefaultMember() {
         // [Time] has no default member and no all, so the default member is
         // the first member of the first level.

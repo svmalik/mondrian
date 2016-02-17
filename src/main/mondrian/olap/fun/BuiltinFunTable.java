@@ -283,6 +283,7 @@ public class BuiltinFunTable extends FunTableImpl {
         });
 
         builder.define(HierarchyCurrentMemberFunDef.instance);
+        builder.define(HierarchyCurrentMembersFunDef.instance);
         builder.define(NamedSetCurrentFunDef.instance);
         builder.define(NamedSetCurrentOrdinalFunDef.instance);
 
