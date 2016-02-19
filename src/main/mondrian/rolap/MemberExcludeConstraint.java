@@ -33,7 +33,7 @@ class MemberExcludeConstraint implements TupleConstraint {
     private final RolapLevel level;
     private final RolapNativeSet.SetConstraint csc;
     private final Map<RolapLevel, List<RolapMember>> roles;
-
+    private final boolean nonempty;
     /**
      * Creates a <code>MemberExcludeConstraint</code>.
      *
@@ -41,7 +41,8 @@ class MemberExcludeConstraint implements TupleConstraint {
     public MemberExcludeConstraint(
         List<RolapMember> excludes,
         RolapLevel level,
-        RolapNativeSet.SetConstraint csc)
+        RolapNativeSet.SetConstraint csc,
+        boolean nonempty)
     {
         this.excludes = excludes;
         this.cacheKey = asList(MemberExcludeConstraint.class, excludes, csc);
@@ -51,8 +52,16 @@ class MemberExcludeConstraint implements TupleConstraint {
         roles = (csc == null)
             ? Collections.<RolapLevel, List<RolapMember>>emptyMap()
             : SqlConstraintUtils.getRolesConstraints(csc.getEvaluator());
+        this.nonempty = nonempty;
     }
 
+    public MemberExcludeConstraint(
+        List<RolapMember> excludes,
+        RolapLevel level,
+        RolapNativeSet.SetConstraint csc)
+    {
+        this(excludes, level, csc, true);
+    }
 
     @Override
     public int hashCode() {
@@ -76,7 +85,7 @@ class MemberExcludeConstraint implements TupleConstraint {
     {
         if (level.equals(this.level)) {
             SqlConstraintUtils.addMemberConstraint(
-                query, baseCube, aggStar, excludes, true, false, true);
+                query, baseCube, aggStar, excludes, true, false, true, nonempty);
         }
         if (csc != null) {
             for (CrossJoinArg cja : csc.args) {
@@ -89,7 +98,7 @@ class MemberExcludeConstraint implements TupleConstraint {
         if (roles.containsKey(level)) {
             List<RolapMember> members = roles.get(level);
             SqlConstraintUtils.addMemberConstraint(
-                query, baseCube, aggStar, members, true, false, false);
+                query, baseCube, aggStar, members, true, false, false, nonempty);
         }
     }
 

@@ -560,6 +560,31 @@ public abstract class RolapNativeSet extends RolapNative {
             if (hasEnumTargets && partialResult == null) {
                 newPartialResult = new ArrayList<List<RolapMember>>();
             }
+
+            result = prepareListResult(tr, partialResult, newPartialResult);
+
+            if (!MondrianProperties.instance().DisableCaching.get()) {
+                if (hasEnumTargets) {
+                    if (newPartialResult != null) {
+                        cache.put(
+                            key,
+                            new DelegatingTupleList(
+                                args.length,
+                                Util.<List<Member>>cast(newPartialResult)));
+                    }
+                } else {
+                    cache.put(key, result);
+                }
+            }
+            return filterInaccessibleTuples(result);
+        }
+
+        private TupleList prepareListResult(
+            final SqlTupleReader tr,
+            TupleList partialResult,
+            List<List<RolapMember>> newPartialResult)
+        {
+            TupleList result;
             DataSource dataSource = schemaReader.getDataSource();
             if (args.length == 1) {
                 result =
@@ -585,7 +610,8 @@ public abstract class RolapNativeSet extends RolapNative {
                     new MemberExcludeConstraint(
                         list, l,
                         constraint instanceof SetConstraint
-                        ? (SetConstraint) constraint : null));
+                            ? (SetConstraint) constraint : null,
+                        false));
                 str.setAllowHints(false);
                 for (CrossJoinArg arg : args) {
                     addLevel(str, arg);
@@ -593,24 +619,9 @@ public abstract class RolapNativeSet extends RolapNative {
 
                 str.setMaxRows(maxRows - result.size());
                 result.addAll(
-                    str.readMembers(
-                        dataSource, null, new ArrayList<List<RolapMember>>()));
+                    str.readMembers(dataSource, null, null));
             }
-
-            if (!MondrianProperties.instance().DisableCaching.get()) {
-                if (hasEnumTargets) {
-                    if (newPartialResult != null) {
-                        cache.put(
-                            key,
-                            new DelegatingTupleList(
-                                args.length,
-                                Util.<List<Member>>cast(newPartialResult)));
-                    }
-                } else {
-                    cache.put(key, result);
-                }
-            }
-            return filterInaccessibleTuples(result);
+            return result;
         }
 
         /**
@@ -702,18 +713,7 @@ public abstract class RolapNativeSet extends RolapNative {
 
             // if we don't have a cached result in the case where we have
             // enumerated targets, then retrieve and cache that partial result
-            TupleList result;
-            List<List<RolapMember>> newPartialResult = null;
-            DataSource dataSource = schemaReader.getDataSource();
-            if (args.length == 1) {
-                result =
-                    tr.readMembers(
-                        dataSource, null, null);
-            } else {
-                result =
-                    tr.readTuples(
-                        dataSource, null, null);
-            }
+            TupleList result = prepareListResult(tr, null, null);
             cache.put(key, result);
             filterInaccessibleTuples(result);
         }

@@ -263,7 +263,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
                         parentConstraint);
                 eval.setConstraint(constraint);
                 eval.setMaxRows(count);
-                eval.setCompleteWithNullValues(!evaluator.isNonEmpty());
+                eval.setCompleteWithNullValues(false);
                 LOGGER.debug("using nested native topcount");
                 return eval;
             }

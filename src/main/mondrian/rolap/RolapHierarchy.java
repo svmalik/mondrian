@@ -692,6 +692,10 @@ public class RolapHierarchy extends HierarchyBase {
      * @param table table to add to the query
      */
     void addToFrom(SqlQuery query, RolapStar.Table table) {
+        addToFrom(query, table, true);
+    }
+
+    void addToFrom(SqlQuery query, RolapStar.Table table, boolean nonempty) {
         if (getRelation() == null) {
             throw Util.newError(
                 "cannot add hierarchy " + getUniqueName()
@@ -716,7 +720,7 @@ public class RolapHierarchy extends HierarchyBase {
             subRelation = getRelation();
         }
         if (subRelation == getRelation()) {
-            table.addToFrom(query, failIfExists, true);
+            table.addToFrom(query, failIfExists, nonempty);
         } else {
             boolean tableAdded =
                 query.addFrom(

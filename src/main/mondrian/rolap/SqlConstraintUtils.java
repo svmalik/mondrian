@@ -1212,6 +1212,19 @@ public class SqlConstraintUtils {
         boolean crossJoin,
         boolean exclude)
     {
+        addMemberConstraint(sqlQuery, baseCube, aggStar, members, restrictMemberTypes, crossJoin, exclude, true);
+    }
+
+    public static void addMemberConstraint(
+        SqlQuery sqlQuery,
+        RolapCube baseCube,
+        AggStar aggStar,
+        List<RolapMember> members,
+        boolean restrictMemberTypes,
+        boolean crossJoin,
+        boolean exclude,
+        boolean nonempty)
+    {
         if (members.size() == 0) {
             // Generate a predicate which is always false in order to produce
             // the empty set.  It would be smarter to avoid executing SQL at
@@ -1270,7 +1283,7 @@ public class SqlConstraintUtils {
                     members,
                     firstUniqueParentLevel,
                     restrictMemberTypes,
-                    exclude, true);
+                    exclude, true, nonempty);
         }
 
         if (condition.length() > 1) {
@@ -2160,6 +2173,21 @@ public class SqlConstraintUtils {
         boolean exclude,
         boolean includeParentLevels)
     {
+        return generateSingleValueInExpr(
+            sqlQuery, baseCube, aggStar, members, fromLevel, restrictMemberTypes, exclude, includeParentLevels, true);
+    }
+
+    public static String generateSingleValueInExpr(
+        SqlQuery sqlQuery,
+        RolapCube baseCube,
+        AggStar aggStar,
+        List<RolapMember> members,
+        RolapLevel fromLevel,
+        boolean restrictMemberTypes,
+        boolean exclude,
+        boolean includeParentLevels,
+        boolean nonempty)
+    {
         int maxConstraints =
             MondrianProperties.instance().MaxConstraints.get();
         Dialect dialect = sqlQuery.getDialect();
@@ -2226,7 +2254,7 @@ public class SqlConstraintUtils {
                     // optimize column
                     RolapStar.Column optimized = column.optimize();
                     RolapStar.Table targetTable = optimized.getTable();
-                    hierarchy.addToFrom(sqlQuery, targetTable);
+                    hierarchy.addToFrom(sqlQuery, targetTable, nonempty);
                     q = optimized.generateExprString(sqlQuery);
                 }
             } else {
