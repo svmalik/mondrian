@@ -105,6 +105,8 @@ public class RolapCube extends CubeBase {
     // contains the cell calculations for this cube.
     public List<CellCalc> cellCalcs = new ArrayList<CellCalc>();
 
+    Set<String> baseCubeDimNames = null;
+
     /**
      * Private constructor used by both normal cubes and virtual cubes.
      *
@@ -2526,10 +2528,12 @@ public class RolapCube extends CubeBase {
      * @return Set of dimensions that do not exist (non joining) in this cube
      */
     public Set<Dimension> nonJoiningDimensions(Set<Dimension> otherDims) {
-        Dimension[] baseCubeDimensions = getDimensions();
-        Set<String>  baseCubeDimNames = new HashSet<String>();
-        for (Dimension baseCubeDimension : baseCubeDimensions) {
-            baseCubeDimNames.add(baseCubeDimension.getUniqueName());
+        if (baseCubeDimNames == null) {
+            Dimension[] baseCubeDimensions = getDimensions();
+            baseCubeDimNames = new HashSet<String>();
+            for (Dimension baseCubeDimension : baseCubeDimensions) {
+                baseCubeDimNames.add(baseCubeDimension.getUniqueName());
+            }
         }
         Set<Dimension> nonJoiningDimensions = new HashSet<Dimension>();
         for (Dimension otherDim : otherDims) {
