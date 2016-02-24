@@ -10,6 +10,7 @@
 package mondrian.rolap;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -23,6 +24,8 @@ import mondrian.mdx.UnresolvedFunCall;
 import mondrian.olap.Exp;
 import mondrian.olap.Formula;
 import mondrian.olap.FunTable;
+import mondrian.olap.Level;
+import mondrian.olap.Member;
 import mondrian.olap.MondrianDef;
 import mondrian.olap.Parameter;
 import mondrian.olap.Property;
@@ -341,6 +344,9 @@ public class CalculatedCellUtil {
         int ordinal;
         public boolean inside(RolapEvaluator eval) {
             final RolapMember curr = (RolapMember)eval.getMembers()[ordinal];
+            if (curr instanceof RolapResult.CompoundSlicerRolapMember) {
+                return false;
+            }
             if (!curr.equals(member)) {
                 return false;
             }
@@ -356,10 +362,21 @@ public class CalculatedCellUtil {
         int ordinal;
         public boolean inside(RolapEvaluator eval) {
             final RolapMember curr = (RolapMember)eval.getMembers()[ordinal];
-            if (!curr.getLevel().equals(lvl)) {
+            if (curr instanceof RolapResult.CompoundSlicerRolapMember) {
+                Collection<? extends Member> currMembers = FunUtil.expandMember(curr, eval);
+                for (Member member : currMembers) {
+                    if (!checkLevel(member.getLevel())) {
+                        return false;
+                    }
+                }
+            } else if (!checkLevel(curr.getLevel())) {
                 return false;
             }
             return true;
+        }
+
+        private boolean checkLevel(Level level) {
+            return level.equals(this.lvl);
         }
     }
 
@@ -371,10 +388,21 @@ public class CalculatedCellUtil {
         int ordinal;
         public boolean inside(RolapEvaluator eval) {
             final RolapMember curr = (RolapMember)eval.getMembers()[ordinal];
-            if (!curr.isChildOrEqualTo(member)) {
+            if (curr instanceof RolapResult.CompoundSlicerRolapMember) {
+                Collection<? extends Member> currMembers = FunUtil.expandMember(curr, eval);
+                for (Member currMember : currMembers) {
+                    if (!checkMember(currMember)) {
+                        return false;
+                    }
+                }
+            } else if (!checkMember(curr)) {
                 return false;
             }
             return true;
+        }
+
+        private boolean checkMember(Member member) {
+            return member.isChildOrEqualTo(this.member);
         }
     }
 
@@ -389,28 +417,43 @@ public class CalculatedCellUtil {
         public boolean inside(RolapEvaluator eval) {
             // first grab the member object
             final RolapMember curr = (RolapMember)eval.getMembers()[ordinal];
-            // all of the checks below need to make sure the member is at least a descendant.
-            if (!curr.isChildOrEqualTo(member)) {
+            if (curr instanceof RolapResult.CompoundSlicerRolapMember) {
+                Collection<? extends Member> currMembers = FunUtil.expandMember(curr, eval);
+                for (Member currMember : currMembers) {
+                    if (!checkMember(currMember)) {
+                        return false;
+                    }
+                }
+            } else if (!checkMember(curr)) {
                 return false;
             }
+            return true;
+        }
+
+        private boolean checkMember(Member member) {
+            // all of the checks below need to make sure the member is at least a descendant.
+            if (!member.isChildOrEqualTo(this.member)) {
+                return false;
+            }
+            Level lvl = member.getLevel();
             if (flag.leaves) {
-                if (curr.getLevel().getHierarchy().getLevels()[curr.getLevel().getHierarchy().getLevels().length - 1]
-                        != curr.getLevel()) {
+                Level[] hierarchyLevels = lvl.getHierarchy().getLevels();
+                if (hierarchyLevels[hierarchyLevels.length - 1] != lvl) {
                     return false;
                 }
             } else {
                 if (flag.self) {
-                    if (curr.getLevel().getDepth() == level.getDepth()) {
+                    if (lvl.getDepth() == this.level.getDepth()) {
                         return true;
                     }
                 }
                 if (flag.before) {
-                    if (curr.getLevel().getDepth() < level.getDepth()) {
+                    if (lvl.getDepth() < this.level.getDepth()) {
                         return true;
                     }
                 }
                 if (flag.after) {
-                    if (curr.getLevel().getDepth() > level.getDepth()) {
+                    if (lvl.getDepth() > this.level.getDepth()) {
                         return true;
                     }
                 }

@@ -179,7 +179,21 @@ public class CalculatedCellTest extends FoodMartTestCase {
             + "Row #0: 135,215\n"
             + "Row #0: 66,460\n"
             + "Row #0: 68,755\n");
-        
+
+        // compound slicer
+        testContext.assertQueryReturns(
+            "select {[Gender].[All Gender].Children} on 0, {[Measures].[Unit Sales]} on 1 from sales where {[Marital Status].[M], [Marital Status].[S]}",
+            "Axis #0:\n"
+            + "{[Marital Status].[M]}\n"
+            + "{[Marital Status].[S]}\n"
+            + "Axis #1:\n"
+            + "{[Gender].[F]}\n"
+            + "{[Gender].[M]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Row #0: 157,870\n" // 131,558
+            + "Row #0: 135,215\n");
+
         testContext = TestContext.instance().createSubstitutingCube(
             "Sales",
             null,
@@ -239,6 +253,20 @@ public class CalculatedCellTest extends FoodMartTestCase {
             + "Row #0: 9,990\n"
             + "Row #0: 10,696\n"
             + "Row #0: 10,189\n");
+
+        // compound slicer
+        testContext.assertQueryReturns(
+            "select {[Gender].[All Gender].Children } on 0, {[Measures].[Unit Sales]} on 1 from sales where {[Time].[1997].[Q1].[1], [Time].[1997].[Q1].[2]}",
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1].[1]}\n"
+            + "{[Time].[1997].[Q1].[2]}\n"
+            + "Axis #1:\n"
+            + "{[Gender].[F]}\n"
+            + "{[Gender].[M]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Row #0: 25,438\n" // 21,198
+            + "Row #0: 21,387\n");
 
         testContext = TestContext.instance().createSubstitutingCube(
             "Sales",
@@ -350,6 +378,20 @@ public class CalculatedCellTest extends FoodMartTestCase {
             + "Row #0: 9,990\n"
             + "Row #0: 10,696\n"
             + "Row #0: 10,189\n");
+
+        // compound slicer
+        testContext.assertQueryReturns(
+            "select {[Gender].[All Gender].Children} on 0, {[Measures].[Unit Sales]} on 1 from sales where {[Time].[1997].[Q1].[1], [Time].[1997].[Q1].[2]}",
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1].[1]}\n"
+            + "{[Time].[1997].[Q1].[2]}\n"
+            + "Axis #1:\n"
+            + "{[Gender].[F]}\n"
+            + "{[Gender].[M]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Row #0: 25,438\n" // 21,198
+            + "Row #0: 21,387\n");
     }
 
     public void testVirtualCube() {
