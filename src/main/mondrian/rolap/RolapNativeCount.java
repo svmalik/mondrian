@@ -10,6 +10,7 @@
 package mondrian.rolap;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -75,7 +76,7 @@ public class RolapNativeCount extends RolapNativeSet {
         // addContextConstraint()
         // method which gets called when generating the native SQL.
         if (SqlConstraintUtils.containsCalculatedMember(
-                evaluator.getNonAllMembers(), true))
+                Arrays.asList(evaluator.getNonAllMembers()), true))
         {
             return null;
         }

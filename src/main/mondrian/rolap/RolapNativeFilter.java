@@ -6,7 +6,7 @@
 //
 // Copyright (C) 2004-2005 TONBELLER AG
 // Copyright (C) 2005-2005 Julian Hyde
-// Copyright (C) 2005-2014 Pentaho
+// Copyright (C) 2005-2016 Pentaho
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -19,6 +19,7 @@ import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.*;
 
 import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -239,7 +240,7 @@ public class RolapNativeFilter extends RolapNativeSet {
         // addContextConstraint()
         // method which gets called when generating the native SQL.
         if (SqlConstraintUtils.containsCalculatedMember(
-                evaluator.getNonAllMembers(), true))
+                Arrays.asList(evaluator.getNonAllMembers()), true))
         {
             return null;
         }

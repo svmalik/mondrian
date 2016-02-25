@@ -5,7 +5,7 @@
 // You must accept the terms of that agreement to use this software.
 //
 // Copyright (C) 2004-2005 TONBELLER AG
-// Copyright (C) 2006-2015 Pentaho and others
+// Copyright (C) 2006-2016 Pentaho and others
 // All Rights Reserved.
 */
 package mondrian.rolap;
@@ -283,10 +283,9 @@ public class SqlContextConstraint
 
         // Now we'll need to expand the aggregated members
         expandedMembers.addAll(
-            Arrays.asList(
-                SqlConstraintUtils.expandSupportedCalculatedMembers(
-                    members,
-                    evaluator)));
+            SqlConstraintUtils.expandSupportedCalculatedMembers(
+                members,
+                evaluator).getMembers());
         cacheKey.setMembers(expandedMembers);
 
         // TODO: If slicerTuple contains a calculated member in this

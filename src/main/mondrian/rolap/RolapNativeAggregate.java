@@ -9,6 +9,7 @@
 */
 package mondrian.rolap;
 
+import java.util.Arrays;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -50,7 +51,7 @@ public class RolapNativeAggregate extends RolapNativeSet {
             return null;
         }
 
-        if (SqlConstraintUtils.containsCalculatedMember(evaluator.getNonAllMembers(), true)) {
+        if (SqlConstraintUtils.containsCalculatedMember(Arrays.asList(evaluator.getNonAllMembers()), true)) {
             return null;
         }
 
