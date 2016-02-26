@@ -66,7 +66,7 @@ public class XmlaUtil implements XmlaConstants {
         Pattern.compile(".*[a-z].*");
 
     static {
-        initCharTable(" \t\r\n(){}[]+/*%!,?&:");
+        initCharTable(" \t\r\n(){}[]+/*%!,?&:$");
     }
 
     private static void initCharTable(String charStr) {
