@@ -2347,7 +2347,7 @@ public class SqlConstraintUtils {
             if (m.isCalculated()) {
                 Exp exp = m.getExpression();
                 exp.accept(
-                    new MemberExtractingVisitor(
+                    new IifMemberVisitor(
                         membersNestedInMeasures, null, false));
             }
         }
@@ -2437,6 +2437,67 @@ public class SqlConstraintUtils {
             }
         }
         return members.toArray(new Member[members.size()]);
+    }
+
+    static class IifMemberVisitor extends MemberExtractingVisitor {
+        private static HashSet<String> boolExps =
+            new HashSet<String>(Arrays.asList("IIF", "AND", "OR", "NOT"));
+        Set<Member> memberSet;
+        ResolvedFunCall call;
+        boolean mapToAllMember;
+        public IifMemberVisitor(
+            Set<Member> memberSet, ResolvedFunCall call, boolean mapToAllMember)
+        {
+            super(memberSet, call, mapToAllMember);
+            this.memberSet = memberSet;
+            this.call = call;
+            this.mapToAllMember = mapToAllMember;
+        }
+
+        public Object visit(ResolvedFunCall funCall) {
+            if (funCall == call) {
+                turnOffVisitChildren();
+            }
+            else if (boolExps.contains(funCall.getFunName().toUpperCase()))
+            {
+                Exp[] args = funCall.getArgs();
+                for (Exp arg : args) {
+                    arg.accept(new SkipIsMemberVisitor(memberSet, funCall, mapToAllMember));
+                }
+                turnOffVisitChildren();
+            } else {
+                super.visit(funCall);
+            }
+            return null;
+        }
+    }
+
+    static class SkipIsMemberVisitor extends MemberExtractingVisitor {
+        Set<Member> memberSet;
+        ResolvedFunCall call;
+        boolean mapToAllMember;
+        public SkipIsMemberVisitor(
+            Set<Member> memberSet, ResolvedFunCall call, boolean mapToAllMember)
+        {
+            super(memberSet, call, mapToAllMember);
+            this.memberSet = memberSet;
+            this.call = call;
+            this.mapToAllMember = mapToAllMember;
+        }
+
+        public Object visit(ResolvedFunCall funCall) {
+            if (funCall == call) {
+                turnOffVisitChildren();
+            } else if ("IS".equalsIgnoreCase(funCall.getFunName())) {
+                turnOffVisitChildren();
+            } else {
+                for (Exp arg : funCall.getArgs()) {
+                    arg.accept(new SkipIsMemberVisitor(memberSet, funCall, mapToAllMember));
+                }
+                turnOffVisitChildren();
+            }
+            return null;
+        }
     }
 }
 

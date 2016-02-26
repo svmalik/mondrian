@@ -5845,6 +5845,26 @@ public class NonEmptyTest extends BatchTestCase {
             + "Row #0: 33,101\n");
     }
 
+    public void testMondrian2202IifShouldNotConlict() {
+        propSaver.set(MondrianProperties.instance().AlertNativeEvaluationUnsupported, "ERROR");
+        try {
+            assertQueryReturns(
+                "WITH  member measures.[overrideContext] as "
+                + "'IIF ([Time.Weekly].CurrentMember IS [Time.Weekly].[All Time.Weeklys], null, measures.[unit sales])'\n"
+                + "SELECT measures.[overrideContext] on 0, \n"
+                + "NonEmptyCrossjoin( [Time.Weekly].[1997], [Marital Status].[M]) on 1\n"
+                + "FROM sales\n",
+                "Axis #0:\n"
+                + "{}\n"
+                + "Axis #1:\n"
+                + "{[Measures].[overrideContext]}\n"
+                + "Axis #2:\n"
+                + "{[Time].[Weekly].[1997], [Marital Status].[M]}\n"
+                + "Row #0: 131,796\n");
+        } catch (NativeEvaluationUnsupportedException e) {
+            Assert.fail();
+        }
+    }
 
     public void testMondrian2202WithLevelMembers() {
         // verifies SqlConstraintFactory.getLevelMembersConstraint() doesn't
