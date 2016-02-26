@@ -81,7 +81,7 @@ public class TopCountNativeEvaluatorTest extends FoodMartTestCase {
             "Native evaluator should not be created when "
             + "two parameters are passed",
             nativeTopCount.createEvaluator(
-                null, mockFunctionDef(), arguments));
+                mockEvaluator(), mockFunctionDef(), arguments));
     }
 
     private RolapNativeTopCount createTopCountSpy() {
@@ -94,6 +94,11 @@ public class TopCountNativeEvaluatorTest extends FoodMartTestCase {
         FunDef topCountFunMock = mock(FunDef.class);
         when(topCountFunMock.getName()).thenReturn("TOPCOUNT");
         return topCountFunMock;
+    }
+
+    private RolapEvaluator mockEvaluator() {
+        RolapEvaluator eval = mock(RolapEvaluator.class);
+        return eval;
     }
 }
 

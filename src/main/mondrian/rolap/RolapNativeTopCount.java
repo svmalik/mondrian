@@ -194,65 +194,68 @@ public class RolapNativeTopCount extends RolapNativeSet {
         }
         int count = ((Literal) args[1]).getIntValue();
 
-        // extract "order by" expression
-        SchemaReader schemaReader = evaluator.getSchemaReader();
-        DataSource ds = schemaReader.getDataSource();
-
-        // generate the ORDER BY Clause
-        // Need to generate top count order by to determine whether
-        // or not it can be created. The top count
-        // could change to use an aggregate table later in evaulation
-        SqlQuery sqlQuery = SqlQuery.newQuery(ds, "NativeTopCount");
-        RolapNativeSql sql =
-            new RolapNativeSql(
-                sqlQuery, null, evaluator, null, new HashMap<String, String>());
-        Exp orderByExpr = null;
-        if (args.length == 3) {
-            orderByExpr = args[2];
-            String orderBySQL = sql.generateTopCountOrderBy(args[2]);
-            if (orderBySQL == null) {
-                alertNonNativeTopCount(
-                    "Cannot convert order by expression to SQL.");
-                return null;
-            }
-        }
-
-        if (sql.addlContext.size() > 0 && sql.storedMeasureCount > 1) {
-            // cannot natively evaluate, multiple tuples are possibly at play here.
-            return null;
-        }
-
         // first see if subset wraps another native evaluation (other than count and sum)
         SetEvaluator eval = getNestedEvaluator(args[0], evaluator);
+        if (eval == null) {
+            // extract the set expression
+            List<CrossJoinArg[]> allArgs =
+                crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0]);
 
-        final int savepoint = evaluator.savepoint();
-        try {
-            if (eval == null) {
-                // extract the set expression
-                List<CrossJoinArg[]> allArgs =
-                    crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0]);
+            // checkCrossJoinArg returns a list of CrossJoinArg arrays.  The first
+            // array is the CrossJoin dimensions.  The second array, if any,
+            // contains additional constraints on the dimensions. If either the list
+            // or the first array is null, then native cross join is not feasible.
+            if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+                alertNonNativeTopCount(
+                    "Set in 1st argument does not support native eval.");
+                return null;
+            }
 
-                // checkCrossJoinArg returns a list of CrossJoinArg arrays.  The first
-                // array is the CrossJoin dimensions.  The second array, if any,
-                // contains additional constraints on the dimensions. If either the list
-                // or the first array is null, then native cross join is not feasible.
-                if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+            CrossJoinArg[] cjArgs = allArgs.get(0);
+            if (isPreferInterpreter(cjArgs, false)) {
+                alertNonNativeTopCount(
+                    "One or more args prefer non-native.");
+                return null;
+            }
+
+            // extract "order by" expression
+            SchemaReader schemaReader = evaluator.getSchemaReader();
+            DataSource ds = schemaReader.getDataSource();
+
+            // generate the ORDER BY Clause
+            // Need to generate top count order by to determine whether
+            // or not it can be created. The top count
+            // could change to use an aggregate table later in evaulation
+            SqlQuery sqlQuery = SqlQuery.newQuery(ds, "NativeTopCount");
+            RolapNativeSql sql =
+                new RolapNativeSql(
+                    sqlQuery, null, evaluator, null, new HashMap<String, String>());
+            Exp orderByExpr = null;
+            if (args.length == 3) {
+                orderByExpr = args[2];
+                String orderBySQL = sql.generateTopCountOrderBy(args[2]);
+                if (orderBySQL == null) {
+                    alertNonNativeTopCount(
+                        "Cannot convert order by expression to SQL.");
                     return null;
                 }
+            }
 
-                CrossJoinArg[] cjArgs = allArgs.get(0);
-                if (isPreferInterpreter(cjArgs, false)) {
-                    return null;
-                }
+            if (sql.addlContext.size() > 0 && sql.storedMeasureCount > 1) {
+                // cannot natively evaluate, multiple tuples are possibly at play here.
+                return null;
+            }
 
-                if (SqlConstraintUtils.measuresConflictWithMembers(
-                        cjArgs, evaluator))
-                {
-                    RolapUtil.alertNonNative("NativeTopCount",
-                        "One or more calculated measures conflict with crossjoin args");
-                    return null;
-                }
+            if (SqlConstraintUtils.measuresConflictWithMembers(
+                    cjArgs, evaluator))
+            {
+                alertNonNativeTopCount(
+                    "One or more calculated measures conflict with crossjoin args");
+                return null;
+            }
 
+            final int savepoint = evaluator.savepoint();
+            try {
                 LOGGER.debug("using native topcount");
                 overrideContext(evaluator, cjArgs, sql.getStoredMeasure());
                 for (Member member : sql.addlContext) {
@@ -285,9 +288,42 @@ public class RolapNativeTopCount extends RolapNativeSet {
                 sev.setMaxRows(count);
                 sev.setCompleteWithNullValues(!evaluator.isNonEmpty());
                 return sev;
-            } else {
-                SetConstraint parentConstraint = (SetConstraint)eval.getConstraint();
-                evaluator = (RolapEvaluator)parentConstraint.getEvaluator();
+            } finally {
+                evaluator.restore(savepoint);
+            }
+        } else {
+            // extract "order by" expression
+            SchemaReader schemaReader = evaluator.getSchemaReader();
+            DataSource ds = schemaReader.getDataSource();
+
+            // generate the ORDER BY Clause
+            // Need to generate top count order by to determine whether
+            // or not it can be created. The top count
+            // could change to use an aggregate table later in evaulation
+            SqlQuery sqlQuery = SqlQuery.newQuery(ds, "NativeTopCount");
+            RolapNativeSql sql =
+                new RolapNativeSql(
+                    sqlQuery, null, evaluator, null, new HashMap<String, String>());
+            Exp orderByExpr = null;
+            if (args.length == 3) {
+                orderByExpr = args[2];
+                String orderBySQL = sql.generateTopCountOrderBy(args[2]);
+                if (orderBySQL == null) {
+                    alertNonNativeTopCount(
+                        "Cannot convert order by expression to SQL.");
+                    return null;
+                }
+            }
+
+            if (sql.addlContext.size() > 0 && sql.storedMeasureCount > 1) {
+                // cannot natively evaluate, multiple tuples are possibly at play here.
+                return null;
+            }
+
+            SetConstraint parentConstraint = (SetConstraint)eval.getConstraint();
+            evaluator = (RolapEvaluator)parentConstraint.getEvaluator();
+            final int savepoint = evaluator.savepoint();
+            try {
                 // empty crossjoin args, parent contains args
                 CrossJoinArg[] cjArgs = new CrossJoinArg[0];
                 overrideContext(evaluator, cjArgs, sql.getStoredMeasure());
@@ -308,9 +344,9 @@ public class RolapNativeTopCount extends RolapNativeSet {
                 eval.setCompleteWithNullValues(false);
                 LOGGER.debug("using nested native topcount");
                 return eval;
+            } finally {
+                evaluator.restore(savepoint);
             }
-        } finally {
-            evaluator.restore(savepoint);
         }
     }
 
