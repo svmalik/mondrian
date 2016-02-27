@@ -20,6 +20,7 @@ import mondrian.spi.Dialect;
 import junit.framework.TestCase;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -42,7 +43,7 @@ public class NumberSqlCompilerTest extends TestCase {
         SqlQuery query = mock(SqlQuery.class);
         when(query.getDialect()).thenReturn(dialect);
 
-        RolapNativeSql sql = new RolapNativeSql(query, null, null, null);
+        RolapNativeSql sql = new RolapNativeSql(query, null, null, null, new HashMap<String, String>());
         compiler = sql.new NumberSqlCompiler();
     }
 
