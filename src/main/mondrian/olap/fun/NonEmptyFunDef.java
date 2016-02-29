@@ -116,7 +116,7 @@ public class NonEmptyFunDef extends FunDefBase {
                             if (args[1] instanceof ResolvedFunCall) {
                                 ResolvedFunCall call = FunUtil.extractResolvedFunCall(args[1]);
                                 Map<List<String>, List<Exp>> measureMap = new HashMap<List<String>, List<Exp>>();
-                                if ("{}".equals(call.getFunName())) {
+                                if ("{}".equals(call.getFunName()) && call.getArgCount() > 1) {
                                     for (Exp arg1 : call.getArgs()) {
                                         if (arg1 instanceof MemberExpr
                                             && ((MemberExpr)arg1).getMember() instanceof RolapMeasure)
