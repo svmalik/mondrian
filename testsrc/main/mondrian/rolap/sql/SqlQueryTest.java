@@ -106,25 +106,24 @@ public class SqlQueryTest extends BatchTestCase {
     }
 
     public void testOrderBy() throws SQLException {
-        String nl = Util.nl;
         // Test with requireAlias = true
         assertEquals(
-            nl + "order by" + nl
+            "\norder by\n"
             + "    CASE WHEN alias IS NULL THEN 1 ELSE 0 END, alias ASC",
             queryUnixString("expr", "alias", true, true, true, true));
         // requireAlias = false
         assertEquals(
-            nl + "order by" + nl
+            "\norder by\n"
             + "    CASE WHEN expr IS NULL THEN 1 ELSE 0 END, expr ASC",
             queryUnixString("expr", "alias", true, true, true, false));
         //  nullable = false
         assertEquals(
-            nl + "order by" + nl
+            "\norder by\n"
             + "    expr ASC",
             queryUnixString("expr", "alias", true, false, true, false));
         //  ascending=false, collateNullsLast=false
         assertEquals(
-            nl + "order by" + nl
+            "\norder by\n"
             + "    CASE WHEN alias IS NULL THEN 0 ELSE 1 END, alias DESC",
             queryUnixString("expr", "alias", false, true, false, true));
     }
