@@ -914,7 +914,12 @@ public class RolapNativeSql {
         }
 
         public String compile(Exp exp) {
-            String[] args = compileArgs(exp, compiler);
+            String[] args;
+            try {
+                args = compileArgs(exp, compiler);
+            } catch (Exception e) {
+                return null;
+            }
             if (args == null) {
                 return null;
             }
