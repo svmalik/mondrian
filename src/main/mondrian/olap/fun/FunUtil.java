@@ -18,7 +18,6 @@ import mondrian.olap.type.*;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.*;
 import mondrian.server.Execution;
-import mondrian.server.Locus;
 import mondrian.util.*;
 
 import org.apache.commons.collections.ComparatorUtils;

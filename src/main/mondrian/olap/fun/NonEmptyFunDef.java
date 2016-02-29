@@ -38,7 +38,9 @@ import mondrian.rolap.RolapCube;
 import mondrian.rolap.RolapMeasure;
 import mondrian.rolap.RolapStoredMeasure;
 import mondrian.rolap.SqlConstraintUtils;
+import mondrian.server.Execution;
 import mondrian.server.Locus;
+import mondrian.util.CancellationChecker;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -229,8 +231,8 @@ public class NonEmptyFunDef extends FunDefBase {
         TupleCursor auxCursor = null;
         final Member[] currentMembers = new Member[arity];
 
-        final int checkCancelPeriod = MondrianProperties.instance().CancelPhaseInterval.get();
-        int rowCount = 0;
+        int currentIteration = 0;
+        Execution execution = Locus.peek().execution;
 
         // "crossjoin" iterables and check for nonemptyness
         // only the first tuple is returned
@@ -239,10 +241,8 @@ public class NonEmptyFunDef extends FunDefBase {
             auxCursor = aux.tupleCursor();
             mainCursor.currentToArray(currentMembers, 0);
             inner : while (auxCursor.forward()) {
-                rowCount++;
-                if (checkCancelPeriod > 0 && rowCount % checkCancelPeriod == 0) {
-                    Locus.peek().execution.checkCancelOrTimeout();
-                }
+                CancellationChecker.checkCancelOrTimeout(
+                    currentIteration++, execution);
 
                 auxCursor.currentToArray(currentMembers, arityMain);
                 eval.setContext(currentMembers);
