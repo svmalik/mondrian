@@ -13638,7 +13638,7 @@ Intel platforms):
           null,
           "<CalculatedMember "
           + "name='H1 1997' "
-          + "formula='([Time].[1997].[Q1] - [Time].[1997].[Q2])' "
+          + "formula='([Time].[1997].[Q1] - [Time].[1997].[Q1].NextMember)' "
           + "dimension='Time' />");
       String query =
           "SELECT "
