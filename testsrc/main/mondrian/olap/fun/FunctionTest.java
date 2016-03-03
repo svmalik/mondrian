@@ -8922,6 +8922,21 @@ public class FunctionTest extends FoodMartTestCase {
             + "Row #2: 135,215\n");
     }
 
+    public void testOrderByNull() {
+        propSaver.set(MondrianProperties.instance().IgnoreInvalidMembersDuringQuery, true);
+        assertQueryReturns(
+            "select Order({[Measures].[Unit Sales], [Measures].[Store Sales]}, [Gender].[#null], BASC) on columns\n"
+            + "from Sales",
+
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "{[Measures].[Store Sales]}\n"
+            + "Row #0: 266,773\n"
+            + "Row #0: 565,238.13\n");
+    }
+
     public void testSiblingsA() {
         assertAxisReturns(
             "{[Time].[1997].Siblings}",

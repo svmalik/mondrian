@@ -358,6 +358,7 @@ public abstract class RolapAggregationManager {
                 RolapCubeMember member = (RolapCubeMember) members[i];
                 final RolapCubeLevel level = member.getLevel();
                 final boolean needToReturnNull =
+                    level.getLevelReader() != null &&
                     level.getLevelReader().constrainRequest(
                         member, measure.getCube(), request);
                 if (needToReturnNull) {
