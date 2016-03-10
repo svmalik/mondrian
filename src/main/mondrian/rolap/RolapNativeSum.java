@@ -185,7 +185,7 @@ public class RolapNativeSum extends RolapNativeSet {
                     eval.getConstraint(),
                     new CrossJoinArg[0],
                     evaluator,
-                    false,
+                    true,
                     measure,
                     eval.getMeasure());
             eval.setConstraint(sumConstraint);
@@ -223,7 +223,7 @@ public class RolapNativeSum extends RolapNativeSet {
                     null,
                     Util.appendArrays(allArgs.get(0), allArgs.size() == 2 ? allArgs.get(1) : new CrossJoinArg[0]),
                     evaluator,
-                    false,
+                    true,
                     measure,
                     null);
                 eval = new SetEvaluator(allArgs.get(0), evaluator.getSchemaReader(), sumConstraint);
