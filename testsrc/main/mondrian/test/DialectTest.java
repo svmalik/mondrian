@@ -592,6 +592,7 @@ public class DialectTest extends TestCase {
                 NEOVIEW_SYNTAX_ERROR,
                 // teradata
                 ".*Syntax error, expected something like a 'SELECT' keyword or '\\(' between '\\(' and the integer '1'\\.",
+                ".*Syntax error, expected something like a 'SELECT' keyword or '\\(' or a 'TRANSACTIONTIME' keyword or a 'NONTEMPORAL' keyword between '\\(' and the integer '1'\\.",
                 // netezza
                 "(?s).*found \"1\" \\(at char 81\\) expecting `SELECT' or `'\\(''.*",
                 // monetdb
