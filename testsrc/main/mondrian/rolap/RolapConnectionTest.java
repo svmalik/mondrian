@@ -442,6 +442,13 @@ public class RolapConnectionTest extends TestCase {
                             + "FATAL: password authentication failed for "
                             + "user \"bogususer\"") >= 0);
                     break;
+                case TERADATA:
+                    assertTrue(
+                        s,
+                        s.contains(
+                            "[Error 8017] [SQLState 28000] "
+                            + "The UserId, Password or Account is invalid."));
+                    break;
                 }
             } finally {
                 if (connection != null) {
