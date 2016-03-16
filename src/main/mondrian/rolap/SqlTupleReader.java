@@ -1038,6 +1038,9 @@ public class SqlTupleReader implements TupleReader {
         if (obj instanceof Long) {
             return ((Long)obj).doubleValue();
         }
+        if (obj instanceof Integer) {
+            return ((Integer)obj).doubleValue();
+        }
         if (obj instanceof String) {
             return Double.valueOf((String) obj);
         }
