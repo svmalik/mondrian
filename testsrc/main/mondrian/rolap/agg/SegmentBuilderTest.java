@@ -821,7 +821,7 @@ public class SegmentBuilderTest extends BatchTestCase {
     private void doTestSegmentCreationForBoolean(boolean value) {
         Dialect.DatabaseProduct db =
             getTestContext().getDialect().getDatabaseProduct();
-        if (db == Dialect.DatabaseProduct.ORACLE) {
+        if (db == Dialect.DatabaseProduct.ORACLE || db == Dialect.DatabaseProduct.TERADATA) {
             // Oracle does not support boolean type
             return;
         }
