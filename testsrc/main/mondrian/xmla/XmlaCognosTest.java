@@ -37,13 +37,14 @@ public class XmlaCognosTest extends XmlaBaseTestCase {
     protected String filter(
         String testCaseName, String filename, String content)
     {
+        Dialect dialect = TestContext.instance().getDialect();
         if ("testWithFilter".equals(testCaseName)
             && filename.equals("response"))
         {
-            Dialect dialect = TestContext.instance().getDialect();
             switch (dialect.getDatabaseProduct()) {
             case DERBY:
             case VERTICA:
+            case TERADATA:
                 content = Util.replace(
                     content,
                     "<Value xsi:type=\"xsd:double\">",
@@ -51,21 +52,27 @@ public class XmlaCognosTest extends XmlaBaseTestCase {
                 break;
             }
         } else if ("testCognosMDXSuiteHR_001".equals(testCaseName)
-            && filename.equals("response")
-            && TestContext.instance().getDialect().getDatabaseProduct()
-                .equals(Dialect.DatabaseProduct.VERTICA))
+            && filename.equals("response"))
         {
-            content = content.replaceAll(
-                "(<Cell CellOrdinal=\\\"(?:5|6|7|8|9|10|12|14|15|16|17|19|21|22|24)\\\">\\s*"
-                + "<Value xsi:type=\\\"xsd):double", "$1:int");
+            switch (dialect.getDatabaseProduct()) {
+                case VERTICA:
+                case TERADATA:
+                    content = content.replaceAll(
+                        "(<Cell CellOrdinal=\\\"(?:5|6|7|8|9|10|12|14|15|16|17|19|21|22|24)\\\">\\s*"
+                            + "<Value xsi:type=\\\"xsd):double", "$1:int");
+                    break;
+            }
         } else if ("testCognosMDXSuiteHR_002".equals(testCaseName)
-            && filename.equals("response")
-            && TestContext.instance().getDialect().getDatabaseProduct()
-                .equals(Dialect.DatabaseProduct.VERTICA))
+            && filename.equals("response"))
         {
-            content = content.replaceAll(
-                "(<Cell CellOrdinal=\\\"(?:1|2|3|4|5|7|9|10|11|12|13|14|16|18|19|20|21|22|23|25|27|28|29|30|32|34|35|37)\\\">\\s*"
-                + "<Value xsi:type=\\\"xsd):double", "$1:int");
+            switch (dialect.getDatabaseProduct()) {
+                case VERTICA:
+                case TERADATA:
+                    content = content.replaceAll(
+                        "(<Cell CellOrdinal=\\\"(?:1|2|3|4|5|7|9|10|11|12|13|14|16|18|19|20|21|22|23|25|27|28|29|30|32|34|35|37)\\\">\\s*"
+                            + "<Value xsi:type=\\\"xsd):double", "$1:int");
+                    break;
+            }
         }
         return content;
     }
