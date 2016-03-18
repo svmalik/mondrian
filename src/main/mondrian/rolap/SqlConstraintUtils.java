@@ -724,12 +724,7 @@ public class SqlConstraintUtils {
         }
         slicerMembers = updatedSlicerMembers;
         Member[] expandedSlicers =
-            evaluator.isEvalAxes()
-                ? expandSupportedCalculatedMembers(
-                    slicerMembers,
-                    evaluator.push())
-                : slicerMembers.toArray(new Member[slicerMembers.size()]);
-
+            expandSupportedCalculatedMembers(slicerMembers, evaluator.push());
         if (hasMultiPositionSlicer(expandedSlicers)) {
             for (Member slicerMember : expandedSlicers) {
                 if (slicerMember.isMeasure()) {
@@ -857,9 +852,10 @@ public class SqlConstraintUtils {
             if (disjointSlicerTuples) {
                 return Collections.emptyList();
             } else {
-                return replaceCompoundSlicerPlaceholder(
+                List<Member> slicer = replaceCompoundSlicerPlaceholder(
                     member,
                     (RolapEvaluator) evaluator);
+                return expandSupportedCalculatedMembers(slicer, evaluator, false);
             }
         } else {
             // just the member
