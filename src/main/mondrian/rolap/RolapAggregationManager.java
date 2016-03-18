@@ -313,6 +313,8 @@ public abstract class RolapAggregationManager {
                 new CellRequest(starMeasure, extendedContext, drillThrough);
         }
 
+        boolean ignoreInvalidMembers =
+            MondrianProperties.instance().IgnoreInvalidMembersDuringQuery.get();
         // Since 'request.extendedContext == false' is a well-worn code path,
         // we have moved the test outside the loop.
         if (extendedContext) {
@@ -343,6 +345,7 @@ public abstract class RolapAggregationManager {
 
                 final RolapCubeLevel level = member.getLevel();
                 final boolean needToReturnNull =
+                    (level.getLevelReader() == null && ignoreInvalidMembers) ||
                     level.getLevelReader().constrainRequest(
                         member, measure.getCube(), request);
                 if (needToReturnNull) {
@@ -358,7 +361,7 @@ public abstract class RolapAggregationManager {
                 RolapCubeMember member = (RolapCubeMember) members[i];
                 final RolapCubeLevel level = member.getLevel();
                 final boolean needToReturnNull =
-                    level.getLevelReader() != null &&
+                    (level.getLevelReader() == null && ignoreInvalidMembers) ||
                     level.getLevelReader().constrainRequest(
                         member, measure.getCube(), request);
                 if (needToReturnNull) {
