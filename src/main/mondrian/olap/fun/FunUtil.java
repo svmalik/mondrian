@@ -17,7 +17,6 @@ import mondrian.olap.*;
 import mondrian.olap.type.*;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.*;
-import mondrian.server.Execution;
 import mondrian.util.*;
 
 import org.apache.commons.collections.ComparatorUtils;
@@ -640,11 +639,10 @@ public class FunUtil extends Util {
             tupleArrayList = new ArrayList<List<Member>>();
             final TupleCursor cursor = tupleIterable.tupleCursor();
             int currentIteration = 0;
-            Execution execution =
-                evaluator.getQuery().getStatement().getCurrentExecution();
+            CancellationChecker cancellationChecker = new CancellationChecker(
+                evaluator.getQuery().getStatement().getCurrentExecution());
             while (cursor.forward()) {
-                CancellationChecker.checkCancelOrTimeout(
-                    currentIteration++, execution);
+                cancellationChecker.check(currentIteration++);
                 tupleArrayList.add(cursor.current());
             }
             if (tupleArrayList.size() <= 1) {
@@ -1602,11 +1600,10 @@ public class FunUtil extends Util {
         SetWrapper retval = new SetWrapper();
         final TupleCursor cursor = members.tupleCursor();
         int currentIteration = 0;
-        Execution execution =
-            evaluator.getQuery().getStatement().getCurrentExecution();
+        CancellationChecker cancellationChecker = new CancellationChecker(
+            evaluator.getQuery().getStatement().getCurrentExecution());
         while (cursor.forward()) {
-            CancellationChecker.checkCancelOrTimeout(
-                currentIteration++, execution);
+            cancellationChecker.check(currentIteration++);
             cursor.setContext(evaluator);
             Object o = calc.evaluate(evaluator);
             if (o == null || o == Util.nullValue) {
@@ -1651,11 +1648,10 @@ public class FunUtil extends Util {
         }
         final TupleCursor cursor = list.tupleCursor();
         int currentIteration = 0;
-        Execution execution =
-            evaluator.getQuery().getStatement().getCurrentExecution();
+        CancellationChecker cancellationChecker = new CancellationChecker(
+            evaluator.getQuery().getStatement().getCurrentExecution());
         while (cursor.forward()) {
-            CancellationChecker.checkCancelOrTimeout(
-                currentIteration++, execution);
+            cancellationChecker.check(currentIteration++);
             cursor.setContext(evaluator);
             for (int i = 0; i < calcs.length; i++) {
                 DoubleCalc calc = calcs[i];

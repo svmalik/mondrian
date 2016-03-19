@@ -15,7 +15,6 @@ import mondrian.calc.impl.*;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
 import mondrian.olap.type.*;
-import mondrian.server.Execution;
 import mondrian.server.Locus;
 import mondrian.util.CancellationChecker;
 
@@ -114,13 +113,13 @@ class GenerateFunDef extends FunDefBase {
                         iterCalc1.evaluateIterable(evaluator);
                 evaluator.restore(savepoint);
                 TupleList result = TupleCollections.createList(arityOut);
-                Execution execution = Locus.peek().execution;
+                CancellationChecker cancellationChecker = new CancellationChecker(
+                    evaluator.getQuery().getStatement().getCurrentExecution());
                 if (all) {
                     final TupleCursor cursor = iterable1.tupleCursor();
                     int rowCount = 0;
                     while (cursor.forward()) {
-                        CancellationChecker.checkCancelOrTimeout(
-                            rowCount++, execution);
+                        cancellationChecker.check(rowCount++);
                         cursor.setContext(evaluator);
                         final TupleList result2 =
                             listCalc2.evaluateList(evaluator);
@@ -133,8 +132,7 @@ class GenerateFunDef extends FunDefBase {
 
                     int rowCount = 0;
                     while (cursor.forward()) {
-                        CancellationChecker.checkCancelOrTimeout(
-                            rowCount++, execution);
+                        cancellationChecker.check(rowCount++);
                         cursor.setContext(evaluator);
                         final TupleList result2 =
                                 listCalc2.evaluateList(evaluator);
@@ -191,11 +189,10 @@ class GenerateFunDef extends FunDefBase {
                     iterCalc.evaluateIterable(evaluator);
                 final TupleCursor cursor = iter11.tupleCursor();
                 int currentIteration = 0;
-                Execution execution =
-                    evaluator.getQuery().getStatement().getCurrentExecution();
+                CancellationChecker cancellationChecker = new CancellationChecker(
+                    evaluator.getQuery().getStatement().getCurrentExecution());
                 while (cursor.forward()) {
-                    CancellationChecker.checkCancelOrTimeout(
-                        currentIteration++, execution);
+                    cancellationChecker.check(currentIteration++);
                     cursor.setContext(evaluator);
                     if (k++ > 0) {
                         String sep = sepCalc.evaluateString(evaluator);

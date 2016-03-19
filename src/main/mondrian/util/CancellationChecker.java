@@ -19,21 +19,23 @@ import mondrian.server.Execution;
  * @since Jan 18, 2016
  */
 public class CancellationChecker {
+    private final int interval;
+    private final Execution execution;
 
-  public static void checkCancelOrTimeout(
-      int currentIteration, Execution execution)
-  {
-    int checkCancelOrTimeoutInterval =
-        MondrianProperties.instance().CheckCancelOrTimeoutInterval.get();
-    if (execution != null) {
-      synchronized (execution) {
-        if (checkCancelOrTimeoutInterval > 0
-            && currentIteration % checkCancelOrTimeoutInterval == 0)
+    public CancellationChecker(Execution execution) {
+        this.interval =
+            MondrianProperties.instance().CheckCancelOrTimeoutInterval.get();
+        this.execution = execution;
+    }
+
+    public void check(int iteration)
+    {
+        if (execution != null && interval > 0 && iteration % interval == 0)
         {
-          execution.checkCancelOrTimeout();
+            synchronized (execution) {
+                execution.checkCancelOrTimeout();
+            }
         }
     }
-    }
-  }
 }
 // End CancellationChecker.java

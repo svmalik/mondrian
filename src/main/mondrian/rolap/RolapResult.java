@@ -1620,10 +1620,10 @@ public class RolapResult extends ResultBase {
 
         private void mergeTupleIter(TupleCursor cursor) {
             int currentIteration = 0;
-            Execution execution = Locus.peek().execution;
+            CancellationChecker cancellationChecker =
+                new CancellationChecker(Locus.peek().execution);
             while (cursor.forward()) {
-                CancellationChecker.checkCancelOrTimeout(
-                    currentIteration++, execution);
+                cancellationChecker.check(currentIteration++);
                 mergeTuple(cursor);
             }
         }

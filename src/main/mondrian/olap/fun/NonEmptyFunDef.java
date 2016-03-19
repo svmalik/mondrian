@@ -38,8 +38,6 @@ import mondrian.rolap.RolapCube;
 import mondrian.rolap.RolapMeasure;
 import mondrian.rolap.RolapStoredMeasure;
 import mondrian.rolap.SqlConstraintUtils;
-import mondrian.server.Execution;
-import mondrian.server.Locus;
 import mondrian.util.CancellationChecker;
 
 import java.util.ArrayList;
@@ -232,7 +230,8 @@ public class NonEmptyFunDef extends FunDefBase {
         final Member[] currentMembers = new Member[arity];
 
         int currentIteration = 0;
-        Execution execution = Locus.peek().execution;
+        CancellationChecker cancellationChecker = new CancellationChecker(
+            eval.getQuery().getStatement().getCurrentExecution());
 
         // "crossjoin" iterables and check for nonemptyness
         // only the first tuple is returned
@@ -241,8 +240,7 @@ public class NonEmptyFunDef extends FunDefBase {
             auxCursor = aux.tupleCursor();
             mainCursor.currentToArray(currentMembers, 0);
             inner : while (auxCursor.forward()) {
-                CancellationChecker.checkCancelOrTimeout(
-                    currentIteration++, execution);
+                cancellationChecker.check(currentIteration++);
 
                 auxCursor.currentToArray(currentMembers, arityMain);
                 eval.setContext(currentMembers);

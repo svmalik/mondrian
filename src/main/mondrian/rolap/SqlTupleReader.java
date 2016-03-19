@@ -21,7 +21,6 @@ import mondrian.rolap.agg.AggregationManager;
 import mondrian.rolap.agg.CellRequest;
 import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.*;
-import mondrian.server.Execution;
 import mondrian.server.Locus;
 import mondrian.server.monitor.SqlStatementEvent;
 import mondrian.util.CancellationChecker;
@@ -459,11 +458,11 @@ public class SqlTupleReader implements TupleReader {
                 moreRows = currPartialResultIdx < partialResult.size();
             }
 
-            Execution execution = Locus.peek().execution;
+            CancellationChecker cancellationChecker =
+                new CancellationChecker(Locus.peek().execution);
             while (moreRows) {
                 // Check if the MDX query was canceled.
-                CancellationChecker.checkCancelOrTimeout(
-                    stmt.rowCount, execution);
+                cancellationChecker.check(stmt.rowCount);
 
                 if (limit > 0 && limit < ++fetchCount) {
                     // result limit exceeded, throw an exception

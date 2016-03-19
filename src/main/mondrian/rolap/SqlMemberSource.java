@@ -17,7 +17,6 @@ import mondrian.rolap.agg.AggregationManager;
 import mondrian.rolap.agg.CellRequest;
 import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.*;
-import mondrian.server.Execution;
 import mondrian.server.Locus;
 import mondrian.server.monitor.SqlStatementEvent;
 import mondrian.spi.Dialect;
@@ -325,11 +324,11 @@ class SqlMemberSource
 
             int limit = MondrianProperties.instance().ResultLimit.get();
             ResultSet resultSet = stmt.getResultSet();
-            Execution execution = Locus.peek().execution;
+            CancellationChecker cancellationChecker =
+                new CancellationChecker(Locus.peek().execution);
             while (resultSet.next()) {
                 // Check if the MDX query was canceled.
-                CancellationChecker.checkCancelOrTimeout(
-                    ++stmt.rowCount, execution);
+                cancellationChecker.check(++stmt.rowCount);
 
                 if (limit > 0 && limit < stmt.rowCount) {
                     // result limit exceeded, throw an exception
@@ -847,8 +846,12 @@ RME is this right
             return Util.toNullValuesMap(children);
         }
 
+        CancellationChecker cancellationChecker =
+            new CancellationChecker(Locus.peek().execution);
+        int i = 0;
         // fetch them one by one
         for (RolapMember parentMember : parentMembers) {
+            cancellationChecker.check(i++);
             getMemberChildren(parentMember, children, mcc);
         }
         return Util.toNullValuesMap(children);
@@ -965,11 +968,11 @@ RME is this right
             final List<SqlStatement.Accessor> accessors = stmt.getAccessors();
             ResultSet resultSet = stmt.getResultSet();
             RolapMember parentMember2 = RolapUtil.strip(parentMember);
-            Execution execution = Locus.peek().execution;
+            CancellationChecker cancellationChecker =
+                new CancellationChecker(Locus.peek().execution);
             while (resultSet.next()) {
                 // Check if the MDX query was canceled.
-                CancellationChecker.checkCancelOrTimeout(
-                    ++stmt.rowCount, execution);
+                cancellationChecker.check(++stmt.rowCount);
 
                 if (limit > 0 && limit < stmt.rowCount) {
                     // result limit exceeded, throw an exception

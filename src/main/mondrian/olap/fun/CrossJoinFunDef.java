@@ -17,7 +17,6 @@ import mondrian.olap.*;
 import mondrian.olap.type.*;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.RolapEvaluator;
-import mondrian.server.Execution;
 import mondrian.server.Locus;
 import mondrian.util.CancellationChecker;
 import mondrian.util.CartesianProductList;
@@ -569,10 +568,10 @@ public class CrossJoinFunDef extends FunDefBase {
         final int iNext = i + 1;
         final TupleCursor cursor = tupleList.tupleCursor();
         int currentIteration = 0;
-        Execution execution = Locus.peek().execution;
+        CancellationChecker cancellationChecker =
+            new CancellationChecker(Locus.peek().execution);
         while (cursor.forward()) {
-            CancellationChecker.checkCancelOrTimeout(
-                currentIteration++, execution);
+            cancellationChecker.check(currentIteration++);
             cursor.currentToArray(partialArray, partialSize);
             if (i == lists.size() - 1) {
                 result.addAll(partial);
@@ -830,7 +829,8 @@ public class CrossJoinFunDef extends FunDefBase {
             // add it to the result List.
             final TupleCursor cursor = list.tupleCursor();
             int currentIteration = 0;
-            Execution execution = query.getStatement().getCurrentExecution();
+            CancellationChecker cancellationChecker = new CancellationChecker(
+                query.getStatement().getCurrentExecution());
             while (cursor.forward()) {
                 cursor.setContext(evaluator);
                 for (Member member : memberSet) {
@@ -844,8 +844,7 @@ public class CrossJoinFunDef extends FunDefBase {
                 // Check if the MDX query was canceled.
                 // Throws an exception in case of timeout is exceeded
                 // see MONDRIAN-2425
-                CancellationChecker.checkCancelOrTimeout(
-                    currentIteration++, execution);
+                cancellationChecker.check(currentIteration++);
                 if (checkData(
                         nonAllMembers,
                         nonAllMembers.length - 1,

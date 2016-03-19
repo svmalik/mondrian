@@ -17,7 +17,6 @@ import mondrian.resource.MondrianResource;
 import mondrian.rolap.*;
 import mondrian.rolap.agg.SegmentCacheManager.AbortException;
 import mondrian.rolap.cache.SegmentCacheIndex;
-import mondrian.server.Execution;
 import mondrian.server.Locus;
 import mondrian.server.monitor.SqlStatementEvent;
 import mondrian.spi.*;
@@ -676,11 +675,11 @@ public class SegmentLoader {
         }
         final RowList processedRows = new RowList(processedTypes, 100);
 
-        Execution execution = Locus.peek().execution;
+        CancellationChecker cancellationChecker =
+            new CancellationChecker(Locus.peek().execution);
         while (rawRows.next()) {
             // Check if the MDX query was canceled.
-            CancellationChecker.checkCancelOrTimeout(
-                ++stmt.rowCount, execution);
+            cancellationChecker.check(++stmt.rowCount);
 
             checkResultLimit(stmt.rowCount);
             processedRows.createRow();

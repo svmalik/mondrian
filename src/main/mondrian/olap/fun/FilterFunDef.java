@@ -16,7 +16,6 @@ import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
 import mondrian.rolap.ManyToManyUtil;
 import mondrian.rolap.RolapEvaluator;
-import mondrian.server.Execution;
 import mondrian.server.Locus;
 import mondrian.util.CancellationChecker;
 
@@ -182,11 +181,10 @@ class FilterFunDef extends FunDefBase {
                 evaluator.setNonEmpty(false);
                 TupleCursor cursor = list.tupleCursor();
                 int currentIteration = 0;
-                Execution execution =
-                    evaluator.getQuery().getStatement().getCurrentExecution();
+                CancellationChecker cancellationChecker = new CancellationChecker(
+                    evaluator.getQuery().getStatement().getCurrentExecution());
                 while (cursor.forward()) {
-                    CancellationChecker.checkCancelOrTimeout(
-                        currentIteration++, execution);
+                    cancellationChecker.check(currentIteration++);
                     cursor.setContext(evaluator);
                     if (bcalc.evaluateBoolean(evaluator)) {
                         result.addCurrent(cursor);
@@ -220,11 +218,10 @@ class FilterFunDef extends FunDefBase {
                 evaluator.setNonEmpty(false);
                 TupleCursor cursor = members.tupleCursor();
                 int currentIteration = 0;
-                Execution execution =
-                    evaluator.getQuery().getStatement().getCurrentExecution();
+                CancellationChecker cancellationChecker = new CancellationChecker(
+                    evaluator.getQuery().getStatement().getCurrentExecution());
                 while (cursor.forward()) {
-                    CancellationChecker.checkCancelOrTimeout(
-                        currentIteration++, execution);
+                    cancellationChecker.check(currentIteration++);
                     cursor.setContext(evaluator);
                     if (bcalc.evaluateBoolean(evaluator)) {
                         result.addCurrent(cursor);
@@ -264,10 +261,10 @@ class FilterFunDef extends FunDefBase {
 
                         public boolean forward() {
                             int currentIteration = 0;
-                            Execution execution = Locus.peek().execution;
+                            CancellationChecker cancellationChecker =
+                                new CancellationChecker(Locus.peek().execution);
                             while (cursor.forward()) {
-                                CancellationChecker.checkCancelOrTimeout(
-                                    currentIteration++, execution);
+                                cancellationChecker.check(currentIteration++);
                                 cursor.setContext(evaluator2);
                                 if (bcalc.evaluateBoolean(evaluator2)) {
                                     return true;
@@ -361,11 +358,10 @@ class FilterFunDef extends FunDefBase {
                 evaluator.setNonEmpty(false);
                 final TupleCursor cursor = members0.tupleCursor();
                 int currentIteration = 0;
-                Execution execution =
-                    evaluator.getQuery().getStatement().getCurrentExecution();
+                CancellationChecker cancellationChecker = new CancellationChecker(
+                    evaluator.getQuery().getStatement().getCurrentExecution());
                 while (cursor.forward()) {
-                    CancellationChecker.checkCancelOrTimeout(
-                        currentIteration++, execution);
+                    cancellationChecker.check(currentIteration++);
                     cursor.setContext(evaluator);
                     if (bcalc.evaluateBoolean(evaluator)) {
                         result.addCurrent(cursor);
@@ -400,11 +396,11 @@ class FilterFunDef extends FunDefBase {
                 evaluator.setNonEmpty(false);
                 final TupleCursor cursor = members0.tupleCursor();
                 int currentIteration = 0;
-                Execution execution = evaluator.getQuery()
-                    .getStatement().getCurrentExecution();
+                CancellationChecker cancellationChecker =
+                    new CancellationChecker(evaluator.getQuery()
+                        .getStatement().getCurrentExecution());
                 while (cursor.forward()) {
-                    CancellationChecker.checkCancelOrTimeout(
-                        currentIteration++, execution);
+                    cancellationChecker.check(currentIteration++);
                     cursor.setContext(evaluator);
                     if (bcalc.evaluateBoolean(evaluator)) {
                         result.addCurrent(cursor);
