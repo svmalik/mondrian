@@ -2257,6 +2257,120 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #12: 24,329.23\n");
     }
 
+    public void testNativeNonEmptyDifferentCubes() {
+        if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()
+            || !MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubes.get())
+        {
+            return;
+        }
+        propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+        propSaver.set(propSaver.properties.UseAggregates, false);
+        String mdx =
+            "SELECT {[Measures].[Sales Count], [Measures].[Units Ordered]} ON COLUMNS,\n"
+            + "NonEmpty([Store].[Store State].members, {[Measures].[Sales Count], [Measures].[Units Ordered]}) ON ROWS\n"
+            + "FROM [Warehouse and Sales]";
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Sales Count]}\n"
+            + "{[Measures].[Units Ordered]}\n"
+            + "Axis #2:\n"
+            + "{[Store].[USA].[CA]}\n"
+            + "{[Store].[USA].[OR]}\n"
+            + "{[Store].[USA].[WA]}\n"
+            + "Row #0: 24,442\n"
+            + "Row #0: 66307.0\n"
+            + "Row #1: 21,611\n"
+            + "Row #1: 44906.0\n"
+            + "Row #2: 40,784\n"
+            + "Row #2: 116025.0\n");
+        SqlPattern mysql =
+            new SqlPattern(
+                Dialect.DatabaseProduct.MYSQL,
+                "select\n"
+                + "    `store`.`store_country` as `c0`,\n"
+                + "    `store`.`store_state` as `c1`\n"
+                + "from\n"
+                + "    `store` as `store`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`product_id` is not null\n"
+                + "group by\n"
+                + "    `store`.`store_country`,\n"
+                + "    `store`.`store_state`\n"
+                + "order by\n"
+                + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
+                + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC", null);
+        assertQuerySql(mdx, new SqlPattern[]{mysql});
+    }
+
+    public void testNativeNonEmptyDifferentCubesWithCrossJoin() {
+        if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()
+            || !MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubes.get())
+        {
+            return;
+        }
+        propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+        propSaver.set(propSaver.properties.UseAggregates, false);
+        String mdx =
+            "SELECT {[Measures].[Sales Count], [Measures].[Units Ordered]} ON COLUMNS,\n"
+            + "NonEmpty([Store].[Store State].members, "
+            + "CrossJoin({[Time].[1997].[Q1].[1]}, {[Measures].[Sales Count], [Measures].[Units Ordered]})) ON ROWS\n"
+            + "FROM [Warehouse and Sales]";
+        System.out.print(TestContext.toString(executeQuery(mdx)));
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Sales Count]}\n"
+            + "{[Measures].[Units Ordered]}\n"
+            + "Axis #2:\n"
+            + "{[Store].[USA].[CA]}\n"
+            + "{[Store].[USA].[OR]}\n"
+            + "{[Store].[USA].[WA]}\n"
+            + "Row #0: 24,442\n"
+            + "Row #0: 66307.0\n"
+            + "Row #1: 21,611\n"
+            + "Row #1: 44906.0\n"
+            + "Row #2: 40,784\n"
+            + "Row #2: 116025.0\n");
+        SqlPattern mysql =
+            new SqlPattern(
+                Dialect.DatabaseProduct.MYSQL,
+                "select\n"
+                + "    `store`.`store_country` as `c0`,\n"
+                + "    `store`.`store_state` as `c1`\n"
+                + "from\n"
+                + "    `store` as `store`,\n"
+                + "    `inventory_fact_1997` as `inventory_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `inventory_fact_1997`.`store_id` = `store`.`store_id`\n"
+                + "and\n"
+                + "    `inventory_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    (`time_by_day`.`month_of_year` = 1 and `time_by_day`.`quarter` = 'Q1' and `time_by_day`.`the_year` = 1997)\n"
+                + "and\n"
+                + "    `inventory_fact_1997`.`units_ordered` is not null\n"
+                + "group by\n"
+                + "    `store`.`store_country`,\n"
+                + "    `store`.`store_state`\n"
+                + "order by\n"
+                + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
+                + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC", null);
+        assertQuerySql(mdx, new SqlPattern[]{mysql});
+    }
+
     public void testNativeCountWithoutMeasuresInVirtualCube() {
         propSaver.set(propSaver.properties.UseAggregates, false);
         String mdx =

@@ -112,36 +112,16 @@ public class NonEmptyFunDef extends FunDefBase {
                         final boolean tryNonNative =
                             MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubesAndNonNative.get();
                         Exp[] args = call.getArgs();
-                        if (args.length == 2) {
-                            if (args[1] instanceof ResolvedFunCall) {
-                                ResolvedFunCall call = FunUtil.extractResolvedFunCall(args[1]);
-                                Map<List<String>, List<Exp>> measureMap = new HashMap<List<String>, List<Exp>>();
-                                if ("{}".equals(call.getFunName()) && call.getArgCount() > 1) {
-                                    for (Exp arg1 : call.getArgs()) {
-                                        if (arg1 instanceof MemberExpr
-                                            && ((MemberExpr)arg1).getMember() instanceof RolapMeasure)
-                                        {
-                                            Set<String> cubes = new HashSet<String>();
-                                            Set<Member> foundMeasures = new HashSet<Member>();
-                                            findMeasures(arg1, measureMap, cubes, foundMeasures);
-                                        } else {
-                                            measureMap.clear();
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (measureMap.keySet().size() > 1) {
-                                    List<TupleList> nonEmptyTuples = new ArrayList<TupleList>();
-                                    ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
-                                    Validator validator = expCompiler.getValidator();
-                                    for (List<Exp> measures : measureMap.values()) {
-                                        Exp[] setArgs = measures.toArray(new Exp[measures.size()]);
-                                        FunDef set = validator.getDef(setArgs, "{}", Syntax.Braces);
-                                        Exp setExp = new ResolvedFunCall(set, setArgs, new SetType(MemberType.Unknown));
-                                        Exp[] newArgs = new Exp[] { args[0], setExp};
-                                        FunDef nonEmptyFun = validator.getDef(newArgs, "NonEmpty", Syntax.Function);
-                                        ResolvedFunCall nonEmpty = new ResolvedFunCall(nonEmptyFun, newArgs, new SetType(MemberType.Unknown));
+                        if (args.length == 2 && args[1] instanceof ResolvedFunCall) {
+                            ResolvedFunCall arg2Call = FunUtil.extractResolvedFunCall(args[1]);
+                            if (arg2Call != null) {
+                                ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
+                                Validator validator = expCompiler.getValidator();
+                                List<ResolvedFunCall> nonEmptyCalls =
+                                    getNewNonEmptyCalls(args[0], arg2Call, validator);
+                                if (nonEmptyCalls != null && nonEmptyCalls.size() > 1) {
+                                    ArrayList<TupleList> nonEmptyTuples = new ArrayList<TupleList>();
+                                    for (ResolvedFunCall nonEmpty : nonEmptyCalls) {
                                         int save = evaluator.savepoint();
                                         nativeEvaluator = getNativeEvaluator(evaluator, nonEmpty, this);
                                         evaluator.restore(save);
@@ -152,7 +132,7 @@ public class NonEmptyFunDef extends FunDefBase {
                                                 nonEmptyTuples = null;
                                                 break;
                                             }
-                                            ListCalc arg2Calc2 = expCompiler.compileList(setExp);
+                                            ListCalc arg2Calc2 = expCompiler.compileList(nonEmpty.getArg(1));
                                             if (setIterable == null) {
                                                 setIterable = arg1Calc.evaluateIterable(evaluator);
                                             }
@@ -259,6 +239,101 @@ public class NonEmptyFunDef extends FunDefBase {
             }
         }
         return result;
+    }
+
+    private List<ResolvedFunCall> getNewNonEmptyCalls(
+        Exp mainArgs, ResolvedFunCall call, Validator validator)
+    {
+        if (call == null) {
+            return null;
+        }
+
+        Map<List<String>, List<Exp>> measureMap = null;
+        Exp other = null;
+        if ("{}".equals(call.getFunName())) {
+            measureMap = getMeasuresMap(call);
+        }
+        else if ((call.getFunDef() instanceof CrossJoinFunDef
+                || call.getFunDef() instanceof NonEmptyCrossJoinFunDef)
+            && call.getArgCount() == 2)
+        {
+            ResolvedFunCall arg =
+                FunUtil.extractResolvedFunCall(call.getArg(0));
+            if (arg != null && "{}".equals(arg.getFunName())) {
+                measureMap = getMeasuresMap(arg);
+                if (measureMap.isEmpty()) {
+                    other = call.getArg(0);
+                    arg = FunUtil.extractResolvedFunCall(call.getArg(1));
+                    if (arg != null && "{}".equals(arg.getFunName())) {
+                        measureMap = getMeasuresMap(arg);
+                    }
+                }
+                if (other == null) {
+                    other = call.getArg(1);
+                }
+            }
+        }
+        return createNewNonEmptyCalls(
+            mainArgs, call.getFunName(), measureMap, other, validator);
+    }
+
+    private Map<List<String>, List<Exp>> getMeasuresMap(ResolvedFunCall call) {
+        Map<List<String>, List<Exp>> measureMap = new HashMap<>();
+        if (call != null && "{}".equals(call.getFunName()) && call.getArgCount() > 1) {
+            for (Exp arg : call.getArgs()) {
+                if (arg instanceof MemberExpr
+                    && ((MemberExpr)arg).getMember() instanceof RolapMeasure)
+                {
+                    Set<String> cubes = new HashSet<String>();
+                    Set<Member> foundMeasures = new HashSet<Member>();
+                    findMeasures(arg, measureMap, cubes, foundMeasures);
+                } else {
+                    measureMap.clear();
+                    break;
+                }
+            }
+        }
+        return measureMap;
+    }
+
+    private List<ResolvedFunCall> createNewNonEmptyCalls(
+        Exp mainArgs, String funName,
+        Map<List<String>, List<Exp>> measureMap,
+        Exp otherSet, Validator validator)
+    {
+        if (measureMap == null || measureMap.size() < 2) {
+            return null;
+        }
+        List<ResolvedFunCall> nonEmptyCalls = new ArrayList<>(measureMap.size());
+        for (List<Exp> measures : measureMap.values()) {
+            Exp[] setArgs = measures.toArray(new Exp[measures.size()]);
+            FunDef measureSet = validator.getDef(setArgs, "{}", Syntax.Braces);
+            ResolvedFunCall measureExp = new ResolvedFunCall(
+                measureSet, setArgs, new SetType(MemberType.Unknown));
+            ResolvedFunCall nonEmptyArgs;
+            if (otherSet == null) {
+                nonEmptyArgs = measureExp;
+            } else {
+                Exp[] args = new Exp[]{otherSet, measureExp};
+                FunDef crossJoinFun = validator.getDef(args, funName, Syntax.Function);
+                nonEmptyArgs =
+                    new ResolvedFunCall(crossJoinFun, args, new SetType(MemberType.Unknown));
+            }
+            ResolvedFunCall nonEmpty =
+                getNonEmptyCall(mainArgs, nonEmptyArgs, validator);
+            nonEmptyCalls.add(nonEmpty);
+        }
+        return nonEmptyCalls;
+    }
+
+    private ResolvedFunCall getNonEmptyCall(
+        Exp mainArgs, Exp setExp, Validator validator)
+    {
+        Exp[] newArgs = new Exp[] { mainArgs, setExp };
+        FunDef nonEmptyFun =
+            validator.getDef(newArgs, "NonEmpty", Syntax.Function);
+        return new ResolvedFunCall(
+            nonEmptyFun, newArgs, new SetType(MemberType.Unknown));
     }
 
     private void findMeasures(
