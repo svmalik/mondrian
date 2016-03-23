@@ -2201,8 +2201,12 @@ public class MondrianFoodMartLoader {
             final String createDDL = buf.toString();
             executeDDL(createDDL);
         } catch (Exception e) {
-            throw MondrianResource.instance().CreateIndexFailed.ex(
-                indexName, tableName, e);
+            if (Dialect.DatabaseProduct.TERADATA == dialect.getDatabaseProduct()) {
+                LOGGER.debug("Create index " + indexName + " failed.\n" + e);
+            } else {
+                throw MondrianResource.instance().CreateIndexFailed.ex(
+                    indexName, tableName, e);
+            }
         }
     }
 
@@ -2801,7 +2805,11 @@ public class MondrianFoodMartLoader {
             final String ddl = buf.toString();
             executeDDL(ddl);
         } catch (Exception e) {
-            throw MondrianResource.instance().CreateTableFailed.ex(name, e);
+            if (Dialect.DatabaseProduct.TERADATA == dialect.getDatabaseProduct()) {
+                LOGGER.debug("Create " + name + " failed.\n" + e);
+            } else {
+                throw MondrianResource.instance().CreateTableFailed.ex(name, e);
+            }
         }
     }
 
