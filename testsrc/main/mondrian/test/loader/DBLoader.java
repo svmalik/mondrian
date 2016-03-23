@@ -1508,6 +1508,10 @@ public abstract class DBLoader {
 
         Statement statement = getConnection().createStatement();
         statement.execute(ddl);
+        if (!getConnection().getAutoCommit()) {
+            getConnection().commit();
+        }
+        statement.close();
     }
 }
 
