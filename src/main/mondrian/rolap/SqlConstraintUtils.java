@@ -1832,16 +1832,27 @@ public class SqlConstraintUtils {
             StringBuilder builder = new StringBuilder();
             builder.append("( ");
             if (values.size() > 0) {
-                builder.append(columnString)
-                    .append(" IN (");
-                for (int i = 0; i < values.size(); i++) {
-                    String value = values.get(i);
-                    builder.append(value);
-                    if (i < values.size() - 1) {
-                        builder.append(",");
+                if (query.getDialect().supportsMultiValueInExpr()) {
+                    builder.append(columnString)
+                        .append(" IN (");
+                    for (int i = 0; i < values.size(); i++) {
+                        String value = values.get(i);
+                        builder.append(value);
+                        if (i < values.size() - 1) {
+                            builder.append(",");
+                        }
+                    }
+                    builder.append(")");
+                } else {
+                    for (int i = 0; i < values.size(); i++) {
+                        builder.append(columnString).append(" = ");
+                        String value = values.get(i);
+                        builder.append(value);
+                        if (i < values.size() - 1) {
+                            builder.append(" OR ");
+                        }
                     }
                 }
-                builder.append(")");
             }
             if (containsNull) {
                 if (values.size() > 0) {
