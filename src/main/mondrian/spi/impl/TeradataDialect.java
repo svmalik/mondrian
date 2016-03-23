@@ -62,6 +62,10 @@ public class TeradataDialect extends JdbcDialectImpl {
     public boolean requiresUnionOrderByOrdinal() {
         return true;
     }
+
+    public boolean supportsOrderInSubqueries() {
+        return false;
+    }
 }
 
 // End TeradataDialect.java

@@ -845,6 +845,12 @@ public interface Dialect {
     boolean supportsWithClause();
 
     /**
+     * Returns whether a dialect allows ORDER BY in subqueries or not.
+     * @return true if ORDER BY is allowed in subqueries.
+     */
+    boolean supportsOrderInSubqueries();
+
+    /**
      * Enumeration of common database types.
      *
      * <p>Branching on this enumeration allows you to write code which behaves

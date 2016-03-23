@@ -1207,6 +1207,10 @@ public class JdbcDialectImpl implements Dialect {
     public boolean supportsWithClause() {
         return false;
     }
+
+    public boolean supportsOrderInSubqueries() {
+        return true;
+    }
 }
 
 // End JdbcDialectImpl.java

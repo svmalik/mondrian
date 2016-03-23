@@ -271,10 +271,28 @@ public class SqlQuery {
             }
         }
 
+        String q = query;
+        if (!dialect.supportsOrderInSubqueries()) {
+            int start = query.lastIndexOf(" order by ");
+            if (start > -1) {
+                int end = dialect.supportsLimitAndOffset()
+                    ? query.contains(" limit ")
+                        ? query.lastIndexOf(" limit ")
+                        : query.contains(" offset ")
+                            ? query.lastIndexOf(" offset ")
+                            : -1
+                    : -1;
+                q = query.substring(0, start);
+                if (end > -1) {
+                    q += query.substring(end);
+                }
+            }
+        }
+
         buf.setLength(0);
 
         buf.append('(');
-        buf.append(query);
+        buf.append(q);
         buf.append(')');
         if (dialect.allowsAs()) {
             buf.append(" as ");
@@ -352,7 +370,19 @@ public class SqlQuery {
         final String alias,
         final boolean failIfExists)
     {
+        ClauseList prevOrder = null;
+        if (!sqlQuery.getDialect().supportsOrderInSubqueries()
+            && !sqlQuery.orderBy.isEmpty())
+        {
+            prevOrder = new ClauseList(false);
+            prevOrder.addAll(sqlQuery.orderBy);
+            sqlQuery.orderBy.clear();
+        }
         addFromQuery(sqlQuery.toString(), alias, failIfExists);
+        if (prevOrder != null) {
+            sqlQuery.orderBy.addAll(prevOrder);
+            prevOrder.clear();
+        }
     }
 
     // TODO: Clean up access to these methods, now used in
