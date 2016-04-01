@@ -21,10 +21,11 @@ import mondrian.olap.fun.*;
 import mondrian.olap.type.*;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.RestrictedMemberReader.MultiCardinalityDefaultMember;
+import mondrian.rolap.format.FormatterCreateContext;
+import mondrian.rolap.format.FormatterFactory;
 import mondrian.rolap.sql.MemberChildrenConstraint;
 import mondrian.rolap.sql.SqlQuery;
 import mondrian.spi.CellFormatter;
-import mondrian.spi.impl.Scripts;
 import mondrian.util.UnionIterator;
 
 import org.apache.log4j.Logger;
@@ -1294,7 +1295,7 @@ public class RolapHierarchy extends HierarchyBase {
      * Calculated member which is also a measure (that is, a member of the
      * [Measures] dimension).
      */
-    protected static class RolapCalculatedMeasure
+    protected class RolapCalculatedMeasure
         extends RolapCalculatedMember
         implements RolapMeasure
     {
@@ -1309,45 +1310,38 @@ public class RolapHierarchy extends HierarchyBase {
         public synchronized void setProperty(String name, Object value) {
             if (name.equals(Property.CELL_FORMATTER.getName())) {
                 String cellFormatterClass = (String) value;
-                try {
-                    CellFormatter formatter =
-                        RolapSchema.getCellFormatter(
-                            cellFormatterClass,
-                            null);
-                    this.cellFormatter =
-                        new RolapResult.CellFormatterValueFormatter(formatter);
-                } catch (Exception e) {
-                    throw MondrianResource.instance().CellFormatterLoadFailed
-                        .ex(
-                            cellFormatterClass, getUniqueName(), e);
-                }
+                FormatterCreateContext formatterContext =
+                    new FormatterCreateContext.Builder(getUniqueName())
+                        .formatterAttr(cellFormatterClass)
+                        .build();
+                setCellFormatter(
+                    FormatterFactory.instance()
+                        .createCellFormatter(formatterContext));
             }
             if (name.equals(Property.CELL_FORMATTER_SCRIPT.name)) {
                 String language = (String) getPropertyValue(
                     Property.CELL_FORMATTER_SCRIPT_LANGUAGE.name);
                 String scriptText = (String) value;
-                try {
-                    final Scripts.ScriptDefinition script =
-                        new Scripts.ScriptDefinition(
-                            scriptText,
-                            Scripts.ScriptLanguage.lookup(language));
-                    CellFormatter formatter =
-                        RolapSchema.getCellFormatter(
-                            null,
-                            script);
-                    this.cellFormatter =
-                        new RolapResult.CellFormatterValueFormatter(formatter);
-                } catch (Exception e) {
-                    throw MondrianResource.instance().CellFormatterLoadFailed
-                        .ex(
-                            scriptText, getUniqueName(), e);
-                }
+                FormatterCreateContext formatterContext =
+                    new FormatterCreateContext.Builder(getUniqueName())
+                        .script(scriptText, language)
+                        .build();
+                setCellFormatter(
+                    FormatterFactory.instance()
+                        .createCellFormatter(formatterContext));
             }
             super.setProperty(name, value);
         }
 
         public RolapResult.ValueFormatter getFormatter() {
             return cellFormatter;
+        }
+
+        private void setCellFormatter(CellFormatter cellFormatter) {
+            if (cellFormatter != null) {
+                this.cellFormatter =
+                    new RolapResult.CellFormatterValueFormatter(cellFormatter);
+            }
         }
     }
 
