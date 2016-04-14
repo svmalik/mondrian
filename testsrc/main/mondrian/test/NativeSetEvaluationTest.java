@@ -2883,16 +2883,14 @@ public class NativeSetEvaluationTest extends BatchTestCase {
 
         String mysqlQuery =
             "select\n"
-            + "    `customer`.`customer_id` as `c0`\n"
+            + "    `sales_fact_1997`.`customer_id` as `c0`\n"
             + "from\n"
-            + "    `customer` as `customer`,\n"
             + "    `sales_fact_1997` as `sales_fact_1997`,\n"
             + "    `time_by_day` as `time_by_day`,\n"
             + "    `product_class` as `product_class`,\n"
-            + "    `product` as `product`\n"
+            + "    `product` as `product`,\n"
+            + "    `customer` as `customer`\n"
             + "where\n"
-            + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
-            + "and\n"
             + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
             + "and\n"
             + "    `time_by_day`.`the_year` = 1997\n"
@@ -2903,13 +2901,15 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "and\n"
             + "    `product_class`.`product_family` = 'Non-Consumable'\n"
             + "and\n"
+            + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
+            + "and\n"
             + "    `customer`.`marital_status` = 'S'\n"
             + "and\n"
             + "    `sales_fact_1997`.`unit_sales` is not null\n"
             + "group by\n"
-            + "    `customer`.`customer_id`\n"
+            + "    `sales_fact_1997`.`customer_id`\n"
             + "order by\n"
-            + "    ISNULL(`customer`.`customer_id`) ASC, `customer`.`customer_id` ASC";
+            + "    ISNULL(`sales_fact_1997`.`customer_id`) ASC, `sales_fact_1997`.`customer_id` ASC";
 
         getTestContext().flushSchemaCache();
 
@@ -2979,16 +2979,14 @@ public class NativeSetEvaluationTest extends BatchTestCase {
 
       String mysqlQuery =
           "select\n"
-          + "    `customer`.`customer_id` as `c0`\n"
+          + "    `sales_fact_1997`.`customer_id` as `c0`\n"
           + "from\n"
-          + "    `customer` as `customer`,\n"
           + "    `sales_fact_1997` as `sales_fact_1997`,\n"
           + "    `time_by_day` as `time_by_day`,\n"
           + "    `product_class` as `product_class`,\n"
-          + "    `product` as `product`\n"
+          + "    `product` as `product`,\n"
+          + "    `customer` as `customer`\n"
           + "where\n"
-          + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
-          + "and\n"
           + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
           + "and\n"
           + "    `time_by_day`.`the_year` = 1997\n"
@@ -2999,13 +2997,15 @@ public class NativeSetEvaluationTest extends BatchTestCase {
           + "and\n"
           + "    `product_class`.`product_family` = 'Non-Consumable'\n"
           + "and\n"
+          + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
+          + "and\n"
           + "    `customer`.`marital_status` = 'S'\n"
           + "and\n"
           + "    `sales_fact_1997`.`unit_sales` is not null\n"
           + "group by\n"
-          + "    `customer`.`customer_id`\n"
+          + "    `sales_fact_1997`.`customer_id`\n"
           + "order by\n"
-          + "    ISNULL(`customer`.`customer_id`) ASC, `customer`.`customer_id` ASC";
+          + "    ISNULL(`sales_fact_1997`.`customer_id`) ASC, `sales_fact_1997`.`customer_id` ASC";
 
       getTestContext().flushSchemaCache();
 
@@ -3177,9 +3177,14 @@ public class NativeSetEvaluationTest extends BatchTestCase {
           + "    sum(`sales_fact_1997`.`unit_sales`) as `m1`\n"
           + "from\n"
           + "    `store` as `store`,\n"
-          + "    `sales_fact_1997` as `sales_fact_1997`\n"
+          + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+          + "    `time_by_day` as `time_by_day`\n"
           + "where\n"
           + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+          + "and\n"
+          + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+          + "and\n"
+          + "    `time_by_day`.`the_year` = 1997\n"
           + "group by\n"
           + "    `store`.`store_country`,\n"
           + "    `store`.`store_state`,\n"
@@ -4594,7 +4599,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                 + "where\n"
                 + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
                 + "and\n"
-                + "    `customer`.`customer_id` = '55'\n"
+                + "    (`sales_fact_1997`.`customer_id` = '55')\n"
                 + "group by\n"
                 + "    `customer`.`city`) as `countQuery`";
             SqlPattern mysqlPattern =
@@ -5798,16 +5803,14 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                 "from [Sales] where (StrToMember(\"[Marital Status].[S]\"))";
 
         String mysqlQuery = "select\n"
-            + "    `customer`.`customer_id` as `c0`\n"
+            + "    `sales_fact_1997`.`customer_id` as `c0`\n"
             + "from\n"
-            + "    `customer` as `customer`,\n"
             + "    `sales_fact_1997` as `sales_fact_1997`,\n"
             + "    `time_by_day` as `time_by_day`,\n"
             + "    `product_class` as `product_class`,\n"
-            + "    `product` as `product`\n"
+            + "    `product` as `product`,\n"
+            + "    `customer` as `customer`\n"
             + "where\n"
-            + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
-            + "and\n"
             + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
             + "and\n"
             + "    `time_by_day`.`the_year` = 1997\n"
@@ -5818,13 +5821,15 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "and\n"
             + "    `product_class`.`product_family` = 'Non-Consumable'\n"
             + "and\n"
+            + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
+            + "and\n"
             + "    `customer`.`marital_status` = 'S'\n"
             + "and\n"
             + "    `sales_fact_1997`.`unit_sales` is not null\n"
             + "group by\n"
-            + "    `customer`.`customer_id`\n"
+            + "    `sales_fact_1997`.`customer_id`\n"
             + "order by\n"
-            + "    ISNULL(`customer`.`customer_id`) ASC, `customer`.`customer_id` ASC";
+            + "    ISNULL(`sales_fact_1997`.`customer_id`) ASC, `sales_fact_1997`.`customer_id` ASC";
 
         getTestContext().flushSchemaCache();
 
@@ -5886,16 +5891,14 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                 "from [Sales] where (StrToMember(\"[Marital Status].[S]\"))";
 
         String mysqlQuery = "select\n"
-            + "    `customer`.`customer_id` as `c0`\n"
+            + "    `sales_fact_1997`.`customer_id` as `c0`\n"
             + "from\n"
-            + "    `customer` as `customer`,\n"
             + "    `sales_fact_1997` as `sales_fact_1997`,\n"
             + "    `time_by_day` as `time_by_day`,\n"
             + "    `product_class` as `product_class`,\n"
-            + "    `product` as `product`\n"
+            + "    `product` as `product`,\n"
+            + "    `customer` as `customer`\n"
             + "where\n"
-            + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
-            + "and\n"
             + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
             + "and\n"
             + "    `time_by_day`.`the_year` = 1997\n"
@@ -5906,13 +5909,15 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "and\n"
             + "    `product_class`.`product_family` = 'Non-Consumable'\n"
             + "and\n"
+            + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
+            + "and\n"
             + "    `customer`.`marital_status` = 'S'\n"
             + "and\n"
             + "    `sales_fact_1997`.`unit_sales` is not null\n"
             + "group by\n"
-            + "    `customer`.`customer_id`\n"
+            + "    `sales_fact_1997`.`customer_id`\n"
             + "order by\n"
-            + "    ISNULL(`customer`.`customer_id`) ASC, `customer`.`customer_id` ASC";
+            + "    ISNULL(`sales_fact_1997`.`customer_id`) ASC, `sales_fact_1997`.`customer_id` ASC";
 
         getTestContext().flushSchemaCache();
 

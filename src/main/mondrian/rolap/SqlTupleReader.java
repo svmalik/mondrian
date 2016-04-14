@@ -1490,31 +1490,42 @@ public class SqlTupleReader implements TupleReader {
                 targetExp = getLevelTargetExpMap(currLevel, aggStar);
             MondrianDef.Expression keyExp =
                 targetExp.get(currLevel.getKeyExp());
+            MondrianDef.Expression ordinalExp =
+                targetExp.get(currLevel.getOrdinalExp());
+            MondrianDef.Expression captionExp =
+                targetExp.get(currLevel.getCaptionExp());
+            MondrianDef.Expression parentExp = currLevel.getParentExp();
+            boolean optimizeOrdinal = !keyOnly && captionExp == null && parentExp == null
+                && keyExp.equals(ordinalExp) && keyExp instanceof MondrianDef.Column;
+            if (optimizeOrdinal) {
+                for (RolapProperty property : currLevel.getProperties()) {
+                    if (!currLevel.getKeyExp().equals(targetExp.get(property.getExp()))) {
+                        optimizeOrdinal = false;
+                        break;
+                    }
+                }
+            }
+            boolean optimizeKey = keyOnly || optimizeOrdinal;
             constraint.addLevelConstraint(
-                sqlQuery, baseCube, aggStar, currLevel, keyOnly && keyExp instanceof MondrianDef.Column);
+                sqlQuery, baseCube, aggStar, currLevel, optimizeKey && keyExp instanceof MondrianDef.Column);
 
             boolean optimized = false;
             // this should only kick in if a join to the fact table is required.
-            if (keyOnly && keyExp instanceof MondrianDef.Column && !hierarchy.getDimension().isHanger()) {
+            if (optimizeKey && keyExp instanceof MondrianDef.Column && !hierarchy.getDimension().isHanger()) {
                 // possible opportunity to optimize key
                 // baseCube could be null in a Count() scenario that doesn't join with the fact table.
-                if (baseCube != null && !baseCube.isVirtual()) {
+                if (baseCube != null && !baseCube.isVirtual() && currLevel instanceof RolapCubeLevel) {
                     RolapStar.Column keyCol = ((RolapCubeLevel)currLevel).getBaseStarKeyColumn(baseCube).optimize();
                     // if we have been optimized, that is important downstream.
                     if (keyCol.getTable().getParentTable() == null) {
                         if (sqlQuery.hasFrom(keyCol.getTable().getRelation(), null)) {
                             optimized = true;
                             keyExp = keyCol.getExpression();
+                            ordinalExp = keyExp;
                         }
                     }
                 }
             }
-
-            MondrianDef.Expression ordinalExp =
-                targetExp.get(currLevel.getOrdinalExp());
-            MondrianDef.Expression captionExp =
-                targetExp.get(currLevel.getCaptionExp());
-            MondrianDef.Expression parentExp = currLevel.getParentExp();
 
             if (parentExp != null) {
                 if (!levelCollapsed) {
@@ -1585,8 +1596,8 @@ public class SqlTupleReader implements TupleReader {
     
                 // Figure out the order-by part
                 final String orderByAliasAndExpr[];
-            if (!currLevel.getKeyExp().equals(currLevel.getOrdinalExp())) {
-                String ordinalSql = ordinalExp.getExpression(sqlQuery);
+                if (!currLevel.getKeyExp().equals(currLevel.getOrdinalExp())) {
+                    //String ordinalSql = ordinalExp.getExpression(sqlQuery);
                     orderByAliasAndExpr = sqlQuery.addSelect(ordinalExp, null);
                     if (needsGroupBy) {
                         sqlQuery.addGroupBy(orderByAliasAndExpr[1], orderByAliasAndExpr[0]);
@@ -1602,6 +1613,7 @@ public class SqlTupleReader implements TupleReader {
                     }
                 }
             }
+
             if (levelCollapsed && requiresJoinToDim(targetExp)) {
                 // add join between key and aggstar
                 // join to dimension tables starting
@@ -1620,11 +1632,15 @@ public class SqlTupleReader implements TupleReader {
                 sqlQuery.addWhere(condition.toString(sqlQuery));
                 aggColumn.getTable().addToFrom(sqlQuery, false, true);
             }
+
             if (!keyOnly) { 
                 RolapProperty[] properties = currLevel.getProperties();
                 for (RolapProperty property : properties) {
-                    final MondrianDef.Expression propExp =
+                    MondrianDef.Expression propExp =
                         targetExp.get(property.getExp());
+                    if (optimized && currLevel.getKeyExp().equals(propExp)) {
+                        propExp = keyExp;
+                    }
                     final String propAliasAndExpr[] = sqlQuery.addSelect(propExp, null);
                     if (needsGroupBy) {
                         // Certain dialects allow us to eliminate properties

@@ -1540,17 +1540,18 @@ public class FilterTest extends BatchTestCase {
 
         // expected native filter with a join against the fact table
         String sql = 
-            "select `customer`.`customer_id` as `c0` "
-            + "from `customer` as `customer`, `sales_fact_1997` as `sales_fact_1997`, "
-            + "`time_by_day` as `time_by_day`, `promotion` as `promotion` "
-            + "where `sales_fact_1997`.`customer_id` = `customer`.`customer_id` "
-            + "and `sales_fact_1997`.`time_id` = `time_by_day`.`time_id` "
+            "select `sales_fact_1997`.`customer_id` as `c0` "
+            + "from `sales_fact_1997` as `sales_fact_1997`, "
+            + "`time_by_day` as `time_by_day`, `promotion` as `promotion`, "
+            + "`customer` as `customer` "
+            + "where `sales_fact_1997`.`time_id` = `time_by_day`.`time_id` "
             + "and `time_by_day`.`the_year` = 1997 "
             + "and `sales_fact_1997`.`promotion_id` = `promotion`.`promotion_id` "
             + "and `promotion`.`promotion_name` = 'Big Promo' "
+            + "and `sales_fact_1997`.`customer_id` = `customer`.`customer_id` "
             + "and `customer`.`gender` = 'F' "
-            + "group by `customer`.`customer_id` "
-            + "order by ISNULL(`customer`.`customer_id`) ASC, `customer`.`customer_id` ASC "
+            + "group by `sales_fact_1997`.`customer_id` "
+            + "order by ISNULL(`sales_fact_1997`.`customer_id`) ASC, `sales_fact_1997`.`customer_id` ASC "
             + "limit 25 offset 0";
         String mdx = 
             "WITH\n"
@@ -1663,17 +1664,18 @@ public class FilterTest extends BatchTestCase {
 
         // expected native filter with a join against the fact table
         String sql =
-            "select `customer`.`customer_id` as `c0` "
-            + "from `customer` as `customer`, `sales_fact_1997` as `sales_fact_1997`, "
-            + "`time_by_day` as `time_by_day`, `promotion` as `promotion` "
-            + "where `sales_fact_1997`.`customer_id` = `customer`.`customer_id` "
-            + "and `sales_fact_1997`.`time_id` = `time_by_day`.`time_id` "
+            "select `sales_fact_1997`.`customer_id` as `c0` "
+            + "from `sales_fact_1997` as `sales_fact_1997`, "
+            + "`time_by_day` as `time_by_day`, `promotion` as `promotion`, "
+            + "`customer` as `customer` "
+            + "where `sales_fact_1997`.`time_id` = `time_by_day`.`time_id` "
             + "and `time_by_day`.`the_year` = 1997 "
             + "and `sales_fact_1997`.`promotion_id` = `promotion`.`promotion_id` "
             + "and `promotion`.`promotion_name` = 'Big Promo' "
+            + "and `sales_fact_1997`.`customer_id` = `customer`.`customer_id` "
             + "and `customer`.`gender` = 'F' "
-            + "group by `customer`.`customer_id` "
-            + "order by ISNULL(`customer`.`customer_id`) ASC, `customer`.`customer_id` ASC "
+            + "group by `sales_fact_1997`.`customer_id` "
+            + "order by ISNULL(`sales_fact_1997`.`customer_id`) ASC, `sales_fact_1997`.`customer_id` ASC "
             + "limit 25 offset 0";
         String mdx =
             "WITH\n"
