@@ -62,10 +62,10 @@ public class RolapCubeMember
         // expensive and use significantly more memory, so we don't do that.
         // That meakes each call to getUniqueName more expensive, so we try to
         // minimize the number of calls to this method.
-        if (nativeUniqueName != null) {
+        if (nativeUniqueName != null && !nativeUniqueName.isEmpty()) {
             return nativeUniqueName;
         }
-        nativeUniqueName = "";
+        String uniqueName = "";
         if (ssasNativeMemberUniqueNameStyle) {
             RolapMember currMember = member;
             do {
@@ -73,11 +73,11 @@ public class RolapCubeMember
                     break;
                 } else if (currMember.getKey() == null || RolapUtil.sqlNullValue.equals(currMember.getKey())
                         || currMember.isMeasure() || currMember.isNull() || currMember.isCalculated()) {
-                    nativeUniqueName = "";
+                    uniqueName = "";
                     break;
                 }
 
-                nativeUniqueName += "&" + Util.makeFqName(keyToString(currMember.getKey()));
+                uniqueName += "&" + Util.makeFqName(keyToString(currMember.getKey()));
                 if (currMember.getLevel().isUnique()) {
                     break;
                 }
@@ -85,17 +85,20 @@ public class RolapCubeMember
                 currMember = currMember.getParentMember();
             } while (currMember != null);
 
-            if (!nativeUniqueName.isEmpty()) {
-                nativeUniqueName = member.getLevel().getUniqueName() + "." + nativeUniqueName;
+            if (!uniqueName.isEmpty()) {
+                uniqueName = member.getLevel().getUniqueName() + "." + uniqueName;
             }
         }
 
-        if (nativeUniqueName.isEmpty()){
-            nativeUniqueName = member.getUniqueName();
+        if (uniqueName.isEmpty()){
+            uniqueName = member.getUniqueName();
         }
 
-        nativeUniqueName = cubeLevel.getHierarchy().convertMemberName(nativeUniqueName);
-        return nativeUniqueName;
+        uniqueName = cubeLevel.getHierarchy().convertMemberName(uniqueName);
+        if (ssasNativeMemberUniqueNameStyle) {
+            nativeUniqueName = uniqueName;
+        }
+        return uniqueName;
     }
 
     /**
