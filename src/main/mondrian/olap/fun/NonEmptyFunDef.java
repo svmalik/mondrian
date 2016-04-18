@@ -259,7 +259,7 @@ public class NonEmptyFunDef extends FunDefBase {
         {
             ResolvedFunCall arg =
                 FunUtil.extractResolvedFunCall(call.getArg(0));
-            if (arg != null && "{}".equals(arg.getFunName())) {
+            if (arg != null) {
                 measureMap = getMeasuresMap(arg);
                 if (measureMap.isEmpty()) {
                     other = call.getArg(0);
