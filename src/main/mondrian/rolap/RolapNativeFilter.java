@@ -178,7 +178,7 @@ public class RolapNativeFilter extends RolapNativeSet {
         RolapLevel firstCrossjoinLevel = null;
         if (eval == null) {
             // extract the set expression
-            allArgs = crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0]);
+            allArgs = crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0], false, false);
             // checkCrossJoinArg returns a list of CrossJoinArg arrays.  The first
             // array is the CrossJoin dimensions.  The second array, if any,
             // contains additional constraints on the dimensions. If either the

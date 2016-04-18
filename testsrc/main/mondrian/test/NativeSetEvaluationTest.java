@@ -4327,6 +4327,55 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #0: 12,334\n");
     }
 
+    public void testNativeFilterWithAllMembersOnOneLevelHierarchy() {
+        if (!MondrianProperties.instance().EnableNativeFilter.get()) {
+            return;
+        }
+        String mdx =
+            "SELECT [Measures].[Unit Sales] ON 0, "
+            + "Filter([Store Type].AllMembers, (NOT IsEmpty([Measures].[Unit Sales])) AND [Measures].[Unit Sales] > 10000) on 1 \n"
+            + "FROM [Sales] WHERE {[Time].[1997].[Q1],[Time].[1997].[Q2]}";
+        if (!isUseAgg()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysqlQuery =
+                "select\n"
+                + "    `store`.`store_type` as `c0`\n"
+                + "from\n"
+                + "    `store` as `store`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `time_by_day`.`quarter` in ('Q1', 'Q2')\n"
+                + "group by\n"
+                + "    `store`.`store_type`\n"
+                + "having\n"
+                + "    ((NOT((sum(`sales_fact_1997`.`unit_sales`) is null)) )  AND (sum(`sales_fact_1997`.`unit_sales`) > 10000))\n"
+                + "order by\n"
+                + "    ISNULL(`store`.`store_type`) ASC, `store`.`store_type` ASC";
+            SqlPattern mysqlPattern =
+                new SqlPattern(DatabaseProduct.MYSQL, mysqlQuery, null);
+            assertQuerySql(mdx, new SqlPattern[]{mysqlPattern});
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "{[Time].[1997].[Q2]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Store Type].[Deluxe Supermarket]}\n"
+            + "{[Store Type].[Supermarket]}\n"
+            + "Row #0: 37,348\n"
+            + "Row #1: 72,893\n");
+    }
+
     public void testNativeCountNonEmptyExisting() {
         String mdx =
             "WITH MEMBER [Measures].[WithExisting] AS Count(NonEmpty(Existing [Product].[Product Name].Members))\n"
