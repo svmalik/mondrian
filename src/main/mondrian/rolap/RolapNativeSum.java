@@ -145,6 +145,7 @@ public class RolapNativeSum extends RolapNativeSet {
                 // The level must be related to the base cube.  If not,
                 // the SQL generated is bogus.
                 if (!areFromSameCube(evalArg.getLevel(), (RolapStoredMeasure) measure)) {
+                    LOGGER.debug("Sum() Cannot go native due to level not existing in both cubes.");
                     return null;
                 }
             }
@@ -171,6 +172,7 @@ public class RolapNativeSum extends RolapNativeSet {
                     // also, the level must be related to both base cubes.  If not,
                     // the SQL generated is bogus.
                     if (!areFromSameCube(evalArg.getLevel(), (RolapStoredMeasure) eval.getMeasure())) {
+                        LOGGER.debug("Sum() Cannot go native due to level not existing in both cubes.");
                         return null;
                     }
                 }
@@ -208,6 +210,7 @@ public class RolapNativeSum extends RolapNativeSet {
             // Check if arg levels are unrelated.
             for (CrossJoinArg evalArg : allArgs.get(0)) {
                 if (!areFromSameCube(evalArg.getLevel(), (RolapStoredMeasure)measure)) {
+                    LOGGER.debug("Sum() Cannot go native due to level not existing in both cubes.");
                     return null;
                 }
             }
@@ -246,15 +249,6 @@ public class RolapNativeSum extends RolapNativeSet {
         }
         return getStar((RolapStoredMeasure)m1) 
                 == getStar((RolapStoredMeasure)m2);
-    }
-
-    private static boolean areFromSameCube(RolapLevel level, RolapStoredMeasure measure) {
-        if (measure.getCube().findBaseCubeLevel(level) == null)
-        {
-            LOGGER.debug("Sum() Cannot go native due to level not existing in both cubes.");
-            return false;
-        }
-        return true;
     }
 
     private static RolapStar getStar(RolapStoredMeasure m) {

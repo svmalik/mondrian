@@ -227,6 +227,12 @@ public class RolapNativeFilter extends RolapNativeSet {
             // cannot natively evaluate, multiple tuples are possibly at play here.
             return null;
         }
+        if (sql.getStoredMeasure() != null
+            && !areFromSameCube(firstCrossjoinLevel, sql.getStoredMeasure()))
+        {
+            LOGGER.debug("Filter() Cannot go native due to level not existing in both cubes.");
+            return null;
+        }
 
         // Check to see if evaluator contains a calculated member that can't be
         // expanded.  This is necessary due to the SqlConstraintsUtils.

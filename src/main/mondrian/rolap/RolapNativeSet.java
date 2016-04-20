@@ -130,6 +130,10 @@ public abstract class RolapNativeSet extends RolapNative {
         }
     }
 
+    protected static boolean areFromSameCube(RolapLevel level, RolapStoredMeasure measure) {
+        return measure.getCube().findBaseCubeLevel(level) != null;
+    }
+
     /**
      * Constraint for non empty {crossjoin, member.children,
      * member.descendants, level.members}
