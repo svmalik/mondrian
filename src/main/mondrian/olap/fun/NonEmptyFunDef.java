@@ -349,20 +349,24 @@ public class NonEmptyFunDef extends FunDefBase {
                 RolapCube cube = ((RolapStoredMeasure) member).getCube();
                 cubes.add(cube.getName());
             } else if (member instanceof RolapCalculatedMember && foundMeasures.add(member)) {
-                findMeasures(member.getExpression(), measureMap, cubes, foundMeasures);
+                findMeasures(member.getExpression(), null, cubes, foundMeasures);
                 if (!SqlConstraintUtils.isSupportedCalculatedMember(member)) {
                     cubes.add(UUID.randomUUID().toString());
                 }
+            } else {
+                return;
             }
 
-            List<String> cubeList = new ArrayList<String>(cubes);
-            Collections.sort(cubeList, String.CASE_INSENSITIVE_ORDER);
-            List<Exp> measures = measureMap.get(cubeList);
-            if (measures == null) {
-                measures = new ArrayList<Exp>();
-                measureMap.put(cubeList, measures);
+            if (measureMap != null) {
+                List<String> cubeList = new ArrayList<String>(cubes);
+                Collections.sort(cubeList, String.CASE_INSENSITIVE_ORDER);
+                List<Exp> measures = measureMap.get(cubeList);
+                if (measures == null) {
+                    measures = new ArrayList<Exp>();
+                    measureMap.put(cubeList, measures);
+                }
+                measures.add(exp);
             }
-            measures.add(exp);
         } else if (exp instanceof ResolvedFunCall) {
             ResolvedFunCall funCall = (ResolvedFunCall) exp;
             Exp [] args = funCall.getArgs();
