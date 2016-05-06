@@ -230,6 +230,17 @@ public class MemberListCrossJoinArg implements CrossJoinArg {
             members, restrictMemberTypes, true, exclude);
     }
 
+    public void addConstraint(
+        SqlQuery sqlQuery,
+        RolapCube baseCube,
+        AggStar aggStar,
+        boolean nonEmpty)
+    {
+        SqlConstraintUtils.addMemberConstraint(
+            sqlQuery, baseCube, aggStar,
+            members, restrictMemberTypes, true, exclude, nonEmpty);
+    }
+
     /**
      * Returns whether the input CJ arg is empty.
      *

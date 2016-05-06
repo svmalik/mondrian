@@ -33,6 +33,12 @@ public interface CrossJoinArg {
         RolapCube baseCube,
         AggStar aggStar);
 
+    void addConstraint(
+        SqlQuery sqlQuery,
+        RolapCube baseCube,
+        AggStar aggStar,
+        boolean nonEmpty);
+
     boolean isPreferInterpreter(boolean joinArg);
 }
 

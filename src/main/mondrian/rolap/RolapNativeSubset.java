@@ -9,15 +9,16 @@
 */
 package mondrian.rolap;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.sql.DataSource;
 
 import mondrian.olap.Exp;
 import mondrian.olap.FunDef;
+import mondrian.olap.Hierarchy;
 import mondrian.olap.Level;
 import mondrian.olap.Literal;
+import mondrian.olap.Member;
 import mondrian.olap.MondrianProperties;
 import mondrian.olap.NativeEvaluator;
 import mondrian.olap.SchemaReader;
@@ -72,7 +73,20 @@ public class RolapNativeSubset extends RolapNativeSet {
             if (count != null) {
               sqlQuery.setLimit(count);
             }
-            super.addConstraint(sqlQuery, baseCube, aggStar);
+
+            if (isJoinRequired()) {
+                super.addConstraint(sqlQuery, baseCube, aggStar);
+            } else if (args.length == 1) {
+                args[0].addConstraint(sqlQuery, baseCube, null, false);
+            }
+        }
+
+        protected boolean isJoinRequired() {
+            if (parentConstraint != null) {
+                return parentConstraint.isJoinRequired();
+            } else {
+                return args.length > 1;
+            }
         }
 
         /**
@@ -179,9 +193,25 @@ public class RolapNativeSubset extends RolapNativeSet {
                     combinedArgs = cjArgs;
                 }
 
-                TupleConstraint constraint =
+                if (cjArgs.length == 1) {
+                    // reset all other hierarchies to their default member
+                    Hierarchy h = cjArgs[0].getLevel() != null ? cjArgs[0].getLevel().getHierarchy() : null;
+                    for (Member m : evaluator.getMembers()) {
+                        if (!m.isMeasure() && !(m instanceof RolapAllCubeMember)
+                            && (h == null || !h.equals(m.getLevel().getHierarchy())))
+                        {
+                            evaluator.setContext(m.getLevel().getHierarchy().getAllMember());
+                        }
+                    }
+                }
+
+                SetConstraint constraint =
                     new SubsetConstraint(
                         start, count, combinedArgs, evaluator, null);
+                if (constraint.isJoinRequired() && evaluator.getBaseCubes() == null) {
+                    // invalid constraint
+                    return null;
+                }
                 SetEvaluator sev =
                     new SetEvaluator(cjArgs, schemaReader, constraint);
                 if (count != null) {

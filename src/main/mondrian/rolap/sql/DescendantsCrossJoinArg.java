@@ -15,6 +15,7 @@ import mondrian.rolap.*;
 import mondrian.rolap.aggmatcher.AggStar;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -54,9 +55,19 @@ public class DescendantsCrossJoinArg implements CrossJoinArg {
         RolapCube baseCube,
         AggStar aggStar)
     {
+        addConstraint(sqlQuery, baseCube, aggStar, true);
+    }
+
+    public void addConstraint(
+        SqlQuery sqlQuery,
+        RolapCube baseCube,
+        AggStar aggStar,
+        boolean nonEmpty)
+    {
         if (member != null) {
+            List<RolapMember> members = Collections.singletonList(member);
             SqlConstraintUtils.addMemberConstraint(
-                sqlQuery, baseCube, aggStar, member, true);
+                sqlQuery, baseCube, aggStar, members, true, false, false, nonEmpty);
         }
     }
 
