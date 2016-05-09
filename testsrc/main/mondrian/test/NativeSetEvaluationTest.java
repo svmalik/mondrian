@@ -2270,30 +2270,83 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #1: 44906.0\n"
             + "Row #2: 40,784\n"
             + "Row #2: 116025.0\n");
-        SqlPattern mysql =
-            new SqlPattern(
-                Dialect.DatabaseProduct.MYSQL,
-                "select\n"
-                + "    `store`.`store_country` as `c0`,\n"
-                + "    `store`.`store_state` as `c1`\n"
-                + "from\n"
-                + "    `store` as `store`,\n"
-                + "    `inventory_fact_1997` as `inventory_fact_1997`,\n"
-                + "    `time_by_day` as `time_by_day`\n"
-                + "where\n"
-                + "    `inventory_fact_1997`.`store_id` = `store`.`store_id`\n"
-                + "and\n"
-                + "    `inventory_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
-                + "and\n"
-                + "    (`time_by_day`.`month_of_year` = 1 and `time_by_day`.`quarter` = 'Q1' and `time_by_day`.`the_year` = 1997)\n"
-                + "and\n"
-                + "    `inventory_fact_1997`.`units_ordered` is not null\n"
-                + "group by\n"
-                + "    `store`.`store_country`,\n"
-                + "    `store`.`store_state`\n"
-                + "order by\n"
-                + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
-                + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC", null);
+        String sql =
+            "select\n"
+            + "    `store`.`store_country` as `c0`,\n"
+            + "    `store`.`store_state` as `c1`\n"
+            + "from\n"
+            + "    `store` as `store`,\n"
+            + "    `inventory_fact_1997` as `inventory_fact_1997`,\n"
+            + "    `time_by_day` as `time_by_day`\n"
+            + "where\n"
+            + "    `inventory_fact_1997`.`store_id` = `store`.`store_id`\n"
+            + "and\n"
+            + "    `inventory_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+            + "and\n"
+            + "    (`time_by_day`.`month_of_year` = 1 and `time_by_day`.`quarter` = 'Q1' and `time_by_day`.`the_year` = 1997)\n"
+            + "and\n"
+            + "    `inventory_fact_1997`.`units_ordered` is not null\n"
+            + "group by\n"
+            + "    `store`.`store_country`,\n"
+            + "    `store`.`store_state`\n"
+            + "order by\n"
+            + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
+            + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC";
+        SqlPattern mysql = new SqlPattern(Dialect.DatabaseProduct.MYSQL, sql, null);
+        assertQuerySql(mdx, new SqlPattern[]{mysql});
+
+        // with nested CrossJoin's
+        mdx =
+            "SELECT {[Measures].[Sales Count], [Measures].[Units Ordered]} ON COLUMNS,\n"
+            + "NonEmpty([Store].[Store State].members, "
+            + "CrossJoin(CrossJoin({[Time].[1997].[Q1].[1]}, {[Product].[Product Name].[King Rosy Sunglasses]}), "
+            + "{[Measures].[Sales Count], [Measures].[Units Ordered]})) ON ROWS\n"
+            + "FROM [Warehouse and Sales]";
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Sales Count]}\n"
+            + "{[Measures].[Units Ordered]}\n"
+            + "Axis #2:\n"
+            + "{[Store].[USA].[WA]}\n"
+            + "{[Store].[USA].[CA]}\n"
+            + "{[Store].[USA].[OR]}\n"
+            + "Row #0: 40,784\n"
+            + "Row #0: 116025.0\n"
+            + "Row #1: 24,442\n"
+            + "Row #1: 66307.0\n"
+            + "Row #2: 21,611\n"
+            + "Row #2: 44906.0\n");
+        sql =
+            "select\n"
+            + "    `store`.`store_country` as `c0`,\n"
+            + "    `store`.`store_state` as `c1`\n"
+            + "from\n"
+            + "    `store` as `store`,\n"
+            + "    `inventory_fact_1997` as `inventory_fact_1997`,\n"
+            + "    `time_by_day` as `time_by_day`,\n"
+            + "    `product` as `product`\n"
+            + "where\n"
+            + "    `inventory_fact_1997`.`store_id` = `store`.`store_id`\n"
+            + "and\n"
+            + "    `inventory_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+            + "and\n"
+            + "    (`time_by_day`.`month_of_year` = 1 and `time_by_day`.`quarter` = 'Q1' and `time_by_day`.`the_year` = 1997)\n"
+            + "and\n"
+            + "    `inventory_fact_1997`.`product_id` = `product`.`product_id`\n"
+            + "and\n"
+            + "    (`product`.`product_name` = 'King Rosy Sunglasses')\n"
+            + "and\n"
+            + "    `inventory_fact_1997`.`units_ordered` is not null\n"
+            + "group by\n"
+            + "    `store`.`store_country`,\n"
+            + "    `store`.`store_state`\n"
+            + "order by\n"
+            + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
+            + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC";
+        mysql = new SqlPattern(Dialect.DatabaseProduct.MYSQL, sql, null);
         assertQuerySql(mdx, new SqlPattern[]{mysql});
     }
 

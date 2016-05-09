@@ -18,6 +18,7 @@ import mondrian.calc.TupleCursor;
 import mondrian.calc.TupleIterable;
 import mondrian.calc.TupleList;
 import mondrian.calc.impl.AbstractListCalc;
+import mondrian.mdx.MdxVisitorImpl;
 import mondrian.mdx.MemberExpr;
 import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
@@ -48,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class NonEmptyFunDef extends FunDefBase {
     static final MultiResolver NonEmptyResolver =
@@ -248,37 +250,66 @@ public class NonEmptyFunDef extends FunDefBase {
             return null;
         }
 
-        Map<List<String>, List<Exp>> measureMap = null;
+        String funName = call.getFunName();
+        Map<List<String>, List<Exp>> measureMap = new HashMap<>();
+        List<Exp> otherSets = new ArrayList<>();
+        extractArguments(call, measureMap, otherSets);
         Exp other = null;
+        if (!measureMap.isEmpty()) {
+            for (Exp exp : otherSets) {
+                if (other == null) {
+                    other = exp;
+                } else {
+                    other = getCrossJoinCall(funName, other, exp, validator);
+                }
+            }
+        }
+
+        return createNewNonEmptyCalls(
+            mainArgs, funName, measureMap, other, validator);
+    }
+
+    private void extractArguments(
+        ResolvedFunCall call,
+        Map<List<String>, List<Exp>> measureMap,
+        List<Exp> otherSets)
+    {
         if ("{}".equals(call.getFunName())) {
-            measureMap = getMeasuresMap(call);
+            getMeasuresMap(call, measureMap);
         }
         else if ((call.getFunDef() instanceof CrossJoinFunDef
                 || call.getFunDef() instanceof NonEmptyCrossJoinFunDef)
             && call.getArgCount() == 2)
         {
-            ResolvedFunCall arg =
-                FunUtil.extractResolvedFunCall(call.getArg(0));
-            if (arg != null) {
-                measureMap = getMeasuresMap(arg);
-                if (measureMap.isEmpty()) {
-                    other = call.getArg(0);
-                    arg = FunUtil.extractResolvedFunCall(call.getArg(1));
-                    if (arg != null && "{}".equals(arg.getFunName())) {
-                        measureMap = getMeasuresMap(arg);
-                    }
-                }
-                if (other == null) {
-                    other = call.getArg(1);
-                }
+            if (!processCrossJoinArgs(call.getArg(0), call.getArg(1), measureMap, otherSets)){
+                processCrossJoinArgs(call.getArg(1), call.getArg(0), measureMap, otherSets);
             }
         }
-        return createNewNonEmptyCalls(
-            mainArgs, call.getFunName(), measureMap, other, validator);
     }
 
-    private Map<List<String>, List<Exp>> getMeasuresMap(ResolvedFunCall call) {
-        Map<List<String>, List<Exp>> measureMap = new HashMap<>();
+    private boolean processCrossJoinArgs(
+        Exp arg1, Exp arg2,
+        Map<List<String>, List<Exp>> measureMap,
+        List<Exp> otherSets)
+    {
+        ResolvedFunCall call = FunUtil.extractResolvedFunCall(arg1);
+        if (call != null) {
+            getMeasuresMap(call, measureMap);
+            if (measureMap.isEmpty() && hasMeasures(call)) {
+                extractArguments(call, measureMap, otherSets);
+            }
+            if (!measureMap.isEmpty()) {
+                otherSets.add(arg2);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void getMeasuresMap(
+        ResolvedFunCall call,
+        Map<List<String>, List<Exp>> measureMap)
+    {
         if (call != null && "{}".equals(call.getFunName()) && call.getArgCount() > 1) {
             for (Exp arg : call.getArgs()) {
                 if (arg instanceof MemberExpr
@@ -293,7 +324,25 @@ public class NonEmptyFunDef extends FunDefBase {
                 }
             }
         }
-        return measureMap;
+    }
+
+    private boolean hasMeasures(ResolvedFunCall call) {
+        if (call == null) {
+            return false;
+        }
+        final AtomicBoolean hasMeasures = new AtomicBoolean(false);
+        call.accept(
+            new MdxVisitorImpl() {
+                public Object visit(MemberExpr memberExpr) {
+                    if (memberExpr.getMember().isMeasure()) {
+                        hasMeasures.set(true);
+                        turnOffVisitChildren();
+                        return null;
+                    }
+                    return super.visit(memberExpr);
+                }
+            });
+        return hasMeasures.get();
     }
 
     private List<ResolvedFunCall> createNewNonEmptyCalls(
@@ -314,16 +363,21 @@ public class NonEmptyFunDef extends FunDefBase {
             if (otherSet == null) {
                 nonEmptyArgs = measureExp;
             } else {
-                Exp[] args = new Exp[]{otherSet, measureExp};
-                FunDef crossJoinFun = validator.getDef(args, funName, Syntax.Function);
-                nonEmptyArgs =
-                    new ResolvedFunCall(crossJoinFun, args, new SetType(MemberType.Unknown));
+                nonEmptyArgs = getCrossJoinCall(funName, otherSet, measureExp, validator);
             }
             ResolvedFunCall nonEmpty =
                 getNonEmptyCall(mainArgs, nonEmptyArgs, validator);
             nonEmptyCalls.add(nonEmpty);
         }
         return nonEmptyCalls;
+    }
+
+    private ResolvedFunCall getCrossJoinCall(
+        String funName, Exp set1, Exp set2, Validator validator)
+    {
+        Exp[] args = new Exp[]{ set1, set2 };
+        FunDef crossJoinFun = validator.getDef(args, funName, Syntax.Function);
+        return new ResolvedFunCall(crossJoinFun, args, new SetType(MemberType.Unknown));
     }
 
     private ResolvedFunCall getNonEmptyCall(
