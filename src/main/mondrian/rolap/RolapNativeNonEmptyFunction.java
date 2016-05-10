@@ -32,6 +32,7 @@ import mondrian.rolap.sql.SqlQuery;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -132,7 +133,8 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
         else {
           // use context measure
           if (evaluator.getMembers()[0] instanceof RolapStoredMeasure) {
-              nativeMeasures.add((RolapStoredMeasure) evaluator.getMembers()[0]);
+              measure = (RolapStoredMeasure) evaluator.getMembers()[0];
+              nativeMeasures.add(measure);
           }
         }
 
@@ -146,6 +148,16 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
                         crossJoinArgFactory().checkCrossJoinArg(
                             evaluator,
                             altExp);
+                    // try to expand non native if supported
+                    if (failedCjArg(extraArgs)
+                        && MondrianProperties.instance().ExpandNonNative.get())
+                    {
+                        CrossJoinArg[] cjNonNative =
+                            crossJoinArgFactory().expandNonNative(evaluator, altExp);
+                        if (cjNonNative != null) {
+                            extraArgs = Collections.singletonList(cjNonNative);
+                        }
+                    }
                     if (failedCjArg(extraArgs)) {
                         // can't be nativized even without measures
                         alertNonNative(evaluator, fun, args[1]);
@@ -159,6 +171,17 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
                 // what made it fail wasn't a measure
                 alertNonNative(evaluator, fun, args[1]);
                 return null;
+            }
+        }
+
+        for (CrossJoinArg evalArg : mainArgs.get(0)) {
+            // the level must be related all base cubes.
+            // If not, the SQL generated is bogus.
+            for (Member m : nativeMeasures) {
+                if (!areFromSameCube(evalArg.getLevel(), (RolapStoredMeasure) m)) {
+                    LOGGER.debug("NonEmpty() Cannot go native due to level not existing in both cubes.");
+                    return null;
+                }
             }
         }
 

@@ -1186,7 +1186,7 @@ public class CrossJoinArgFactory {
         return null;
     }
 
-    private CrossJoinArg[] expandNonNative(
+    public CrossJoinArg[] expandNonNative(
         RolapEvaluator evaluator,
         Exp exp)
     {

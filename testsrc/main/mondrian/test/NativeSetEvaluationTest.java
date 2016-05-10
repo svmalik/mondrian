@@ -2184,6 +2184,91 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #12: 24,329.23\n");
     }
 
+    public void testNativeNonEmptyGoesNonNative() {
+        if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()) {
+            return;
+        }
+        // the first argument of NonEmpty has dimensions from
+        // different base cubes, thus cannot run native.
+        String mdx =
+            "SELECT { [Measures].[Units Shipped] } ON COLUMNS,\n"
+            + "[Time].[Quarter].members ON ROWS\n"
+            + "FROM [Warehouse and Sales]\n"
+            + "WHERE NonEmpty(CrossJoin({[Product].[Food].[Dairy]}, {[Warehouse].[USA]}))";
+        checkNotNative(8, mdx);
+    }
+
+    public void testNonEmptyNoMeasureVirtualCube() {
+        if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()) {
+            return;
+        }
+        propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+        propSaver.set(propSaver.properties.UseAggregates, false);
+
+        // This tests the case when a measure in query and the default measure
+        // are from different fact tables. Base cube should be set according to
+        // the default measure. It used to be generating a SQL query with
+        // Cartesian product of two fact tables - "warehouse" and "sales_fact_1997".
+        String mdx =
+            "SELECT { [Measures].[Units Shipped] } ON COLUMNS,\n"
+            + "[Time].[Quarter].members ON ROWS\n"
+            + "FROM [Warehouse and Sales]\n"
+            + "WHERE NonEmpty({[Product].[Food].[Dairy]})";
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Product].[Food].[Dairy]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Units Shipped]}\n"
+            + "Axis #2:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "{[Time].[1997].[Q2]}\n"
+            + "{[Time].[1997].[Q3]}\n"
+            + "{[Time].[1997].[Q4]}\n"
+            + "{[Time].[1998].[Q1]}\n"
+            + "{[Time].[1998].[Q2]}\n"
+            + "{[Time].[1998].[Q3]}\n"
+            + "{[Time].[1998].[Q4]}\n"
+            + "Row #0: 2391.0\n"
+            + "Row #1: 3049.0\n"
+            + "Row #2: 3801.0\n"
+            + "Row #3: 2528.0\n"
+            + "Row #4: \n"
+            + "Row #5: \n"
+            + "Row #6: \n"
+            + "Row #7: \n");
+        SqlPattern mysql =
+            new SqlPattern(
+                Dialect.DatabaseProduct.MYSQL,
+                "select\n"
+                + "    `product_class`.`product_family` as `c0`,\n"
+                + "    `product_class`.`product_department` as `c1`\n"
+                + "from\n"
+                + "    `product_class` as `product_class`,\n"
+                + "    `product` as `product`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
+                + "and\n"
+                + "    `product`.`product_class_id` = `product_class`.`product_class_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    (`product_class`.`product_department` = 'Dairy' and `product_class`.`product_family` = 'Food')\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`store_sales` is not null\n"
+                + "group by\n"
+                + "    `product_class`.`product_family`,\n"
+                + "    `product_class`.`product_department`\n"
+                + "order by\n"
+                + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
+                + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC", null);
+        assertQuerySql(mdx, new SqlPattern[]{mysql});
+    }
+
     public void testNativeNonEmptyDifferentCubes() {
         if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()
             || !MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubes.get())
