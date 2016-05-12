@@ -418,20 +418,30 @@ public class FoodMartTestCase extends PropertyRestoringTestCase {
     public void verifySameNativeAndNot(
         String query, String message, TestContext context)
     {
+        propSaver.set(propSaver.properties.EnableNativeCount, true);
         propSaver.set(propSaver.properties.EnableNativeCrossJoin, true);
+        propSaver.set(propSaver.properties.EnableNativeExcept, true);
         propSaver.set(propSaver.properties.EnableNativeExisting, true);
         propSaver.set(propSaver.properties.EnableNativeExists, true);
         propSaver.set(propSaver.properties.EnableNativeFilter, true);
         propSaver.set(propSaver.properties.EnableNativeNonEmpty, true);
+        propSaver.set(propSaver.properties.EnableNativeOrder, true);
+        propSaver.set(propSaver.properties.EnableNativeSubset, true);
+        propSaver.set(propSaver.properties.EnableNativeSum, true);
         propSaver.set(propSaver.properties.EnableNativeTopCount, true);
 
         Result resultNative = context.executeQuery(query);
 
+        propSaver.set(propSaver.properties.EnableNativeCount, false);
         propSaver.set(propSaver.properties.EnableNativeCrossJoin, false);
+        propSaver.set(propSaver.properties.EnableNativeExcept, false);
         propSaver.set(propSaver.properties.EnableNativeExisting, false);
         propSaver.set(propSaver.properties.EnableNativeExists, false);
         propSaver.set(propSaver.properties.EnableNativeFilter, false);
         propSaver.set(propSaver.properties.EnableNativeNonEmpty, false);
+        propSaver.set(propSaver.properties.EnableNativeOrder, false);
+        propSaver.set(propSaver.properties.EnableNativeSubset, false);
+        propSaver.set(propSaver.properties.EnableNativeSum, false);
         propSaver.set(propSaver.properties.EnableNativeTopCount, false);
 
         Result resultNonNative = context.executeQuery(query);
@@ -442,6 +452,12 @@ public class FoodMartTestCase extends PropertyRestoringTestCase {
             TestContext.toString(resultNonNative));
 
         propSaver.reset();
+    }
+
+    public static boolean isUseAgg() {
+        return
+            MondrianProperties.instance().UseAggregates.get()
+            && MondrianProperties.instance().ReadAggregates.get();
     }
 }
 

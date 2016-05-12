@@ -375,6 +375,18 @@ public class RolapNativeSql {
                     rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
                     sourceExp = expression.getExpression(sqlQuery);
                 } else {
+                    if (rolapLevel instanceof RolapCubeLevel
+                        && expression.equals(rolapLevel.keyExp)
+                        && evaluator.getBaseCubes() != null
+                        && evaluator.getBaseCubes().size() == 1)
+                    {
+                        RolapCube baseCube = evaluator.getBaseCubes().get(0);
+                        RolapStar.Column column =
+                            ((RolapCubeLevel)rolapLevel).getBaseStarKeyColumn(baseCube);
+                        if (column != null && column.isOptimized()) {
+                            expression = column.optimize().getExpression();
+                        }
+                    }
                     sourceExp = expression.getExpression(sqlQuery);
                 }
 
@@ -885,6 +897,18 @@ public class RolapNativeSql {
                         rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
                         sourceExp = expression.getExpression(sqlQuery);
                     } else {
+                        if (rolapLevel instanceof RolapCubeLevel
+                            && expression.equals(rolapLevel.keyExp)
+                            && evaluator.getBaseCubes() != null
+                            && evaluator.getBaseCubes().size() == 1)
+                        {
+                            RolapCube baseCube = evaluator.getBaseCubes().get(0);
+                            RolapStar.Column column =
+                                ((RolapCubeLevel)rolapLevel).getBaseStarKeyColumn(baseCube);
+                            if (column != null && column.isOptimized()) {
+                                expression = column.optimize().getExpression();
+                            }
+                        }
                         sourceExp = expression.getExpression(sqlQuery);
                     }
                 }

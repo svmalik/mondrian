@@ -3266,12 +3266,6 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         assertQuerySql(mdx, new SqlPattern[]{mysqlPattern});
     }
 
-    private static boolean isUseAgg() {
-        return
-            MondrianProperties.instance().UseAggregates.get()
-            && MondrianProperties.instance().ReadAggregates.get();
-    }
-
     public void testNativeSumScenarios() {
 
       propSaver.set(propSaver.properties.GenerateFormattedSql, true);
@@ -4763,7 +4757,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                 + "where\n"
                 + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
                 + "and\n"
-                + "    (`sales_fact_1997`.`customer_id` = '55')\n"
+                + "    `customer`.`customer_id` = '55'\n"
                 + "group by\n"
                 + "    `customer`.`city`) as `countQuery`";
             SqlPattern mysqlPattern =
