@@ -12,13 +12,20 @@ package mondrian.olap.fun;
 
 import mondrian.calc.*;
 import mondrian.calc.impl.*;
+import mondrian.mdx.DimensionExpr;
+import mondrian.mdx.HierarchyExpr;
+import mondrian.mdx.LevelExpr;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
+import mondrian.olap.type.MemberType;
+import mondrian.olap.type.SetType;
 import mondrian.rolap.ManyToManyUtil;
 import mondrian.rolap.RolapEvaluator;
 import mondrian.server.Locus;
 import mondrian.util.CancellationChecker;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -137,10 +144,92 @@ class FilterFunDef extends FunDefBase {
                     return (TupleIterable)
                         nativeEvaluator.execute(ResultStyle.ITERABLE);
                 } else {
-                    return makeIterable(evaluator);
+                    TupleIterable tuples = evaluateIterableLevels(evaluator);
+                    return tuples != null ? tuples : makeIterable(evaluator);
                 }
             } finally {
                 evaluator.getTiming().markEnd(TIMING_NAME);
+            }
+        }
+
+        private TupleIterable evaluateIterableLevels(Evaluator evaluator) {
+            if (!MondrianProperties.instance().EnableNativeFilter.get()) {
+                return null;
+            }
+
+            final HashSet<String> supported = new HashSet<>(
+                Arrays.asList(new String[] { "members", "allmembers" }));
+            ResolvedFunCall call = (ResolvedFunCall) exp;
+            Exp[] args = call.getArgs();
+            ResolvedFunCall arg0 = FunUtil.extractResolvedFunCall(args[0]);
+            if (arg0 == null
+                || !supported.contains(arg0.getFunName().toLowerCase())
+                || arg0.getArgs().length != 1)
+            {
+                return null;
+            }
+
+            Hierarchy hierarchy = null;
+            if (arg0.getArg(0) instanceof HierarchyExpr) {
+                hierarchy = ((HierarchyExpr)arg0.getArg(0)).getHierarchy();
+            } else if (arg0.getArg(0) instanceof DimensionExpr) {
+                Dimension dimension = ((DimensionExpr)arg0.getArg(0)).getDimension();
+                if (dimension.getHierarchies().length == 1) {
+                    hierarchy = dimension.getHierarchies()[0];
+                }
+            }
+
+            if (hierarchy == null) {
+                return null;
+            }
+
+            SchemaReader reader = evaluator.getSchemaReader();
+            RolapEvaluator manyToManyEval =
+                ManyToManyUtil.getManyToManyEvaluator((RolapEvaluator)evaluator);
+            ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
+            Validator validator = expCompiler.getValidator();
+
+            TupleList result = new UnaryTupleList();
+            List<Member> members = result.slice(0);
+            for (Level level : hierarchy.getLevels()) {
+                if (level.isAll()) {
+                    continue;
+                }
+                TupleIterable tuples =
+                    evaluateForLevel(
+                        level, call.getFunDef(), args, arg0.getFunName(),
+                        reader, validator, manyToManyEval);
+                if (tuples == null) {
+                    return null;
+                } else {
+                    for (Member m : tuples.slice(0)) {
+                        members.add(m);
+                    }
+                }
+            }
+            return FunUtil.hierarchizeTupleList(result, false);
+        }
+
+        private TupleIterable evaluateForLevel(
+            Level level, FunDef funDef, Exp[] args,
+            String membersFunName, SchemaReader schemaReader,
+            Validator validator, RolapEvaluator manyToManyEval)
+        {
+            Exp[] levelArgs = new Exp[] { new LevelExpr(level) };
+            FunDef levelFun =
+                validator.getDef(levelArgs, membersFunName, Syntax.Property);
+            args[0] = new ResolvedFunCall(
+                levelFun, levelArgs, new SetType(MemberType.Unknown));
+            NativeEvaluator nativeEvaluator =
+                schemaReader.getNativeSetEvaluator(
+                    funDef,
+                    args,
+                    manyToManyEval,
+                    this);
+            if (nativeEvaluator != null) {
+                return (TupleIterable) nativeEvaluator.execute(ResultStyle.ITERABLE);
+            } else {
+                return null;
             }
         }
 
