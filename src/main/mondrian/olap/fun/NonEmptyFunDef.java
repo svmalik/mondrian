@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -251,7 +252,7 @@ public class NonEmptyFunDef extends FunDefBase {
         }
 
         String funName = call.getFunName();
-        Map<List<String>, List<Exp>> measureMap = new HashMap<>();
+        Map<List<String>, Set<Member>> measureMap = new HashMap<>();
         List<Exp> otherSets = new ArrayList<>();
         extractArguments(call, measureMap, otherSets);
         Exp other = null;
@@ -271,7 +272,7 @@ public class NonEmptyFunDef extends FunDefBase {
 
     private void extractArguments(
         ResolvedFunCall call,
-        Map<List<String>, List<Exp>> measureMap,
+        Map<List<String>, Set<Member>> measureMap,
         List<Exp> otherSets)
     {
         if ("{}".equals(call.getFunName())) {
@@ -289,7 +290,7 @@ public class NonEmptyFunDef extends FunDefBase {
 
     private boolean processCrossJoinArgs(
         Exp arg1, Exp arg2,
-        Map<List<String>, List<Exp>> measureMap,
+        Map<List<String>, Set<Member>> measureMap,
         List<Exp> otherSets)
     {
         ResolvedFunCall call = FunUtil.extractResolvedFunCall(arg1);
@@ -308,7 +309,7 @@ public class NonEmptyFunDef extends FunDefBase {
 
     private void getMeasuresMap(
         ResolvedFunCall call,
-        Map<List<String>, List<Exp>> measureMap)
+        Map<List<String>, Set<Member>> measureMap)
     {
         if (call != null && "{}".equals(call.getFunName()) && call.getArgCount() > 1) {
             for (Exp arg : call.getArgs()) {
@@ -347,15 +348,19 @@ public class NonEmptyFunDef extends FunDefBase {
 
     private List<ResolvedFunCall> createNewNonEmptyCalls(
         Exp mainArgs, String funName,
-        Map<List<String>, List<Exp>> measureMap,
+        Map<List<String>, Set<Member>> measureMap,
         Exp otherSet, Validator validator)
     {
         if (measureMap == null || measureMap.size() < 2) {
             return null;
         }
         List<ResolvedFunCall> nonEmptyCalls = new ArrayList<>(measureMap.size());
-        for (List<Exp> measures : measureMap.values()) {
-            Exp[] setArgs = measures.toArray(new Exp[measures.size()]);
+        for (Set<Member> measures : measureMap.values()) {
+            Exp[] setArgs = new Exp[measures.size()];
+            int i = 0;
+            for (Member measure : measures) {
+                setArgs[i++] = new MemberExpr(measure);
+            }
             FunDef measureSet = validator.getDef(setArgs, "{}", Syntax.Braces);
             ResolvedFunCall measureExp = new ResolvedFunCall(
                 measureSet, setArgs, new SetType(MemberType.Unknown));
@@ -391,7 +396,7 @@ public class NonEmptyFunDef extends FunDefBase {
     }
 
     private void findMeasures(
-        Exp exp, Map<List<String>, List<Exp>> measureMap, Set<String> cubes, Set<Member> foundMeasures)
+        Exp exp, Map<List<String>, Set<Member>> measureMap, Set<String> cubes, Set<Member> foundMeasures)
     {
         if (exp instanceof MemberExpr) {
             Member member = ((MemberExpr)exp).getMember();
@@ -414,12 +419,12 @@ public class NonEmptyFunDef extends FunDefBase {
             if (measureMap != null) {
                 List<String> cubeList = new ArrayList<String>(cubes);
                 Collections.sort(cubeList, String.CASE_INSENSITIVE_ORDER);
-                List<Exp> measures = measureMap.get(cubeList);
+                Set<Member> measures = measureMap.get(cubeList);
                 if (measures == null) {
-                    measures = new ArrayList<Exp>();
+                    measures = new LinkedHashSet<>();
                     measureMap.put(cubeList, measures);
                 }
-                measures.add(exp);
+                measures.add(member);
             }
         } else if (exp instanceof ResolvedFunCall) {
             ResolvedFunCall funCall = (ResolvedFunCall) exp;
