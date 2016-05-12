@@ -374,9 +374,8 @@ public class RolapNativeSum extends RolapNativeSet {
                 // this is the normal path
                 if (delegatingConstraint != null) {
                     delegatingConstraint.addConstraint(sqlQuery, baseCube, aggStar);
-                } else {
-                    super.addConstraint(sqlQuery, baseCube, aggStar);
                 }
+                super.addConstraint(sqlQuery, baseCube, aggStar);
                 // Add the measure to the query as "m1", make sure the fact table is also present.
                 addMeasureFact(measure, aggStar, sqlQuery);
                 sqlQuery.addSelect( getMeasureExpression(measure, aggStar, sqlQuery), null, "m1");

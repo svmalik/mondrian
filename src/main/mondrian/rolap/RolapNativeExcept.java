@@ -98,24 +98,6 @@ public class RolapNativeExcept extends RolapNativeSet {
 
         SetEvaluator eval = getNestedEvaluator(args[0], evaluator);
         if (eval == null) {
-/*
-            // extract the set expression
-            List<CrossJoinArg[]> allArgs =
-                crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0]);
-
-            // checkCrossJoinArg returns a list of CrossJoinArg arrays.  The first
-            // array is the CrossJoin dimensions.  The second array, if any,
-            // contains additional constraints on the dimensions. If either the list
-            // or the first array is null, then native cross join is not feasible.
-            if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
-                return null;
-            }
-
-            CrossJoinArg[] cjArgs = allArgs.get(0);
-            if (isPreferInterpreter(cjArgs, false)) {
-                return null;
-            }
-*/
             final int savepoint = evaluator.savepoint();
             try {
                 overrideContext(evaluator, cjArgs, null);
@@ -133,9 +115,13 @@ public class RolapNativeExcept extends RolapNativeSet {
                     combinedArgs = cjArgs;
                 }
 
-                TupleConstraint constraint =
+                SetConstraint constraint =
                     new ExceptFunctionConstraint(
                         combinedArgs, exceptMembers, evaluator, null);
+                if (constraint.isJoinRequired() && evaluator.getBaseCubes() == null) {
+                    // invalid constraint
+                    return null;
+                }
                 SetEvaluator sev =
                     new SetEvaluator(cjArgs, schemaReader, constraint);
                 LOGGER.debug("using native except");
@@ -169,9 +155,22 @@ public class RolapNativeExcept extends RolapNativeSet {
 
         @Override
         public void addConstraint(SqlQuery sqlQuery, RolapCube baseCube, AggStar aggStar) {
-            super.addConstraint(sqlQuery, baseCube, aggStar);
+            if (isJoinRequired()) {
+                super.addConstraint(sqlQuery, baseCube, aggStar);
+            } else if (args.length == 1) {
+                args[0].addConstraint(sqlQuery, baseCube, null, false);
+            }
+
             for (List<RolapMember> members : exceptMembers) {
-                SqlConstraintUtils.addMemberConstraint(sqlQuery, baseCube, aggStar, members, true, false, true);
+                SqlConstraintUtils.addMemberConstraint(sqlQuery, baseCube, aggStar, members, true, false, true, false);
+            }
+        }
+
+        protected boolean isJoinRequired() {
+            if (parentConstraint != null) {
+                return parentConstraint.isJoinRequired();
+            } else {
+                return args.length > 1;
             }
         }
 

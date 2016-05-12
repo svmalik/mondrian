@@ -6282,6 +6282,42 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                 getTestContext(), mdx, patterns, false, false, false);
         }
     }
+
+    public void testNativeExceptInSubset() {
+        String mdx =
+            "select "
+            + "Subset(Except("
+            + " {[Promotion Media].[Media Type].Members},"
+            + " {[Promotion Media].[Bulk Mail],[Promotion Media].[Daily Paper]}"
+            + "), 0, 3) ON COLUMNS, "
+            + "{} ON ROWS "
+            + "from [Sales]";
+        if (MondrianProperties.instance().EnableNativeExcept.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `promotion`.`media_type` as `c0`\n"
+                + "from\n"
+                + "    `promotion` as `promotion`\n"
+                + "where\n"
+                + "    ((not (`promotion`.`media_type` in ('Bulk Mail', 'Daily Paper')) or (`promotion`.`media_type` is null)))\n"
+                + "group by\n"
+                + "    `promotion`.`media_type`\n"
+                + "order by\n"
+                + "    ISNULL(`promotion`.`media_type`) ASC, `promotion`.`media_type` ASC limit 3 offset 0";
+            SqlPattern mysqlPattern = new SqlPattern(DatabaseProduct.MYSQL, mysql, null);
+            assertQuerySql(mdx, new SqlPattern[] {mysqlPattern});
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Promotion Media].[Cash Register Handout]}\n"
+            + "{[Promotion Media].[Daily Paper, Radio]}\n"
+            + "{[Promotion Media].[Daily Paper, Radio, TV]}\n"
+            + "Axis #2:\n");
+    }
 }
 
 // End NativeSetEvaluationTest.java
