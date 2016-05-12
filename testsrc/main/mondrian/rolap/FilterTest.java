@@ -1847,6 +1847,93 @@ public class FilterTest extends BatchTestCase {
             + "Row #8: Kimberly Oliver^$^Lemon Grove^$^CA^$^USA^$^All Customers\n"
             + "Row #9: Jacqueline Oliver^$^La Mesa^$^CA^$^USA^$^All Customers\n");
     }
+
+    public void testNativeFilterMatchAndSubsetNoJoin() {
+        if (!getTestContext().getDialect().allowsRegularExpressionInWhereClause()){
+            return;
+        }
+        propSaver.set(MondrianProperties.instance().SsasCompatibleNaming, true);
+
+        String mdx =
+            "WITH MEMBER [Measures].[(order)] AS "
+            + "InStr(LCase([Customers].CurrentMember.Caption), \"oliv\")\n"
+            + "MEMBER [Measures].[(Ancestors)] AS "
+            + "Generate(Ascendants([Customers].CurrentMember), [Customers].CurrentMember.Caption, \"^$^\")\n"
+            + "SELECT "
+            + "Subset(Filter([Customers].[Customers].[Name].AllMembers, ([Customers].CurrentMember.Caption "
+            + "MATCHES \"(?i).*oliv.*\")), 0, 10) ON 0,\n"
+            + "{[Measures].[(Ancestors)]} ON 1\n"
+            + "FROM [Sales]";
+        if (!isUseAgg() && MondrianProperties.instance().EnableNativeFilter.get()
+            && MondrianProperties.instance().EnableNativeSubset.get())
+        {
+            propSaver.set(MondrianProperties.instance().GenerateFormattedSql, true);
+            String sql =
+                "select\n"
+                + "    `customer`.`country` as `c0`,\n"
+                + "    `customer`.`state_province` as `c1`,\n"
+                + "    `customer`.`city` as `c2`,\n"
+                + "    `customer`.`customer_id` as `c3`,\n"
+                + "    CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c4`,\n"
+                + "    CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c5`,\n"
+                + "    `customer`.`gender` as `c6`,\n"
+                + "    `customer`.`marital_status` as `c7`,\n"
+                + "    `customer`.`education` as `c8`,\n"
+                + "    `customer`.`yearly_income` as `c9`\n"
+                + "from\n"
+                + "    `customer` as `customer`\n"
+                + "group by\n"
+                + "    `customer`.`country`,\n"
+                + "    `customer`.`state_province`,\n"
+                + "    `customer`.`city`,\n"
+                + "    `customer`.`customer_id`,\n"
+                + "    CONCAT(`customer`.`fname`, ' ', `customer`.`lname`),\n"
+                + "    `customer`.`gender`,\n"
+                + "    `customer`.`marital_status`,\n"
+                + "    `customer`.`education`,\n"
+                + "    `customer`.`yearly_income`\n"
+                + "having\n"
+                + "    (UPPER(c5) REGEXP '.*OLIV.*') \n"
+                + "order by\n"
+                + "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
+                + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC,\n"
+                + "    ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC,\n"
+                + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC limit 10 offset 0";
+            assertQuerySql(
+                mdx,
+                new SqlPattern[] {
+                    new SqlPattern(Dialect.DatabaseProduct.MYSQL, sql, null)
+                });
+        }
+
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Customers].[Canada].[BC].[Oak Bay].[Mike Olivares]}\n"
+            + "{[Customers].[USA].[CA].[Arcadia].[Olga Oliver]}\n"
+            + "{[Customers].[USA].[CA].[La Mesa].[Jacqueline Oliver]}\n"
+            + "{[Customers].[USA].[CA].[Lemon Grove].[Kathleen Oliver]}\n"
+            + "{[Customers].[USA].[CA].[Lemon Grove].[Kimberly Oliver]}\n"
+            + "{[Customers].[USA].[CA].[Lemon Grove].[Paula Oliveto]}\n"
+            + "{[Customers].[USA].[CA].[Oakland].[Barbara Olivera]}\n"
+            + "{[Customers].[USA].[CA].[Pomona].[Olive Magan]}\n"
+            + "{[Customers].[USA].[OR].[Milwaukie].[Olivia Gardner]}\n"
+            + "{[Customers].[USA].[WA].[Bellingham].[Glenn Olivera]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[(Ancestors)]}\n"
+            + "Row #0: Mike Olivares^$^Oak Bay^$^BC^$^Canada^$^All Customers\n"
+            + "Row #0: Olga Oliver^$^Arcadia^$^CA^$^USA^$^All Customers\n"
+            + "Row #0: Jacqueline Oliver^$^La Mesa^$^CA^$^USA^$^All Customers\n"
+            + "Row #0: Kathleen Oliver^$^Lemon Grove^$^CA^$^USA^$^All Customers\n"
+            + "Row #0: Kimberly Oliver^$^Lemon Grove^$^CA^$^USA^$^All Customers\n"
+            + "Row #0: Paula Oliveto^$^Lemon Grove^$^CA^$^USA^$^All Customers\n"
+            + "Row #0: Barbara Olivera^$^Oakland^$^CA^$^USA^$^All Customers\n"
+            + "Row #0: Olive Magan^$^Pomona^$^CA^$^USA^$^All Customers\n"
+            + "Row #0: Olivia Gardner^$^Milwaukie^$^OR^$^USA^$^All Customers\n"
+            + "Row #0: Glenn Olivera^$^Bellingham^$^WA^$^USA^$^All Customers\n");
+    }
 }
 
 // End FilterTest.java

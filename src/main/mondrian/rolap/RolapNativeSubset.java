@@ -74,7 +74,7 @@ public class RolapNativeSubset extends RolapNativeSet {
               sqlQuery.setLimit(count);
             }
 
-            if (isJoinRequired()) {
+            if (isJoinRequired() || parentConstraint != null) {
                 super.addConstraint(sqlQuery, baseCube, aggStar);
             } else if (args.length == 1) {
                 args[0].addConstraint(sqlQuery, baseCube, null, false);
@@ -154,8 +154,9 @@ public class RolapNativeSubset extends RolapNativeSet {
           return null;
         }
 
-        // first see if subset wraps another native evaluation (other than count and sum)
+        CrossJoinArg[] cjArgs = new CrossJoinArg[0];
 
+        // first see if subset wraps another native evaluation (other than count and sum)
         SetEvaluator eval = getNestedEvaluator(args[0], evaluator);
 
         if (eval == null) {
@@ -171,7 +172,7 @@ public class RolapNativeSubset extends RolapNativeSet {
                 return null;
             }
 
-            CrossJoinArg[] cjArgs = allArgs.get(0);
+            cjArgs = allArgs.get(0);
             if (isPreferInterpreter(cjArgs, false)) {
                 return null;
             }
@@ -226,7 +227,7 @@ public class RolapNativeSubset extends RolapNativeSet {
             // if subset wraps another native function, add start and count to the constraint.
             TupleConstraint constraint =
                 new SubsetConstraint(
-                    start, count, null, evaluator, (SetConstraint)eval.getConstraint());
+                    start, count, cjArgs, evaluator, (SetConstraint)eval.getConstraint());
             eval.setConstraint(constraint);
             LOGGER.debug("using native subset");
             return eval;
