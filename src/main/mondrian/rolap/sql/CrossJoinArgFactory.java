@@ -178,19 +178,19 @@ public class CrossJoinArgFactory {
         // strip off redundant set braces, for example
         // { Gender.Gender.members }, or {{{ Gender.M }}}
         if ("{}".equalsIgnoreCase(fun.getName()) && args.length == 1) {
-            return checkCrossJoinArg(evaluator, args[0], returnAny, true);
+            return checkCrossJoinArg(evaluator, args[0], returnAny, levelOnly);
         }
         if ("()".equalsIgnoreCase(fun.getName()) && args.length == 1) {
-            return checkCrossJoinArg(evaluator, args[0], returnAny, true);
+            return checkCrossJoinArg(evaluator, args[0], returnAny, levelOnly);
         }
         if ("NativizeSet".equalsIgnoreCase(fun.getName()) && args.length == 1) {
-            return checkCrossJoinArg(evaluator, args[0], returnAny, true);
+            return checkCrossJoinArg(evaluator, args[0], returnAny, levelOnly);
         }
         if ("Existing".equalsIgnoreCase(fun.getName())
             && MondrianProperties.instance().EnableNativeExisting.get())
         {
             List<CrossJoinArg[]> existingArgs =
-                checkCrossJoinArg(evaluator, args[0], returnAny, true);
+                checkCrossJoinArg(evaluator, args[0], returnAny, levelOnly);
             if (existingArgs == null) {
                 return null;
             }
@@ -212,7 +212,7 @@ public class CrossJoinArgFactory {
             return allArgs;
         }
         if ("AddCalculatedMembers".equalsIgnoreCase(fun.getName()) && args.length == 1) {
-           allArgs = checkCrossJoinArg(evaluator, args[0], returnAny, true);
+           allArgs = checkCrossJoinArg(evaluator, args[0], returnAny, levelOnly);
            // Now check to see if any of the "All Args" list contain calculated members.
            // If so, we can't natively evaluate this crossjoin at this time.
            if (allArgs != null) {
