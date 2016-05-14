@@ -395,7 +395,9 @@ public class SqlContextConstraint
                 || members[i] instanceof LimitedRollupMember
                 || members[i] instanceof MultiCardinalityDefaultMember)
             {
-                return true;
+                if (!members[i].getDimension().isHanger()) {
+                    return true;
+                }
             }
         }
         return false;
