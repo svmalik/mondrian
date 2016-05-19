@@ -33,6 +33,8 @@ import mondrian.olap.SchemaReader;
 import mondrian.rolap.DataSourceChangeListenerTest;
 import mondrian.rolap.ManyToManyUtil;
 import mondrian.rolap.RolapUtil;
+import mondrian.spi.Dialect;
+import mondrian.test.SqlPattern;
 import mondrian.test.TestContext;
 import mondrian.test.loader.CsvDBTestCase;
 
@@ -764,6 +766,89 @@ public class ManyToManyTest  extends CsvDBTestCase {
             + "Row #0: 11,812\n"
             + "Row #0: 56\n"
             + "Row #0: 1,373\n");
+    }
+
+    public void testFoodmartM2MSchemaNonEmpty() {
+        // skip this test if aggregates are enabled for now
+        // We do not properly join multi-key many to many tables via
+        // AggStar at this time.
+        if (MondrianProperties.instance().UseAggregates.get() || MondrianProperties.instance().ReadAggregates.get()) {
+            return;
+        }
+
+        // Filter by Warehouse name needs to be in both FROM and WHERE clauses.
+        // Before the fix only WHERE clause was filtered.
+        String mdx =
+            "select {[Measures].[Unit Sales]} on 0,\n"
+            + "NonEmpty([Warehouse].[USA].[CA].[Beverly Hills], [Measures].[Unit Sales]) on rows\n"
+            + "from [WarehouseSales]\n"
+            + "where [Time].[1997].[Q1]";
+        TestContext context = createFoodmartTestContext();
+        propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+        String mysql =
+            "select\n"
+            + "    `inventory_fact_1997`.`c2` as `c0`,\n"
+            + "    `inventory_fact_1997`.`c3` as `c1`,\n"
+            + "    `inventory_fact_1997`.`c4` as `c2`\n"
+            + "from\n"
+            + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+            + "    `time_by_day` as `time_by_day`,\n"
+            + "    (select distinct\n"
+            + "    `inventory_fact_1997`.`store_id`,\n"
+            + "    `inventory_fact_1997`.`product_id`,\n"
+            + "    `warehouse`.`warehouse_country` as `c2`,\n"
+            + "    `warehouse`.`warehouse_state_province` as `c3`,\n"
+            + "    `warehouse`.`warehouse_city` as `c4`\n"
+            + "from\n"
+            + "    `warehouse` as `warehouse`,\n"
+            + "    `inventory_fact_1997` as `inventory_fact_1997`\n"
+            + "where\n"
+            + "    `inventory_fact_1997`.`warehouse_id` = `warehouse`.`warehouse_id`\n"
+            + "and\n"
+            + "    (`warehouse`.`warehouse_city` = 'Beverly Hills' and `warehouse`.`warehouse_state_province` = 'CA')) as `inventory_fact_1997`\n"
+            + "where\n"
+            + "    `sales_fact_1997`.`store_id` = `inventory_fact_1997`.`store_id`\n"
+            + "and\n"
+            + "    `sales_fact_1997`.`product_id` = `inventory_fact_1997`.`product_id`\n"
+            + "and\n"
+            + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+            + "and\n"
+            + "    `time_by_day`.`the_year` = 1997\n"
+            + "and\n"
+            + "    `time_by_day`.`quarter` = 'Q1'\n"
+            + "and\n"
+            + "    `sales_fact_1997`.`unit_sales` is not null\n"
+            + "and\n"
+            + "    (`sales_fact_1997`.`store_id`,`sales_fact_1997`.`product_id`) IN (select distinct\n"
+            + "    `inventory_fact_1997`.`store_id`,\n"
+            + "    `inventory_fact_1997`.`product_id`\n"
+            + "from\n"
+            + "    `warehouse` as `warehouse`,\n"
+            + "    `inventory_fact_1997` as `inventory_fact_1997`\n"
+            + "where\n"
+            + "    `inventory_fact_1997`.`warehouse_id` = `warehouse`.`warehouse_id`\n"
+            + "and\n"
+            + "    (`warehouse`.`warehouse_city` = 'Beverly Hills' and `warehouse`.`warehouse_state_province` = 'CA'))\n"
+            + "group by\n"
+            + "    c2,\n"
+            + "    c3,\n"
+            + "    c4\n"
+            + "order by\n"
+            + "    ISNULL(c2) ASC, c2 ASC,\n"
+            + "    ISNULL(c3) ASC, c3 ASC,\n"
+            + "    ISNULL(c4) ASC, c4 ASC";
+        SqlPattern mysqlPattern = new SqlPattern(Dialect.DatabaseProduct.MYSQL, mysql, null);
+        assertQuerySqlOrNot(context, mdx, new SqlPattern[] {mysqlPattern}, false, false, false);
+
+        context.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Warehouse].[USA].[CA].[Beverly Hills]}\n"
+            + "Row #0: 443\n");
     }
 
     /**

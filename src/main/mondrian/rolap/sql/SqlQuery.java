@@ -831,7 +831,12 @@ public class SqlQuery {
 
     public void addWhere(final String expression, String subquery) {
         if (subquery != null) {
-            getSubQuery(subquery).addWhere(expression);
+            if (correlatedSubqueries.containsKey(subquery)) {
+                correlatedSubqueries.get(subquery).addWhere(expression);
+            }
+            if (subqueries.containsKey(subquery)) {
+                subqueries.get(subquery).addWhere(expression);
+            }
         } else {
             addWhere(expression);
         }
