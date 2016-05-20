@@ -377,7 +377,8 @@ public abstract class RolapNativeSet extends RolapNative {
         {
             if (parentConstraint != null) {
                 parentConstraint.addConstraint(sqlQuery, baseCube, aggStar);
-            } else {
+            }
+            if (parentConstraint == null || (!parentConstraint.isJoinRequired() && this.isJoinRequired())) {
                 super.addConstraint(sqlQuery, baseCube, aggStar);
             }
         }
