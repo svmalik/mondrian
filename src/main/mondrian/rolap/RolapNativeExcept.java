@@ -115,11 +115,10 @@ public class RolapNativeExcept extends RolapNativeSet {
                     combinedArgs = cjArgs;
                 }
 
-                SetConstraint constraint =
+                ExceptFunctionConstraint constraint =
                     new ExceptFunctionConstraint(
                         combinedArgs, exceptMembers, evaluator, null);
-                if (constraint.isJoinRequired() && evaluator.getBaseCubes() == null) {
-                    // invalid constraint
+                if (isInvalidConstraint(constraint, evaluator)) {
                     return null;
                 }
                 SetEvaluator sev =

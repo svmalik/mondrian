@@ -209,8 +209,7 @@ public class RolapNativeSubset extends RolapNativeSet {
                 SetConstraint constraint =
                     new SubsetConstraint(
                         start, count, combinedArgs, evaluator, null);
-                if (constraint.isJoinRequired() && evaluator.getBaseCubes() == null) {
-                    // invalid constraint
+                if (isInvalidConstraint(constraint, evaluator)) {
                     return null;
                 }
                 SetEvaluator sev =

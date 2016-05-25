@@ -134,6 +134,19 @@ public abstract class RolapNativeSet extends RolapNative {
         return measure.getCube().findBaseCubeLevel(level) != null;
     }
 
+    protected static boolean isInvalidConstraint(
+        SetConstraint constraint, RolapEvaluator evaluator)
+    {
+        if (constraint.isJoinRequired()
+            && (evaluator.getCube() == null || evaluator.getCube().isVirtual())
+            && (evaluator.getBaseCubes() == null || evaluator.getBaseCubes().size() == 0))
+        {
+            LOGGER.debug("The constraint is invalid due to a join requirement and no base cubes");
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Constraint for non empty {crossjoin, member.children,
      * member.descendants, level.members}
