@@ -111,7 +111,7 @@ public class SqlConstraintFactory {
             return true;
         }
         if (!SqlContextConstraint.isValidContext(
-                context, false, levels, false))
+                context, false, levels, false, context.isNonEmpty()))
         {
             return true;
         }

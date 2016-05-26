@@ -851,6 +851,35 @@ public class ManyToManyTest  extends CsvDBTestCase {
             + "Row #0: 443\n");
     }
 
+    public void testFoodmartM2MSchemaExcept() {
+        // skip this test if aggregates are enabled for now
+        // We do not properly join multi-key many to many tables via
+        // AggStar at this time.
+        if (isUseAgg()) {
+            return;
+        }
+
+        String mdx =
+            "with member [Warehouse].[(filter)] as "
+            + "Aggregate(Except([Warehouse].[USA].[CA].Children, {[Warehouse].[USA].[CA].[Los Angeles], [Warehouse].[USA].[CA].[San Francisco], [Warehouse].[USA].[CA].[San Diego]}))\n"
+            + "select {[Measures].[Unit Sales]} on 0,\n"
+            + "{[Warehouse].[USA].[CA].[Beverly Hills], [Warehouse].[(filter)]} on rows\n"
+            + "from [WarehouseSales]\n"
+            + "where [Time].[1997].[Q1]";
+        TestContext context = createFoodmartTestContext();
+        context.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Warehouse].[USA].[CA].[Beverly Hills]}\n"
+            + "{[Warehouse].[(filter)]}\n"
+            + "Row #0: 443\n"
+            + "Row #1: 443\n");
+    }
+
     /**
      * This test case demonstrates the select distinct subselect functionality for M2M
      */
@@ -2270,6 +2299,31 @@ public class ManyToManyTest  extends CsvDBTestCase {
             + "Row #1: 1\n"
             + "Row #2: 200\n"
             + "Row #2: 2\n");
+    }
+
+    public void testAggregateFunctionWithExcept() {
+        getTestContext().assertQueryReturns(
+            "WITH SET [Customers] AS Except([Customer].[Customer Name].AllMembers, {[Customer].[Luke], [Customer].[Robert]})\n"
+            + "MEMBER [Customer].[Mark and Paul] AS 'AGGREGATE([Customers])'\n"
+            + "SELECT {[Measures].[Amount], [Measures].[Count]} ON COLUMNS,\n"
+            + "      {[Customers], [Customer].[Mark and Paul]} ON ROWS\n"
+            + "FROM [M2M]\n"
+            + "WHERE ([Date].[All Dates].[Day 1])",
+            "Axis #0:\n"
+            + "{[Date].[Day 1]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Amount]}\n"
+            + "{[Measures].[Count]}\n"
+            + "Axis #2:\n"
+            + "{[Customer].[Mark]}\n"
+            + "{[Customer].[Paul]}\n"
+            + "{[Customer].[Mark and Paul]}\n"
+            + "Row #0: 300\n"
+            + "Row #0: 3\n"
+            + "Row #1: 200\n"
+            + "Row #1: 2\n"
+            + "Row #2: 400\n"
+            + "Row #2: 4\n");
     }
 
     public void testAggregateFunDefCartesianLogic() {

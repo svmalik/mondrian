@@ -1318,6 +1318,11 @@ public class SqlConstraintUtils {
             }
             if (column != null && sqlQuery.getEnableDistinctSubquery()) {
                 subquery = column.getTable().getSubQueryAlias();
+                if (sqlQuery.getSubQuery(subquery) == null
+                    || (sqlQuery.correlatedSubquery && !sqlQuery.subwhereExpr.containsKey(subquery)))
+                {
+                    subquery = null;
+                }
             }
             // condition is not empty
             condition += ")";
@@ -2381,7 +2386,7 @@ public class SqlConstraintUtils {
             if (m.isCalculated()) {
                 Exp exp = m.getExpression();
                 exp.accept(
-                    new IifMemberVisitor(
+                    new ConflictingMemberVisitor(
                         membersNestedInMeasures, null, false));
             }
         }
@@ -2473,13 +2478,13 @@ public class SqlConstraintUtils {
         return members.toArray(new Member[members.size()]);
     }
 
-    static class IifMemberVisitor extends MemberExtractingVisitor {
+    private static class ConflictingMemberVisitor extends MemberExtractingVisitor {
         private static HashSet<String> boolExps =
             new HashSet<String>(Arrays.asList("IIF", "AND", "OR", "NOT"));
         Set<Member> memberSet;
         ResolvedFunCall call;
         boolean mapToAllMember;
-        public IifMemberVisitor(
+        ConflictingMemberVisitor(
             Set<Member> memberSet, ResolvedFunCall call, boolean mapToAllMember)
         {
             super(memberSet, call, mapToAllMember);
@@ -2496,39 +2501,16 @@ public class SqlConstraintUtils {
             {
                 Exp[] args = funCall.getArgs();
                 for (Exp arg : args) {
-                    arg.accept(new SkipIsMemberVisitor(memberSet, funCall, mapToAllMember));
+                    arg.accept(new ConflictingMemberVisitor(memberSet, funCall, mapToAllMember));
                 }
-                turnOffVisitChildren();
-            } else {
-                super.visit(funCall);
-            }
-            return null;
-        }
-    }
-
-    static class SkipIsMemberVisitor extends MemberExtractingVisitor {
-        Set<Member> memberSet;
-        ResolvedFunCall call;
-        boolean mapToAllMember;
-        public SkipIsMemberVisitor(
-            Set<Member> memberSet, ResolvedFunCall call, boolean mapToAllMember)
-        {
-            super(memberSet, call, mapToAllMember);
-            this.memberSet = memberSet;
-            this.call = call;
-            this.mapToAllMember = mapToAllMember;
-        }
-
-        public Object visit(ResolvedFunCall funCall) {
-            if (funCall == call) {
                 turnOffVisitChildren();
             } else if ("IS".equalsIgnoreCase(funCall.getFunName())) {
                 turnOffVisitChildren();
-            } else {
-                for (Exp arg : funCall.getArgs()) {
-                    arg.accept(new SkipIsMemberVisitor(memberSet, funCall, mapToAllMember));
-                }
+            } else if ("Except".equalsIgnoreCase(funCall.getFunName())) {
+                // skipping for now
                 turnOffVisitChildren();
+            } else {
+                super.visit(funCall);
             }
             return null;
         }
