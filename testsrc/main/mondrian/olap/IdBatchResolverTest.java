@@ -131,6 +131,26 @@ public class IdBatchResolverTest  extends BatchTestCase {
         // one ore more of the members were present.
     }
 
+    public void testCalcMemberWithParentSameNameAsDimension() {
+        // this used to throw IndexOutOfBoundsException: Index: -1, Size: 0
+        Set<String> members =
+            batchResolve(
+                "with member [Store].[All Stores].[Store] as '1'"
+                + " select "
+                + " {[Store].[All Stores].[Store], "
+                + "  [Store].[Store Name].[HQ]} "
+                + " on 0 from [Sales]");
+        assertSame(members.size(), 4);
+        assertContains(
+            "Resolved map should not contain calc members",
+            members,
+            list(
+                "[Store].[Store Name]",
+                "[Store].[Store Name].[HQ]",
+                "[Store]",
+                "[Store].[All Stores]"));
+    }
+
     public void testLevelReferenceHandled() {
         // make sure ["Week", 1997] don't get batched as children of
         // [Time.Weekly].[All]

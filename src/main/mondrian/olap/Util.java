@@ -2082,7 +2082,7 @@ public class Util extends XOMUtil {
         }
         Id.Segment segment = nameParts.get(nameParts.size() - 1);
         while (member.getParentMember() != null) {
-            if (!segment.matches(member.getName())) {
+            if (!segment.matches(member.getName()) || nameParts.size() < 2) {
                 return false;
             }
             member = member.getParentMember();
