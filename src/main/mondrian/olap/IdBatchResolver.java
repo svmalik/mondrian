@@ -170,7 +170,7 @@ public final class IdBatchResolver {
             }
             if (exp instanceof LevelExpr) {
                 Level level = ((LevelExpr)exp).getLevel();
-                if (level.getHierarchy().hasAll()) {
+                if (level.areMembersUnique() && level.getHierarchy().hasAll()) {
                     parentMember = level.getHierarchy().getAllMember();
                     batchResolveChildrenByKey(
                         parent, parentMember, identifiers, resolvedIdentifiers);

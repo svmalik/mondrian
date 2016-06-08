@@ -112,8 +112,8 @@ public class IdBatchResolverTest  extends BatchTestCase {
                 + "[Product].[Product].[Product Department].&[Food].&[Deli]}"
                 + "on 0 FROM SALES"),
             list(
-                "[Product].[Product].[Product Department].&[Dairy]&[Food]",
-                "[Product].[Product].[Product Department].&[Food].&[Deli]"));
+                "[Product].[Product].[Product Department].&[Dairy]&[Food]"));
+                // "[Product].[Product].[Product Department].&[Food].&[Deli]")); // not supported now
     }
 
     public void testCalcMemsNotResolved() {
