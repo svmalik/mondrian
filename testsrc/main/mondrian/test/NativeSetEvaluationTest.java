@@ -2198,6 +2198,46 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         checkNotNative(8, mdx);
     }
 
+    public void testNativeNonEmptyWithUnrelatedCubeMeasure() {
+        if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()) {
+            return;
+        }
+        // Dimension and one of the measures in NonEmpty are from different base cubes,
+        // the measure could be ignored.
+        String mdx =
+            "SELECT { [Measures].[Units Shipped] } ON COLUMNS,\n"
+            + "[Time].[Quarter].members ON ROWS\n"
+            + "FROM [Warehouse and Sales]\n"
+            + "WHERE NonEmpty({[Warehouse].[Country].AllMembers}, {[Measures].[Sales Count], [Measures].[Units Ordered]})";
+        verifySameNativeAndNot(mdx, "", getTestContext());
+        if (!isUseAgg() && MondrianProperties.instance().EnableNativeNonEmptyFunction.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            SqlPattern mysqlPattern =
+                new SqlPattern(
+                    Dialect.DatabaseProduct.MYSQL,
+                    "select\n"
+                    + "    `warehouse`.`warehouse_country` as `c0`\n"
+                    + "from\n"
+                    + "    `warehouse` as `warehouse`,\n"
+                    + "    `inventory_fact_1997` as `inventory_fact_1997`,\n"
+                    + "    `time_by_day` as `time_by_day`\n"
+                    + "where\n"
+                    + "    `inventory_fact_1997`.`warehouse_id` = `warehouse`.`warehouse_id`\n"
+                    + "and\n"
+                    + "    `inventory_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                    + "and\n"
+                    + "    `time_by_day`.`the_year` = 1997\n"
+                    + "and\n"
+                    + "    `inventory_fact_1997`.`units_ordered` is not null\n"
+                    + "group by\n"
+                    + "    `warehouse`.`warehouse_country`\n"
+                    + "order by\n"
+                    + "    ISNULL(`warehouse`.`warehouse_country`) ASC, `warehouse`.`warehouse_country` ASC",
+                    null);
+            assertQuerySql(mdx, new SqlPattern[]{mysqlPattern});
+        }
+    }
+
     public void testNonEmptyNoMeasureVirtualCube() {
         if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()) {
             return;

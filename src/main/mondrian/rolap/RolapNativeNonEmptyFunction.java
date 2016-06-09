@@ -74,6 +74,12 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             alertNonNative(evaluator, fun, args[0]);
             return null;
         }
+        for (CrossJoinArg cjArg : mainArgs.get(0)) {
+            if (cjArg.getLevel().getDimension().isHanger()) {
+                alertNonNative(evaluator, fun, args[0]);
+                return null;
+            }
+        }
         // we want the second arg to be added just as a crossjoin constraint
         boolean hasTwoArgs = args.length == 2;
         if (hasTwoArgs) {
@@ -108,34 +114,60 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
           // if they are all regular measures from the same base cube
           // select the final one for non-empty evaluation
 
-          Set<RolapCube> baseCubes = new HashSet<RolapCube>();
-          Set<Member> measures = new LinkedHashSet<Member>();
-          List<RolapCube> baseCubeList = new ArrayList<RolapCube>();
-          findMeasures(args[1], baseCubes, baseCubeList, measures);
-          boolean calculatedMeasures = false;
-
-          for (Member m : measures) {
-              if (m instanceof RolapStoredMeasure) {
-                nativeMeasures.add((RolapStoredMeasure) m);
-                measure = (RolapStoredMeasure)m;
-              }
-              if (m.isCalculated() && !SqlConstraintUtils.isSupportedCalculatedMember(m)) {
-                calculatedMeasures = true;
-              }
-          }
-
-          if (baseCubeList.size() > 1 || calculatedMeasures) {
-              // unable to perform
-              alertNonNative(evaluator, fun, args[1]);
-              return null;
-          }
+            Set<RolapCube> baseCubes = new HashSet<RolapCube>();
+            Set<Member> measures = new LinkedHashSet<Member>();
+            findMeasures(args[1], baseCubes, measures);
+            Set<RolapCube> unrelatedCubes = new HashSet<>();
+            if (baseCubes.size() > 1 && mainArgs.get(0).length == 1
+                && mainArgs.get(0)[0] != null && mainArgs.get(0)[0].getLevel() != null)
+            {
+                for (RolapCube cube : baseCubes) {
+                    if (cube.findBaseCubeLevel(mainArgs.get(0)[0].getLevel()) == null) {
+                        unrelatedCubes.add(cube);
+                    }
+                }
+                baseCubes.clear();
+            }
+            for (Member m : measures) {
+                if (m instanceof RolapStoredMeasure) {
+                    measure = (RolapStoredMeasure) m;
+                    if (!areFromSameCube(mainArgs.get(0), measure)) {
+                        // trying to skip this measure
+                        if (!unrelatedCubes.contains(measure.getCube())) {
+                            return null;
+                        }
+                    } else {
+                        nativeMeasures.add(measure);
+                        baseCubes.add(measure.getCube());
+                    }
+                }
+                if (m.isCalculated()) {
+                    if (!SqlConstraintUtils.isSupportedCalculatedMember(m)) {
+                        // unable to perform
+                        alertNonNative(evaluator, fun, args[1]);
+                        return null;
+                    } else {
+                        Set<Member> calcMeasures = new HashSet<>();
+                        findMeasures(m.getExpression(), baseCubes, calcMeasures);
+                    }
+                }
+            }
+            if (baseCubes.size() > 1) {
+                // unable to perform
+                alertNonNative(evaluator, fun, args[1]);
+                return null;
+            }
         }
         else {
-          // use context measure
-          if (evaluator.getMembers()[0] instanceof RolapStoredMeasure) {
-              measure = (RolapStoredMeasure) evaluator.getMembers()[0];
-              nativeMeasures.add(measure);
-          }
+            // use context measure
+            if (evaluator.getMembers()[0] instanceof RolapStoredMeasure) {
+                measure = (RolapStoredMeasure) evaluator.getMembers()[0];
+                if (!areFromSameCube(mainArgs.get(0), measure)) {
+                    return null;
+                } else {
+                    nativeMeasures.add(measure);
+                }
+            }
         }
 
         if (hasTwoArgs && extraArgs == null) {
@@ -171,17 +203,6 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
                 // what made it fail wasn't a measure
                 alertNonNative(evaluator, fun, args[1]);
                 return null;
-            }
-        }
-
-        for (CrossJoinArg evalArg : mainArgs.get(0)) {
-            // the level must be related all base cubes.
-            // If not, the SQL generated is bogus.
-            for (Member m : nativeMeasures) {
-                if (!areFromSameCube(evalArg.getLevel(), (RolapStoredMeasure) m)) {
-                    LOGGER.debug("NonEmpty() Cannot go native due to level not existing in both cubes.");
-                    return null;
-                }
             }
         }
 
@@ -238,7 +259,6 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
     private static void findMeasures(
         Exp exp,
         Set<RolapCube> baseCubes,
-        List<RolapCube> baseCubeList,
         Set<Member> foundMeasures)
     {
         if (exp instanceof MemberExpr) {
@@ -247,14 +267,13 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             if (member instanceof RolapStoredMeasure) {
                 foundMeasures.add(member);
                 addMeasure(
-                    (RolapStoredMeasure) member, baseCubes, baseCubeList);
+                    (RolapStoredMeasure) member, baseCubes);
             } else if (member instanceof RolapCalculatedMember) {
                 if (!foundMeasures.contains(member)) {
                     foundMeasures.add(member);
                     findMeasures(
                         member.getExpression(),
                         baseCubes,
-                        baseCubeList,
                         foundMeasures);
                 }
             }
@@ -262,11 +281,11 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             ResolvedFunCall funCall = (ResolvedFunCall) exp;
             Exp [] args = funCall.getArgs();
             for (Exp arg : args) {
-                findMeasures(arg, baseCubes, baseCubeList, foundMeasures);
+                findMeasures(arg, baseCubes, foundMeasures);
             }
         } else if (exp instanceof NamedSetExpr) {
             Exp namedSetExp = ((NamedSetExpr)exp).getNamedSet().getExp();
-            findMeasures(namedSetExp, baseCubes, baseCubeList, foundMeasures);
+            findMeasures(namedSetExp, baseCubes, foundMeasures);
         }
     }
 
@@ -341,13 +360,26 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
      */
     private static void addMeasure(
         RolapStoredMeasure measure,
-        Set<RolapCube> baseCubes,
-        List<RolapCube> baseCubeList)
+        Set<RolapCube> baseCubes)
     {
         RolapCube baseCube = measure.getCube();
-        if (baseCubes.add(baseCube)) {
-            baseCubeList.add(baseCube);
+        baseCubes.add(baseCube);
+    }
+
+    private static boolean areFromSameCube(
+        CrossJoinArg[] cjArgs, RolapStoredMeasure measure)
+    {
+        for (CrossJoinArg cjArg : cjArgs) {
+            // the level must be related all base cubes.
+            // If not, the SQL generated is bogus.
+            if (cjArg.getLevel() != null &&
+                !areFromSameCube(cjArg.getLevel(), measure))
+            {
+                LOGGER.debug("NonEmpty() Cannot go native due to level not existing in both cubes.");
+                return false;
+            }
         }
+        return true;
     }
 
     static class NonEmptyFunctionConstraint extends SetConstraint {
