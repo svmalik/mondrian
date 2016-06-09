@@ -15,6 +15,8 @@ import mondrian.olap.*;
 import mondrian.rolap.agg.*;
 import mondrian.spi.MemberFormatter;
 
+import java.util.HashMap;
+
 /**
  * RolapCubeLevel wraps a RolapLevel for a specific Cube.
  *
@@ -24,6 +26,9 @@ public class RolapCubeLevel extends RolapLevel {
 
     private final RolapLevel rolapLevel;
     private RolapStar.Column starKeyColumn = null;
+    private HashMap<RolapCube, RolapStar.Column> baseStarKeyColumns =
+        new HashMap<RolapCube, RolapStar.Column>();
+
     /**
      * For a parent-child hierarchy with a closure provided by the schema,
      * the equivalent level in the closed hierarchy; otherwise null.
@@ -217,6 +222,9 @@ public class RolapCubeLevel extends RolapLevel {
      * @return the RolapStar.Column related to this RolapCubeLevel
      */
     public RolapStar.Column getBaseStarKeyColumn(RolapCube baseCube) {
+        if (baseCube != null && baseStarKeyColumns.containsKey(baseCube)) {
+            return baseStarKeyColumns.get(baseCube);
+        }
         RolapStar.Column column = null;
         if (getCube().isVirtual() && baseCube != null) {
             RolapCubeLevel lvl = baseCube.findBaseCubeLevel(this);
@@ -225,6 +233,9 @@ public class RolapCubeLevel extends RolapLevel {
             }
         } else {
             column = getStarKeyColumn();
+        }
+        if (baseCube != null) {
+            baseStarKeyColumns.put(baseCube, column);
         }
         return column;
     }
