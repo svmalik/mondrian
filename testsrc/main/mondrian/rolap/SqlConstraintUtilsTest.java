@@ -777,7 +777,7 @@ public class SqlConstraintUtilsTest extends FoodMartTestCase {
 
         TupleConstraintStruct constraint = new TupleConstraintStruct();
         SqlConstraintUtils.expandSetFromCalculatedMember(
-            evaluatorMock, memberMock, constraint);
+            evaluatorMock, funCallMock, constraint);
         return constraint;
     }
 
