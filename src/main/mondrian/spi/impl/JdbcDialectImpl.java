@@ -550,22 +550,12 @@ public class JdbcDialectImpl implements Dialect {
         // in first row, and truncates subsequent rows. Therefore, we need to
         // cast every value to the correct length. Figure out the maximum length
         // now.
-        Integer[] maxLengths = new Integer[columnCount];
+        String[] castTypes = null;
         if (cast) {
-            for (int i = 0; i < columnTypes.size(); i++) {
+            castTypes = new String[columnNames.size()];
+            for (int i = 0; i < columnNames.size(); i++) {
                 String columnType = columnTypes.get(i);
-                Datatype datatype = Datatype.valueOf(columnType);
-                if (datatype == Datatype.String) {
-                    int maxLen = -1;
-                    for (String[] strings : valueList) {
-                        if (strings[i] != null
-                            && strings[i].length() > maxLen)
-                        {
-                            maxLen = strings[i].length();
-                        }
-                    }
-                    maxLengths[i] = maxLen;
-                }
+                castTypes[i] = guessSqlType(columnType, valueList, i);
             }
         }
 
@@ -583,12 +573,12 @@ public class JdbcDialectImpl implements Dialect {
                 final String columnType = columnTypes.get(j);
                 final String columnName = columnNames.get(j);
                 Datatype datatype = Datatype.valueOf(columnType);
-                final Integer maxLength = maxLengths[j];
-                if (maxLength != null) {
-                    // Generate CAST for Teradata.
+                if (cast && castTypes[j] != null) {
                     buf.append("CAST(");
                     quote(buf, value, datatype);
-                    buf.append(" AS VARCHAR(").append(maxLength).append("))");
+                    buf.append(" AS ")
+                        .append(castTypes[j])
+                        .append(")");
                 } else {
                     quote(buf, value, datatype);
                 }
@@ -727,7 +717,7 @@ public class JdbcDialectImpl implements Dialect {
      * @param column Column ordinal
      * @return SQL type
      */
-    private static String guessSqlType(
+    protected String guessSqlType(
         String basicType,
         List<String[]> valueList,
         int column)
@@ -743,8 +733,16 @@ public class JdbcDialectImpl implements Dialect {
             }
             return "VARCHAR(" + maxLen + ")";
         } else {
-            return "INTEGER";
+            return guessIntType(basicType, valueList, column);
         }
+    }
+
+    protected String guessIntType(
+        String basicType,
+        List<String[]> valueList,
+        int column)
+    {
+        return "INTEGER";
     }
 
     public boolean allowsDdl() {

@@ -55,6 +55,26 @@ public class TeradataDialect extends JdbcDialectImpl {
             columnNames, columnTypes, valueList, fromClause, true);
     }
 
+    protected String guessIntType(
+        String basicType,
+        List<String[]> valueList,
+        int column)
+    {
+        Datatype type = Datatype.valueOf(basicType);
+        for (String[] values : valueList) {
+            final String value = values[column];
+            if (value == null) {
+                continue;
+            }
+            if (type == Datatype.Integer
+                && Long.valueOf(value) > Integer.MAX_VALUE)
+            {
+                return "BIGINT";
+            }
+        }
+        return "INTEGER";
+    }
+
     public boolean supportsGroupingSets() {
         return true;
     }
