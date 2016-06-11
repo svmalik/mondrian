@@ -42,6 +42,7 @@ import mondrian.rolap.SqlConstraintUtils;
 import mondrian.util.CancellationChecker;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -311,20 +312,28 @@ public class NonEmptyFunDef extends FunDefBase {
         ResolvedFunCall call,
         Map<List<String>, Set<Member>> measureMap)
     {
-        if (call != null && "{}".equals(call.getFunName()) && call.getArgCount() > 1) {
-            for (Exp arg : call.getArgs()) {
-                if (arg instanceof MemberExpr
-                    && ((MemberExpr)arg).getMember() instanceof RolapMeasure)
+        if (isSet(call, 2)) {
+            List<Exp> exps = new ArrayList<>(Arrays.asList(call.getArgs()));
+            for (int i = 0; i < exps.size(); i++) {
+                Exp exp = exps.get(i);
+                if (exp instanceof ResolvedFunCall && isSet((ResolvedFunCall) exp, 1)) {
+                    exps.addAll(Arrays.asList(((ResolvedFunCall) exp).getArgs()));
+                } else if (exp instanceof MemberExpr
+                    && ((MemberExpr)exp).getMember() instanceof RolapMeasure)
                 {
                     Set<String> cubes = new HashSet<String>();
                     Set<Member> foundMeasures = new HashSet<Member>();
-                    findMeasures(arg, measureMap, cubes, foundMeasures);
+                    findMeasures(exp, measureMap, cubes, foundMeasures);
                 } else {
                     measureMap.clear();
                     break;
                 }
             }
         }
+    }
+
+    private boolean isSet(ResolvedFunCall call, int minArgs) {
+        return call != null && "{}".equals(call.getFunName()) && call.getArgCount() >= minArgs;
     }
 
     private boolean hasMeasures(ResolvedFunCall call) {

@@ -181,16 +181,19 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
                             evaluator,
                             altExp);
                     // try to expand non native if supported
-                    if (failedCjArg(extraArgs)
+                    boolean failed = failedCjArg(extraArgs);
+                    boolean expanded = false;
+                    if (failed
                         && MondrianProperties.instance().ExpandNonNative.get())
                     {
                         CrossJoinArg[] cjNonNative =
                             crossJoinArgFactory().expandNonNative(evaluator, altExp);
                         if (cjNonNative != null) {
                             extraArgs = Collections.singletonList(cjNonNative);
+                            expanded = true;
                         }
                     }
-                    if (failedCjArg(extraArgs)) {
+                    if (failed && (!expanded || failedCjArg(extraArgs))) {
                         // can't be nativized even without measures
                         alertNonNative(evaluator, fun, args[1]);
                         return null;
@@ -338,7 +341,7 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             ResolvedFunCall funCall = (ResolvedFunCall) exp;
             if (funCall.getFunName().equals("{}")) {
                 for (Exp arg : funCall.getArgs()) {
-                    if (!isMeasure(arg)) {
+                    if (!isMeasure(arg) && !isMeasureSet(arg)) {
                         return false;
                     }
                 }

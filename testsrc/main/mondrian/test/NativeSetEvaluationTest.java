@@ -2378,8 +2378,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "NonEmpty([Store].[Store State].members, "
             + "CrossJoin({[Time].[1997].[Q1].[1]}, {[Measures].[Sales Count], [Measures].[Units Ordered]})) ON ROWS\n"
             + "FROM [Warehouse and Sales]";
-        assertQueryReturns(
-            mdx,
+        String result =
             "Axis #0:\n"
             + "{}\n"
             + "Axis #1:\n"
@@ -2394,7 +2393,8 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #1: 21,611\n"
             + "Row #1: 44906.0\n"
             + "Row #2: 40,784\n"
-            + "Row #2: 116025.0\n");
+            + "Row #2: 116025.0\n";
+        assertQueryReturns(mdx, result);
         String sql =
             "select\n"
             + "    `store`.`store_country` as `c0`,\n"
@@ -2427,8 +2427,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "CrossJoin(CrossJoin({[Time].[1997].[Q1].[1]}, {[Product].[Product Name].[King Rosy Sunglasses]}), "
             + "{[Measures].[Sales Count], [Measures].[Units Ordered]})) ON ROWS\n"
             + "FROM [Warehouse and Sales]";
-        assertQueryReturns(
-            mdx,
+        result =
             "Axis #0:\n"
             + "{}\n"
             + "Axis #1:\n"
@@ -2443,7 +2442,8 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #1: 24,442\n"
             + "Row #1: 66307.0\n"
             + "Row #2: 21,611\n"
-            + "Row #2: 44906.0\n");
+            + "Row #2: 44906.0\n";
+        assertQueryReturns(mdx, result);
         sql =
             "select\n"
             + "    `store`.`store_country` as `c0`,\n"
@@ -2472,6 +2472,16 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
             + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC";
         mysql = new SqlPattern(Dialect.DatabaseProduct.MYSQL, sql, null);
+        assertQuerySql(mdx, new SqlPattern[]{mysql});
+
+        // set in measures set
+        mdx =
+            "SELECT {[Measures].[Sales Count], [Measures].[Units Ordered]} ON COLUMNS,\n"
+            + "NonEmpty([Store].[Store State].members, "
+            + "CrossJoin(CrossJoin({[Time].[1997].[Q1].[1]}, {[Product].[Product Name].[King Rosy Sunglasses]}), "
+            + "{[Measures].[Sales Count], {[Measures].[Units Ordered]}})) ON ROWS\n"
+            + "FROM [Warehouse and Sales]";
+        assertQueryReturns(mdx, result);
         assertQuerySql(mdx, new SqlPattern[]{mysql});
     }
 
