@@ -83,6 +83,12 @@ public class RolapNativeCrossJoin extends RolapNativeSet {
                         RolapStar.Column column =
                             ((RolapCubeLevel)level)
                                 .getBaseStarKeyColumn(baseCube);
+                        if (column == null) {
+                            // this can happen if the constraint includes
+                            // levels that are not present in the current
+                            // target group.
+                            continue;
+                        }
                         levelBitKey.set(column.getBitPosition());
                     }
                 }

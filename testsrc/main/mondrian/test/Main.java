@@ -395,6 +395,7 @@ public class Main extends TestSuite {
             addTest(suite, ExplicitRecognizerTest.class);
             addTest(suite, AggregationOverAggTableTest.class);
             addTest(suite, XmlUtilTest.class);
+            addTest(suite, NativeEvalVirtualCubeTest.class);
             addTest(suite, NamespaceContextImplTest.class);
             addTest(suite, CancellationTest.class);
             addTest(suite, ManyToManyTest.class);

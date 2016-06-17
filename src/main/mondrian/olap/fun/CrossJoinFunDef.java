@@ -17,6 +17,7 @@ import mondrian.olap.*;
 import mondrian.olap.type.*;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.RolapEvaluator;
+import mondrian.rolap.SqlConstraintUtils;
 import mondrian.server.Locus;
 import mondrian.util.CancellationChecker;
 import mondrian.util.CartesianProductList;
@@ -751,7 +752,9 @@ public class CrossJoinFunDef extends FunDefBase {
         if (measureSet == null || memberSet == null) {
             measureSet = new HashSet<Member>();
             memberSet = new HashSet<Member>();
-            calculateMeasureSet(measureSet, memberSet, call, query);
+            if (!calculateMeasureSet(measureSet, memberSet, call, query)) {
+                return list;
+            }
             query.putEvalCache(measureSetKey, measureSet);
             query.putEvalCache(memberSetKey, memberSet);
         }
@@ -997,7 +1000,7 @@ public class CrossJoinFunDef extends FunDefBase {
      * @param call
      * @param query
      */
-    private static void calculateMeasureSet(
+    private static boolean calculateMeasureSet(
         Set<Member> measureSet,
         Set<Member> memberSet,
         ResolvedFunCall call,
@@ -1028,9 +1031,16 @@ public class CrossJoinFunDef extends FunDefBase {
         Formula[] formula = query.getFormulas();
         if (formula != null) {
             for (Formula f : formula) {
+                if (SqlConstraintUtils.containsValidMeasure(
+                    f.getExpression()))
+                {
+                    // short circuit if VM is present.
+                    return false;
+                }
                 f.accept(measureVisitor);
             }
         }
+        return true;
     }
 
     /**

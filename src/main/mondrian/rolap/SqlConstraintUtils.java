@@ -31,6 +31,7 @@ import mondrian.olap.Util;
 import mondrian.olap.fun.AggregateFunDef;
 import mondrian.olap.fun.MemberExtractingVisitor;
 import mondrian.olap.fun.ParenthesesFunDef;
+import mondrian.olap.fun.ValidMeasureFunDef;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.RestrictedMemberReader.MultiCardinalityDefaultMember;
 import mondrian.rolap.RolapHierarchy.LimitedRollupMember;
@@ -2504,15 +2505,8 @@ public class SqlConstraintUtils {
     public static boolean measuresConflictWithMembers(
         Iterable<Member> measures, Member[] members, Evaluator evaluator)
     {
-        Set<Member> membersNestedInMeasures = new HashSet<Member>();
-        for (Member m : measures) {
-            if (m.isCalculated()) {
-                Exp exp = m.getExpression();
-                exp.accept(
-                    new ConflictingMemberVisitor(
-                        membersNestedInMeasures, null, false));
-            }
-        }
+        Set<Member> membersNestedInMeasures =
+          getMembersNestedInMeasures(measures);
         for (Member memberInMeasure : membersNestedInMeasures) {
             if (!anyMemberOverlaps(members, memberInMeasure, (RolapEvaluator)evaluator)) {
                 return true;
@@ -2521,11 +2515,35 @@ public class SqlConstraintUtils {
         return false;
     }
 
+    public static Set<Member> getMembersNestedInMeasures(Iterable<Member> measures) {
+        Set<Member> membersNestedInMeasures = new HashSet<>();
+        for (Member m : measures) {
+            if (m.isCalculated()) {
+                Exp exp = m.getExpression();
+                exp.accept(
+                    new ConflictingMemberVisitor(
+                        membersNestedInMeasures, null, false));
+            }
+        }
+        return membersNestedInMeasures;
+    }
+
     public static boolean measuresConflictWithMembers(
         CrossJoinArg[] cjArgs, Evaluator evaluator)
     {
         return measuresConflictWithMembers(
             getCJArgMembers(cjArgs), evaluator);
+    }
+
+    public static boolean containsValidMeasure(Exp... expressions) {
+        for (Exp expression : expressions) {
+            if (expression instanceof ResolvedFunCall) {
+                ResolvedFunCall fun = ((ResolvedFunCall) expression);
+                return fun.getFunDef() instanceof ValidMeasureFunDef
+                  || containsValidMeasure(fun.getArgs());
+            }
+        }
+        return false;
     }
 
     private static boolean measuresConflictWithMembers(

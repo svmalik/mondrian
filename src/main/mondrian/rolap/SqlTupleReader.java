@@ -11,10 +11,13 @@
 */
 package mondrian.rolap;
 
+import mondrian.calc.TupleCollections;
 import mondrian.calc.TupleList;
+import mondrian.calc.impl.ArrayTupleList;
 import mondrian.calc.impl.ListTupleList;
 import mondrian.calc.impl.UnaryTupleList;
 import mondrian.olap.*;
+import mondrian.olap.fun.CrossJoinFunDef;
 import mondrian.olap.fun.FunUtil;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.agg.AggregationManager;
@@ -56,7 +59,7 @@ import javax.sql.DataSource;
  *
  * <li>When reading members from a single level, then the constraint is not
  * required to join the fact table in
- * {@link TupleConstraint#addLevelConstraint(mondrian.rolap.sql.SqlQuery, RolapCube, mondrian.rolap.aggmatcher.AggStar, RolapLevel)}
+ * {@link SqlContextConstraint#addLevelConstraint(mondrian.rolap.sql.SqlQuery, RolapCube, mondrian.rolap.aggmatcher.AggStar, RolapLevel, boolean)}
  * although it may do so to restrict
  * the result. Also it is permitted to cache the parent/children from all
  * members in MemberCache, so
@@ -399,9 +402,10 @@ public class SqlTupleReader implements TupleReader {
     protected void prepareTuples(
         DataSource dataSource,
         TupleList partialResult,
-        List<List<RolapMember>> newPartialResult)
+        List<List<RolapMember>> newPartialResult, List<TargetBase> targetGroup)
     {
-        String message = "Populating member cache with members for " + targets;
+        String message = "Populating member cache with members for "
+            + targetGroup;
         SqlStatement stmt = null;
         final ResultSet resultSet;
         boolean execQuery = (partialResult == null);
@@ -410,13 +414,13 @@ public class SqlTupleReader implements TupleReader {
                 // we're only reading tuples from the targets that are
                 // non-enum targets
                 List<TargetBase> partialTargets = new ArrayList<TargetBase>();
-                for (TargetBase target : targets) {
+                for (TargetBase target : targetGroup) {
                     if (target.srcMembers == null) {
                         partialTargets.add(target);
                     }
                 }
                 final Pair<String, List<SqlStatement.Type>> pair =
-                    makeLevelMembersSql(dataSource, false);
+                    makeLevelMembersSql(dataSource, targetGroup, false);
                 String sql = pair.left;
                 List<SqlStatement.Type> types = pair.right;
                 assert sql != null && !sql.equals("");
@@ -433,7 +437,7 @@ public class SqlTupleReader implements TupleReader {
                 resultSet = null;
             }
 
-            for (TargetBase target : targets) {
+            for (TargetBase target : targetGroup) {
                 target.open();
             }
 
@@ -472,7 +476,7 @@ public class SqlTupleReader implements TupleReader {
 
                 if (enumTargetCount == 0) {
                     int column = 0;
-                    for (TargetBase target : targets) {
+                    for (TargetBase target : targetGroup) {
                         target.setCurrMember(null);
                         column = target.addRow(stmt, column);
                     }
@@ -482,10 +486,12 @@ public class SqlTupleReader implements TupleReader {
                     // with each of the list of members corresponding to
                     // the enumerated targets
                     int firstEnumTarget = 0;
-                    for (; firstEnumTarget < targets.size();
+                    for (; firstEnumTarget < targetGroup.size();
                         firstEnumTarget++)
                     {
-                        if (targets.get(firstEnumTarget).srcMembers != null) {
+                        if (targetGroup.get(firstEnumTarget)
+                            .srcMembers != null)
+                        {
                             break;
                         }
                     }
@@ -537,7 +543,9 @@ public class SqlTupleReader implements TupleReader {
         while (true) {
             missedMemberCount = 0;
             int memberCountBefore = memberCount;
-            prepareTuples(dataSource, partialResult, newPartialResult);
+
+            prepareTuples(dataSource, partialResult, newPartialResult, targets);
+
             memberCount = countMembers();
             if (missedMemberCount == 0) {
                 // We have successfully read all members. This is always the
@@ -594,21 +602,21 @@ public class SqlTupleReader implements TupleReader {
     public SqlQuery getUnwrappedSumSql(DataSource dataSource) {
         if (!((RolapNativeSum.SumConstraint) constraint).isVirtualCubeQueryMode()) {
             // single cube use case
-            final Pair<SqlQuery, List<SqlStatement.Type>> pair = getLevelMembersSql(dataSource,
-                true);
+            final Pair<SqlQuery, List<SqlStatement.Type>> pair =
+                getLevelMembersSql(dataSource, targets, true);
             return pair.left;
         } else {
             // Two cube Usecase, triggers more complex SQL generation
             // First generate the inner query selecting the tuple from the first fact
             // table based on its current constraint
-            final Pair<SqlQuery, List<SqlStatement.Type>> pair = getLevelMembersSql(dataSource,
-                true);
+            final Pair<SqlQuery, List<SqlStatement.Type>> pair = getLevelMembersSql(
+                dataSource, targets, true);
             SqlQuery inner = pair.left;
 
             ((RolapNativeSum.SumConstraint) constraint).setInnerQuery(inner);
             // let the sum constraint know about the inner query
-            final Pair<SqlQuery, List<SqlStatement.Type>> pair2 = getLevelMembersSql(dataSource,
-                true);
+            final Pair<SqlQuery, List<SqlStatement.Type>> pair2 = getLevelMembersSql(
+                dataSource, targets, true);
             return pair2.left;
         }
     }
@@ -701,7 +709,7 @@ public class SqlTupleReader implements TupleReader {
             }
 
             final Pair<String, List<SqlStatement.Type>> pair =
-                makeLevelMembersSql(dataSource, true);
+                makeLevelMembersSql(dataSource, targets, true);
             
             SqlQuery countQuery = SqlQuery.newQuery(dataSource, "");
             // Add the subquery to the wrapper query.
@@ -746,27 +754,50 @@ public class SqlTupleReader implements TupleReader {
         TupleList partialResult,
         List<List<RolapMember>> newPartialResult)
     {
-        prepareTuples(jdbcConnection, partialResult, newPartialResult);
+        // The following algorithm will first group targets based on the cubes
+        // that are applicable to each.  This allows loading the tuple data
+        // in groups that join correctly to the associated fact table.
+        // Once each group has been loaded, results of each are
+        // brought together in a crossjoin, and then projected into a new
+        // tuple list based on the ordering originally specified by the
+        // targets list.
+        // For non-virtual cube queries there is only a single
+        // targetGroup.
+        List<List<TargetBase>> targetGroups = groupTargets(
+            targets,
+            constraint.getEvaluator());
+        List<TupleList> tupleLists = new ArrayList<>();
 
-        // List of tuples
-        final int n = targets.size();
-        @SuppressWarnings({"unchecked"})
-        final Iterator<Member>[] iter = new Iterator[n];
-        for (int i = 0; i < n; i++) {
-            TargetBase t = targets.get(i);
-            iter[i] = t.close().iterator();
-        }
-        List<Member> members = new ArrayList<Member>();
-        while (iter[0].hasNext()) {
-            for (int i = 0; i < n; i++) {
-                members.add(iter[i].next());
+        for (List<TargetBase> targetGroup : targetGroups) {
+            prepareTuples(
+                jdbcConnection, partialResult, newPartialResult, targetGroup);
+
+            int size = targetGroup.size();
+            final Iterator<Member>[] iter = new Iterator[size];
+            for (int i = 0; i < size; i++) {
+                TargetBase t = targetGroup.get(i);
+                iter[i] = t.close().iterator();
             }
+            List<Member> members = new ArrayList<>();
+            while (iter[0].hasNext()) {
+                for (int i = 0; i < size; i++) {
+                    members.add(iter[i].next());
+                }
+            }
+            tupleLists.add(
+                size + emptySets == 1
+                    ? new UnaryTupleList(members)
+                    : new ListTupleList(size + emptySets, members));
         }
 
-        TupleList tupleList =
-            n + emptySets == 1
-                ? new UnaryTupleList(members)
-                : new ListTupleList(n + emptySets, members);
+        if (tupleLists.isEmpty()) {
+            return TupleCollections.emptyList(targets.size());
+        }
+
+        TupleList tupleList = CrossJoinFunDef.mutableCrossJoin(tupleLists);
+        if (!tupleList.isEmpty() && targetGroups.size() > 1) {
+            tupleList = projectTupleList(tupleList);
+        }
 
         // need to hierarchize the columns from the enumerated targets
         // since we didn't necessarily add them in the order in which
@@ -776,6 +807,162 @@ public class SqlTupleReader implements TupleReader {
             tupleList = FunUtil.hierarchizeTupleList(tupleList, false);
         }
         return tupleList;
+    }
+
+  /**
+   * Projects the attributes using the original ordering in targets, then
+   * copies to a ArrayTupleList (the .project method returns a basic TupleList
+   * without support for methods like .remove, which may be needed downstream).
+   */
+    private TupleList projectTupleList(TupleList tupleList) {
+        tupleList = tupleList.project(getLevelIndices(tupleList, targets));
+        TupleList arrayTupleList = new ArrayTupleList(
+            tupleList.getArity(),
+            tupleList.size());
+        arrayTupleList.addAll(tupleList);
+        return arrayTupleList;
+    }
+
+  /**
+   * Gets an array of the indexes of tuple attributes as they
+   * appear in the target ordering.
+   */
+    private int[] getLevelIndices(
+        TupleList tupleList, List<TargetBase> targets)
+    {
+        assert !tupleList.isEmpty();
+        assert targets.size() == tupleList.get(0).size();
+
+        int[] indices = new int[targets.size()];
+        List<Member> tuple = tupleList.get(0);
+        int i = 0;
+        for (TargetBase target : targets) {
+            indices[i++] = getIndexOfLevel(target.getLevel(), tuple);
+        }
+        return indices;
+    }
+
+  /**
+   * Find the index of level in the tuple, throwing if not found.
+   */
+    private int getIndexOfLevel(RolapLevel level, List<Member> tuple) {
+        for (int i = 0; i < tuple.size(); i++) {
+            if (tuple.get(i).getLevel().equals(level)) {
+                return i;
+            }
+        }
+        throw MondrianResource.instance().Internal.ex(
+            "Couldn't find level " + level.getName() + " in tuple.");
+    }
+
+
+  /**
+   * Groups targets into lists based on those which have common cube joins.
+   * For example, [Gender] and [Marital Status] each join to the [Sales] cube
+   * exclusively and would fall into a single target group.  [Product] joins
+   * to both [Sales] and [Warehouse], so would fall into a separate group.
+   *
+   * This grouping is used for native evaluation of virtual cubes,
+   * where we need to make sure that native SQL queries include those
+   * fact tables which are applicable to the levels in a crossjoin
+   */
+    private List<List<TargetBase>> groupTargets(
+        List<TargetBase> targets, Evaluator evaluator)
+    {
+        List<List<TargetBase>> targetGroupList = new ArrayList<>();
+
+        if (!((RolapCube)evaluator.getCube()).isVirtual()) {
+            targetGroupList.add(targets);
+            return targetGroupList;
+        }
+        if (inapplicableTargetsPresent(getBaseCubeCollection(evaluator), targets)) {
+            return Collections.emptyList();
+        }
+
+        Map<TargetBase, List<RolapCube>> targetToCubeMap =
+          getTargetToCubeMap(targets, evaluator);
+
+        List<TargetBase> addedTargets = new ArrayList<>();
+
+        for (TargetBase target : targets) {
+            if (addedTargets.contains(target)) {
+                continue;
+            }
+            addedTargets.add(target);
+            List<TargetBase> groupList = new ArrayList<>();
+            targetGroupList.add(groupList);
+            groupList.add(target);
+
+            for (TargetBase compareTarget : targets) {
+                if (target == compareTarget
+                    || addedTargets.contains(compareTarget))
+                {
+                    continue;
+                }
+                if (targetToCubeMap.get(target).equals(
+                        targetToCubeMap.get(compareTarget)))
+                {
+                    groupList.add(compareTarget);
+                    addedTargets.add(compareTarget);
+                }
+            }
+        }
+        return targetGroupList;
+    }
+
+    /**
+     * Constructs a map of targets to the list of applicable cubes.
+     * E.g. [Product] -> [ Sales, Warehouse ]
+     *      [Gender]  -> [ Sales ]
+     * It determines the list of cubes first based on the cubes in the
+     * query.  E.g. a query with [Unit Sales] as the only measure
+     * would only have the [Sales] cube as potentially applicable.
+     *
+     * If the dimension has *no* cubes relevant to the current
+     * query, the method falls back to looking at all cubes
+     * in the virtual cube.
+     *
+     * This method is only expected to be called when the cube
+     * associated with the current cube is virtual.
+     */
+    private Map<TargetBase, List<RolapCube>> getTargetToCubeMap(
+        List<TargetBase> targets, Evaluator evaluator)
+    {
+        assert ((RolapCube)evaluator.getCube()).isVirtual();
+        Collection<RolapCube> cubesFromQuery = evaluator.getBaseCubes();
+        assert cubesFromQuery != null;
+        Collection<RolapCube> baseCubesAssociatedWithVirtual =
+          getBaseCubeCollection(evaluator);
+
+        Map<TargetBase, List<RolapCube>> targetMap = new HashMap<>();
+
+        for (TargetBase target : targets) {
+            targetMap.put(target, new ArrayList<RolapCube>());
+        }
+
+        for (TargetBase target : targets) {
+            // first try to map to cubes in the query
+            mapTargetToCubes(cubesFromQuery, targetMap, target);
+            if (targetMap.get(target).size() == 0) {
+                // none found, map against all base cubes in the virtual
+                // so we don't have an empty list.
+                mapTargetToCubes(
+                    baseCubesAssociatedWithVirtual,
+                    targetMap, target);
+            }
+        }
+        return targetMap;
+    }
+
+    private void mapTargetToCubes(
+        Collection<RolapCube> cubes, Map<TargetBase, List<RolapCube>> targetMap,
+        TargetBase target)
+    {
+        for (RolapCube cube : cubes) {
+            if (targetIsOnBaseCube(target, cube)) {
+                targetMap.get(target).add(cube);
+            }
+        }
     }
 
     /**
@@ -1057,6 +1244,12 @@ public class SqlTupleReader implements TupleReader {
      * @return
      */
     Pair<SqlQuery, List<SqlStatement.Type>> getLevelMembersSql(DataSource dataSource, boolean keyOnly) {
+        return getLevelMembersSql(dataSource, targets, keyOnly);
+    }
+
+    private Pair<SqlQuery, List<SqlStatement.Type>> getLevelMembersSql(
+        DataSource dataSource, List<TargetBase> targetGroup, boolean keyOnly)
+    {
         // In the case of a virtual cube, if we need to join to the fact
         // table, we do not necessarily have a single underlying fact table,
         // as the underlying base cubes in the virtual cube may all reference
@@ -1084,7 +1277,7 @@ public class SqlTupleReader implements TupleReader {
             final Collection<RolapCube> baseCubes =
                 getBaseCubeCollection(constraint.getEvaluator());
             Collection<RolapCube> fullyJoiningBaseCubes =
-                getFullyJoiningBaseCubes(baseCubes);
+                getFullyJoiningBaseCubes(baseCubes, targetGroup);
             if (fullyJoiningBaseCubes.size() == 0) {
                 SqlQuery q = sqlQueryForEmptyTuple(dataSource, baseCubes);
                 return Pair.of(q, q.getTypes());
@@ -1160,6 +1353,7 @@ public class SqlTupleReader implements TupleReader {
                             fullyJoiningBaseCubes.size() == 1
                                 ? WhichSelect.ONLY
                                 : WhichSelect.NOT_LAST,
+                                targetGroup,
                                 keyOnly);
 
                     if (fullyJoiningBaseCubes.size() > 1) {
@@ -1234,14 +1428,43 @@ public class SqlTupleReader implements TupleReader {
         } else {
             // This is the standard code path with regular single-fact table
             // cubes.
-            SqlQuery q = generateSelectForLevels(dataSource, cube, WhichSelect.ONLY, keyOnly);
+            SqlQuery q = generateSelectForLevels(
+                dataSource, cube, WhichSelect.ONLY, targetGroup, keyOnly);
             return Pair.of(q, q.getTypes());
         }
     }
 
-    Pair<String, List<SqlStatement.Type>> makeLevelMembersSql(DataSource dataSource,
-        boolean keyOnly) {
-        Pair<SqlQuery, List<SqlStatement.Type>> query = getLevelMembersSql(dataSource, keyOnly);
+    /**
+     * Returns true if one or more targets in targetGroup do not
+     * fully join to the set of base cubes.  False otherwise.
+     * If there are inapplicable targets present then the tuple
+     * resulting from native evaluation would necessarily be empty.
+     *
+     * Special case is if we determine that one or more measures would
+     * shift the context of the given target, in which case we
+     * cannot determine whether the target is truly inapplicable.
+     * (for example, if a measure is wrapped in ValidMeasure then
+     * we the presence of the target won't necessarily result in
+     * an empty tuple.)
+     */
+    private boolean inapplicableTargetsPresent(
+        Collection<RolapCube> baseCubes, List<TargetBase> targetGroup)
+    {
+        List<TargetBase> targetListCopy = new ArrayList<>();
+        targetListCopy.addAll(targetGroup);
+        for (TargetBase target : targetGroup) {
+            if (targetHasShiftedContext(target)) {
+                targetListCopy.remove(target);
+            }
+        }
+        return getFullyJoiningBaseCubes(baseCubes, targetListCopy).isEmpty();
+    }
+
+    Pair<String, List<SqlStatement.Type>> makeLevelMembersSql(
+        DataSource dataSource, List<TargetBase> targetGroup, boolean keyOnly)
+    {
+        Pair<SqlQuery, List<SqlStatement.Type>> query =
+            getLevelMembersSql(dataSource, targetGroup, keyOnly);
         if (query != null) {
             return Pair.of(query.left.toSqlAndTypes().left, query.right);
         }
@@ -1249,13 +1472,14 @@ public class SqlTupleReader implements TupleReader {
     }
 
     private Collection<RolapCube> getFullyJoiningBaseCubes(
-        Collection<RolapCube> baseCubes)
+        Collection<RolapCube> baseCubes, List<TargetBase> targetGroup)
     {
         final Collection<RolapCube> fullyJoiningCubes =
-            new ArrayList<RolapCube>();
+          new ArrayList<>();
+
         for (RolapCube baseCube : baseCubes) {
             boolean allTargetsJoin = true;
-            for (TargetBase target : targets) {
+            for (TargetBase target : targetGroup) {
                 if (!targetIsOnBaseCube(target, baseCube)) {
                     allTargetsJoin = false;
                 }
@@ -1267,14 +1491,44 @@ public class SqlTupleReader implements TupleReader {
         return fullyJoiningCubes;
     }
 
+    private boolean targetHasShiftedContext(TargetBase target) {
+        Set<Member> measures = new HashSet<>();
+        measures.addAll(
+            constraint.getEvaluator().getQuery().getMeasuresMembers());
 
+        for (Member measure : measures) {
+            if (measure.isCalculated()
+                && SqlConstraintUtils.containsValidMeasure(
+                    measure.getExpression()))
+            {
+                return true;
+            }
+        }
+        Set<Member> membersInMeasures =
+            SqlConstraintUtils.getMembersNestedInMeasures(measures);
+        return membersInMeasures.contains(
+            target.getLevel().getHierarchy().getAllMember());
+    }
+
+    /**
+     * Retrieves all base cubes associated with the cube specified by query.
+     * (not just those applicable to the current query)
+     */
     Collection<RolapCube> getBaseCubeCollection(final Evaluator evaluator) {
-        RolapCube.CubeComparator cubeComparator =
-            new RolapCube.CubeComparator();
-        Collection<RolapCube> baseCubes =
-            new TreeSet<RolapCube>(cubeComparator);
-        baseCubes.addAll(evaluator.getBaseCubes());
-        return baseCubes;
+      if (!((RolapCube) evaluator.getCube()).isVirtual()) {
+          return Collections.singletonList((RolapCube) evaluator.getCube());
+      }
+      Set<RolapCube> cubes = new TreeSet<>(new RolapCube.CubeComparator());
+      for (Member member : getMeasures(evaluator)) {
+          if (member instanceof RolapStoredMeasure) {
+              cubes.add(((RolapStoredMeasure) member).getCube());
+          }
+      }
+      return cubes;
+  }
+
+    private List<Member> getMeasures(Evaluator evaluator) {
+        return ((RolapCube)evaluator.getCube()).getMeasures();
     }
 
     SqlQuery sqlQueryForEmptyTuple(DataSource dataSource,
@@ -1293,12 +1547,13 @@ public class SqlTupleReader implements TupleReader {
      * @param baseCube this is the cube object for regular cubes, and the
      *   underlying base cube for virtual cubes
      * @param whichSelect Position of this select statement in a union
+     * @param targetGroup the set of targets for which to generate a select
      * @return SQL statement string and types
      */
     SqlQuery generateSelectForLevels(
         DataSource dataSource,
         RolapCube baseCube,
-        WhichSelect whichSelect,
+        WhichSelect whichSelect, List<TargetBase> targetGroup,
         boolean keyOnly)
     {
         String s =
@@ -1315,7 +1570,7 @@ public class SqlTupleReader implements TupleReader {
         AggStar aggStar = chooseAggStar(constraint, evaluator, baseCube);
 
         // add the selects for all levels to fetch
-        for (TargetBase target : targets) {
+        for (TargetBase target : targetGroup) {
             // if we're going to be enumerating the values for this target,
             // then we don't need to generate sql for it
             if (target.getSrcMembers() == null) {
@@ -1339,9 +1594,11 @@ public class SqlTupleReader implements TupleReader {
         return sqlQuery;
     }
 
-    boolean targetIsOnBaseCube(TargetBase target, RolapCube baseCube) {
-        return baseCube == null || baseCube.findBaseCubeHierarchy(
-            target.getLevel().getHierarchy()) != null;
+    private boolean targetIsOnBaseCube(TargetBase target, RolapCube baseCube) {
+        return target.getLevel().isAll()
+            || baseCube == null
+            || baseCube.findBaseCubeHierarchy(
+                target.getLevel().getHierarchy()) != null;
     }
 
     /**
@@ -1354,7 +1611,6 @@ public class SqlTupleReader implements TupleReader {
      * their level values.</p>
      *
      *
-     * @param sqlQuery     The query object being constructed
      * @param hierarchy    Hierarchy of the cube
      * @param levels       Levels in this hierarchy
      * @param levelDepth   Level depth at which the query is occuring
@@ -1362,7 +1618,6 @@ public class SqlTupleReader implements TupleReader {
      *
      */
     private boolean isGroupByNeeded(
-        SqlQuery sqlQuery,
         RolapHierarchy hierarchy,
         RolapLevel[] levels,
         int levelDepth)
@@ -1446,7 +1701,7 @@ public class SqlTupleReader implements TupleReader {
 
         // lookup RolapHierarchy of base cube that matches this hierarchy
 
-        if (hierarchy instanceof RolapCubeHierarchy) {
+        if (!level.isAll() && hierarchy instanceof RolapCubeHierarchy) {
             RolapCubeHierarchy cubeHierarchy = (RolapCubeHierarchy)hierarchy;
             if (baseCube != null
                 && !cubeHierarchy.getCube().equals(baseCube))
@@ -1461,7 +1716,7 @@ public class SqlTupleReader implements TupleReader {
         int levelDepth = level.getDepth();
 
         boolean needsGroupBy =
-            isGroupByNeeded(sqlQuery, hierarchy, levels, levelDepth);
+          isGroupByNeeded(hierarchy, levels, levelDepth);
 
         for (int i = 0; i <= levelDepth; i++) {
             RolapLevel currLevel = levels[i];
@@ -1915,16 +2170,6 @@ public class SqlTupleReader implements TupleReader {
             }
             ((RolapNativeSet.SetConstraint) constraint)
                 .constrainExtraLevels(baseCube, levelBitKey);
-        } else if (constraint instanceof RolapNativeFilter.FilterConstraint) {
-            for (Member slicer : ((RolapEvaluator)evaluator).getSlicerMembers())
-            {
-                final Level level = slicer.getLevel();
-                if (level != null && !level.isAll()) {
-                    final RolapStar.Column column = ((RolapCubeLevel) level)
-                        .getBaseStarKeyColumn(baseCube);
-                    levelBitKey.set(column.getBitPosition());
-                }
-            }
         }
 
         // find the aggstar using the masks
