@@ -86,7 +86,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC,\n"
             + "    ISNULL(`product_class`.`product_subcategory`) ASC, `product_class`.`product_subcategory` ASC,\n"
             + "    ISNULL(`product`.`brand_name`) ASC, `product`.`brand_name` ASC,\n"
-            + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC";
+            + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC limit 2";
 
         static final String mysqlAgg =
             "select\n"
@@ -126,7 +126,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC,\n"
             + "    ISNULL(`product_class`.`product_subcategory`) ASC, `product_class`.`product_subcategory` ASC,\n"
             + "    ISNULL(`product`.`brand_name`) ASC, `product`.`brand_name` ASC,\n"
-            + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC";
+            + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC limit 2";
         static final String result =
             "Axis #0:\n"
             + "{[Time].[Weekly].[x]}\n"
@@ -394,7 +394,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
               + "`.`unit_sales`) DESC,\n"
               + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
               + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
-              + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC";
+              + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC limit 3";
 
         SqlPattern mysqlPattern =
             new SqlPattern(
@@ -491,7 +491,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
               + "`.`unit_sales`) DESC,\n"
               + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
               + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
-              + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC";
+              + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC limit 3";
 
         SqlPattern mysqlPattern =
             new SqlPattern(
@@ -587,7 +587,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
               + "`.`unit_sales`) DESC,\n"
               + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
               + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
-              + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC";
+              + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC limit 3";
 
         if (MondrianProperties.instance().EnableNativeTopCount.get()) {
             SqlPattern mysqlPattern =
@@ -606,6 +606,80 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Axis #2:\n"
             + "{[Product].[Drink].[Alcoholic Beverages].[Beer and Wine]}\n"
             + "Row #0: 2,435\n");
+    }
+
+    public void testNativeTopCountWithNesting() {
+        final String mdx =
+            "WITH\n"
+            + "  SET TC AS 'TopCount(NonEmpty([Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].Children, [Measures].[Unit Sales]), 3)'\n"
+            + "  SELECT [Measures].[Unit Sales] on 0,\n"
+            + "    TC ON 1 \n"
+            + "  FROM [Sales] WHERE {[Time].[1997]}\n";
+
+        if (!isUseAgg() && MondrianProperties.instance().EnableNativeTopCount.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysqlQuery =
+                "select\n"
+                + "    `product_class`.`product_family` as `c0`,\n"
+                + "    `product_class`.`product_department` as `c1`,\n"
+                + "    `product_class`.`product_category` as `c2`,\n"
+                + "    `product_class`.`product_subcategory` as `c3`,\n"
+                + "    `product`.`brand_name` as `c4`,\n"
+                + "    `product`.`product_name` as `c5`\n"
+                + "from\n"
+                + "    `product_class` as `product_class`,\n"
+                + "    `product` as `product`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
+                + "and\n"
+                + "    `product`.`product_class_id` = `product_class`.`product_class_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    (`product`.`brand_name` = 'Hermanos' and `product_class`.`product_subcategory` = 'Fresh Vegetables'"
+                + " and `product_class`.`product_category` = 'Vegetables'"
+                + " and `product_class`.`product_department` = 'Produce' and `product_class`.`product_family` = 'Food')\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`unit_sales` is not null\n"
+                + "group by\n"
+                + "    `product_class`.`product_family`,\n"
+                + "    `product_class`.`product_department`,\n"
+                + "    `product_class`.`product_category`,\n"
+                + "    `product_class`.`product_subcategory`,\n"
+                + "    `product`.`brand_name`,\n"
+                + "    `product`.`product_name`\n"
+                + "order by\n"
+                + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
+                + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
+                + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC,\n"
+                + "    ISNULL(`product_class`.`product_subcategory`) ASC, `product_class`.`product_subcategory` ASC,\n"
+                + "    ISNULL(`product`.`brand_name`) ASC, `product`.`brand_name` ASC,\n"
+                + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC limit 3";
+
+            SqlPattern mysqlPattern =
+                new SqlPattern(
+                    DatabaseProduct.MYSQL,
+                    mysqlQuery,
+                    mysqlQuery.indexOf("("));
+            assertQuerySql(mdx, new SqlPattern[]{mysqlPattern});
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].[Hermanos Asparagus]}\n"
+            + "{[Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].[Hermanos Baby Onion]}\n"
+            + "{[Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].[Hermanos Beets]}\n"
+            + "Row #0: 195\n"
+            + "Row #1: 205\n"
+            + "Row #2: 180\n");
     }
 
     /**
@@ -869,7 +943,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "order by\n"
             + "    sum(`agg_pl_01_sales_fact_1997`.`store_sales_sum`) DESC,\n"
             + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
-            + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC";
+            + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC limit 2";
 
         SqlPattern mysqlPattern =
             new SqlPattern(
@@ -1098,7 +1172,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
             + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC,\n"
             + "    ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC,\n"
-            + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC";
+            + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC limit 5";
         SqlPattern mysqlPattern =
             new SqlPattern(
                 DatabaseProduct.MYSQL,
@@ -1183,7 +1257,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
             + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC,\n"
             + "    ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC,\n"
-            + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC";
+            + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC limit 5";
         SqlPattern mysqlPattern =
             new SqlPattern(
                 DatabaseProduct.MYSQL,

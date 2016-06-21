@@ -1246,7 +1246,7 @@ public class FilterTest extends BatchTestCase {
               + "ISNULL(`product_class`.`product_category`) ASC, "
               + "`product_class`.`product_category` ASC, "
               + "ISNULL(`product_class`.`product_subcategory`) ASC, "
-              + "`product_class`.`product_subcategory` ASC";
+              + "`product_class`.`product_subcategory` ASC limit 2";
 
           if (!useAgg && propSaver.properties.EnableNativeFilter.get()) {
               assertQuerySql(

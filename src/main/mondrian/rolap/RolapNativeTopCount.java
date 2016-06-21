@@ -65,7 +65,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
          * be returned.
          */
         protected boolean isValid() {
-            if (orderByExpr == null) {
+            if (orderByExpr == null && parentConstraint == null) {
                 return args.length == 1
                     && canApplyCrossJoinArgConstraint(args[0]);
             }
@@ -82,7 +82,8 @@ public class RolapNativeTopCount extends RolapNativeSet {
          * eliminating empty tuples.
          */
         protected boolean isJoinRequired() {
-            return orderByExpr != null;
+            return orderByExpr != null
+                || (parentConstraint != null && parentConstraint.isJoinRequired());
         }
 
         @Override
@@ -122,6 +123,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
             } else if (args.length == 1) {
                 args[0].addConstraint(sqlQuery, baseCube, null);
             }
+            sqlQuery.setLimit(topCount);
         }
 
         private boolean deduceNullability(Exp expr) {
