@@ -4007,6 +4007,64 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         verifySameNativeAndNot(mdx, "NonEmpty nesting", getTestContext());
     }
 
+    public void testNativeNonEmptyRaggedChildren() {
+        if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get())
+        {
+            return;
+        }
+        String mdx =
+            "SELECT NonEmpty({[Store].[USA].[CA].Children}, [Measures].[Unit Sales]) ON 0,"
+            + " [Measures].[Unit Sales] on 1"
+            + " FROM [Sales Ragged]";
+        if (!isUseAgg()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `store_ragged`.`store_country` as `c0`,\n"
+                + "    `store_ragged`.`store_state` as `c1`,\n"
+                + "    `store_ragged`.`store_city` as `c2`\n"
+                + "from\n"
+                + "    `store_ragged` as `store_ragged`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`store_id` = `store_ragged`.`store_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    (`store_ragged`.`store_city` in ('Alameda', 'Beverly Hills', 'Los Angeles', 'San Francisco') and `store_ragged`.`store_state` = 'CA')\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`unit_sales` is not null\n"
+                + "group by\n"
+                + "    `store_ragged`.`store_country`,\n"
+                + "    `store_ragged`.`store_state`,\n"
+                + "    `store_ragged`.`store_city`\n"
+                + "order by\n"
+                + "    ISNULL(`store_ragged`.`store_country`) ASC, `store_ragged`.`store_country` ASC,\n"
+                + "    ISNULL(`store_ragged`.`store_state`) ASC, `store_ragged`.`store_state` ASC,\n"
+                + "    ISNULL(`store_ragged`.`store_city`) ASC, `store_ragged`.`store_city` ASC";
+            assertQuerySql(mdx, sqlPattern(DatabaseProduct.MYSQL, mysql));
+            propSaver.set(propSaver.properties.GenerateFormattedSql, false);
+            getTestContext().flushSchemaCache();
+        }
+        assertQueryReturns(mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Store].[USA].[CA].[Beverly Hills]}\n"
+            + "{[Store].[USA].[CA].[Los Angeles]}\n"
+            + "{[Store].[USA].[CA].[San Francisco]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Row #0: 21,333\n"
+            + "Row #0: 25,663\n"
+            + "Row #0: 2,117\n");
+        getTestContext().flushSchemaCache();
+        verifySameNativeAndNot(mdx, "NonEmpty nesting", getTestContext());
+    }
+
     // test a scenario where the members are not related to base cube
     public void testNativeSumInVirtCubeWithMultipleBaseCubes() {
         propSaver.set(propSaver.properties.GenerateFormattedSql, true);

@@ -137,7 +137,7 @@ public class CrossJoinArgFactory {
         final Role role = evaluator.getSchemaReader().getRole();
         CrossJoinArg[] cjArgs;
 
-        cjArgs = checkMemberChildren(role, fun, args);
+        cjArgs = checkMemberChildren(evaluator, role, fun, args);
         if (cjArgs != null) {
             return Collections.singletonList(cjArgs);
         }
@@ -567,6 +567,7 @@ public class CrossJoinArgFactory {
      *         function, or null if <code>fun</code> represents something else.
      */
     private CrossJoinArg[] checkMemberChildren(
+        RolapEvaluator evaluator,
         Role role,
         FunDef fun,
         Exp[] args)
@@ -588,9 +589,16 @@ public class CrossJoinArgFactory {
         }
         RolapLevel level = member.getLevel();
         level = (RolapLevel) level.getChildLevel();
-        if (level == null || !level.isSimple()) {
+        if (level == null) {
             // no child level
             return null;
+        }
+        if (!level.isSimple()) {
+            List<RolapMember> children =
+                Util.cast(evaluator.getSchemaReader().getMemberChildren(member));
+            CrossJoinArg cjArg = MemberListCrossJoinArg.create(
+                evaluator, children, restrictMemberTypes(), false);
+            return cjArg != null ? new CrossJoinArg[] { cjArg } : null;
         }
         // Children of a member in an access-controlled hierarchy cannot be
         // converted to SQL when RollupPolicy=FULL. (We could be smarter; we
