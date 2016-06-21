@@ -65,16 +65,32 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             return null;
         }
 
-        // Native Args Validation
-        // the first set
-        // 0 - arguments, 1 - additional constraints
-        List<CrossJoinArg[]> mainArgs =
-            crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0]);
-        if (failedCjArg(mainArgs)) {
-            alertNonNative(evaluator, fun, args[0]);
-            return null;
+        // what should end up in the select
+        final CrossJoinArg[] returnArgs;
+        List<CrossJoinArg[]> mainArgs;
+        SetConstraint parentConstraint;
+
+        // first see if subset wraps another native evaluation (other than count and sum)
+        SetEvaluator eval = getNestedEvaluator(args[0], evaluator);
+        if (eval != null) {
+            parentConstraint = (SetConstraint) eval.getConstraint();
+            returnArgs = parentConstraint.getArgs();
+            mainArgs = Collections.singletonList(returnArgs);
+        } else {
+            parentConstraint = null;
+            // Native Args Validation
+            // the first set
+            // 0 - arguments, 1 - additional constraints
+            mainArgs =
+                crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0]);
+            if (failedCjArg(mainArgs)) {
+                alertNonNative(evaluator, fun, args[0]);
+                return null;
+            }
+            returnArgs = mainArgs.get(0);
         }
-        for (CrossJoinArg cjArg : mainArgs.get(0)) {
+
+        for (CrossJoinArg cjArg : returnArgs) {
             if (cjArg.getLevel().getDimension().isHanger()) {
                 alertNonNative(evaluator, fun, args[0]);
                 return null;
@@ -82,7 +98,7 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
         }
         // we want the second arg to be added just as a crossjoin constraint
         boolean hasTwoArgs = args.length == 2;
-        if (hasTwoArgs) {
+        if (hasTwoArgs && eval == null) {
             // this check verifies there isn't anything that would cause
             // overall native eval to fail in both arguments
             FunDef nonEmptyCrossJoin =
@@ -118,11 +134,11 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             Set<Member> measures = new LinkedHashSet<Member>();
             findMeasures(args[1], baseCubes, measures);
             Set<RolapCube> unrelatedCubes = new HashSet<>();
-            if (baseCubes.size() > 1 && mainArgs.get(0).length == 1
-                && mainArgs.get(0)[0] != null && mainArgs.get(0)[0].getLevel() != null)
+            if (baseCubes.size() > 1 && returnArgs.length == 1
+                && returnArgs[0] != null && returnArgs[0].getLevel() != null)
             {
                 for (RolapCube cube : baseCubes) {
-                    if (cube.findBaseCubeLevel(mainArgs.get(0)[0].getLevel()) == null) {
+                    if (cube.findBaseCubeLevel(returnArgs[0].getLevel()) == null) {
                         unrelatedCubes.add(cube);
                     }
                 }
@@ -131,7 +147,7 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             for (Member m : measures) {
                 if (m instanceof RolapStoredMeasure) {
                     measure = (RolapStoredMeasure) m;
-                    if (!areFromSameCube(mainArgs.get(0), measure)) {
+                    if (!areFromSameCube(returnArgs, measure)) {
                         // trying to skip this measure
                         if (!unrelatedCubes.contains(measure.getCube())) {
                             return null;
@@ -160,14 +176,25 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
         }
         else {
             // use context measure
-            if (evaluator.getMembers()[0] instanceof RolapStoredMeasure) {
-                measure = (RolapStoredMeasure) evaluator.getMembers()[0];
-                if (!areFromSameCube(mainArgs.get(0), measure)) {
+            Member contextMeasure =
+                eval != null ? eval.getMeasure() : evaluator.getMembers()[0];
+            if (contextMeasure instanceof RolapStoredMeasure) {
+                measure = (RolapStoredMeasure) contextMeasure;
+                if (!areFromSameCube(returnArgs, measure)) {
                     return null;
                 } else {
                     nativeMeasures.add(measure);
                 }
             }
+        }
+
+        if (hasTwoArgs && eval != null && eval.getMeasure() != null && measure != null
+            && eval.getMeasure() instanceof RolapStoredMeasure
+            && ((RolapStoredMeasure)eval.getMeasure()).getCube() != measure.getCube())
+        {
+            // unable to perform - different base cubes
+            alertNonNative(evaluator, fun, new MemberExpr(measure));
+            return null;
         }
 
         if (hasTwoArgs && extraArgs == null) {
@@ -209,8 +236,6 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             }
         }
 
-        // what should end up in the select
-        final CrossJoinArg[] returnArgs = mainArgs.get(0);
         // what will be in the constraint
         final CrossJoinArg[] constraintArgs =
             getConstraintArgs(mainArgs, extraArgs);
@@ -228,7 +253,7 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             NonEmptyFunctionConstraint constraint =
                 new NonEmptyFunctionConstraint(
                     constraintArgs, nativeMeasures,
-                    evaluator, restrictMemberTypes());
+                    evaluator, restrictMemberTypes(), parentConstraint);
 
             NativeEvaluator nativeEvaluator =
                 new SetEvaluator(returnArgs, schemaReader, constraint);
@@ -385,7 +410,7 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
         return true;
     }
 
-    static class NonEmptyFunctionConstraint extends SetConstraint {
+    static class NonEmptyFunctionConstraint extends DelegatingSetConstraint {
         // using linked for deterministic iteration
         private Set<RolapStar.Measure> nonEmptyMeasures =
             new LinkedHashSet<RolapStar.Measure>();
@@ -394,9 +419,10 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             CrossJoinArg[] args,
             Collection<RolapStoredMeasure> measures,
             RolapEvaluator evaluator,
-            boolean restrict)
+            boolean restrict,
+            SetConstraint parentConstraint)
         {
-            super(args, evaluator, restrict);
+            super(args, evaluator, restrict, parentConstraint);
             for (RolapStoredMeasure measure : measures) {
                 nonEmptyMeasures.add(
                     (RolapStar.Measure) measure.getStarMeasure());

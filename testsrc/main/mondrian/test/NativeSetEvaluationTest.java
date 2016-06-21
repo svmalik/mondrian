@@ -3867,6 +3867,145 @@ public class NativeSetEvaluationTest extends BatchTestCase {
           + "Row #2: 6,235\n");
     }
 
+    public void testNativeNonEmptyNesting() {
+        if (!MondrianProperties.instance().EnableNativeFilter.get()
+            || !MondrianProperties.instance().EnableNativeNonEmptyFunction.get())
+        {
+            return;
+        }
+        String mdx =
+            "SELECT NonEmpty(Filter({[Store].[Store City].members},[Measures].[Unit Sales] > 1000), [Measures].[Store Sales]) ON 0,"
+                + " [Measures].[Unit Sales] on 1"
+                + " FROM [Sales] WHERE [Time].[1997].[Q1]";
+        if (!isUseAgg()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `store`.`store_country` as `c0`,\n"
+                + "    `store`.`store_state` as `c1`,\n"
+                + "    `store`.`store_city` as `c2`\n"
+                + "from\n"
+                + "    `store` as `store`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `time_by_day`.`quarter` = 'Q1'\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`store_sales` is not null\n"
+                + "group by\n"
+                + "    `store`.`store_country`,\n"
+                + "    `store`.`store_state`,\n"
+                + "    `store`.`store_city`\n"
+                + "having\n"
+                + "    (sum(`sales_fact_1997`.`unit_sales`) > 1000)\n"
+                + "order by\n"
+                + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
+                + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC,\n"
+                + "    ISNULL(`store`.`store_city`) ASC, `store`.`store_city` ASC";
+            assertQuerySql(mdx,
+                new SqlPattern[]{new SqlPattern(DatabaseProduct.MYSQL, mysql, null)});
+        }
+        assertQueryReturns(mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "Axis #1:\n"
+            + "{[Store].[USA].[CA].[Beverly Hills]}\n"
+            + "{[Store].[USA].[CA].[Los Angeles]}\n"
+            + "{[Store].[USA].[CA].[San Diego]}\n"
+            + "{[Store].[USA].[OR].[Portland]}\n"
+            + "{[Store].[USA].[OR].[Salem]}\n"
+            + "{[Store].[USA].[WA].[Bremerton]}\n"
+            + "{[Store].[USA].[WA].[Seattle]}\n"
+            + "{[Store].[USA].[WA].[Spokane]}\n"
+            + "{[Store].[USA].[WA].[Tacoma]}\n"
+            + "{[Store].[USA].[WA].[Yakima]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Row #0: 3,822\n"
+            + "Row #0: 6,373\n"
+            + "Row #0: 6,256\n"
+            + "Row #0: 6,709\n"
+            + "Row #0: 12,578\n"
+            + "Row #0: 5,896\n"
+            + "Row #0: 6,098\n"
+            + "Row #0: 5,607\n"
+            + "Row #0: 8,399\n"
+            + "Row #0: 3,096\n");
+        getTestContext().flushSchemaCache();
+        verifySameNativeAndNot(mdx, "NonEmpty nesting", getTestContext());
+    }
+
+    public void testNativeNonEmptyNestingWithVirtualCubeFail() {
+        if (!MondrianProperties.instance().EnableNativeFilter.get()
+            || !MondrianProperties.instance().EnableNativeNonEmptyFunction.get())
+        {
+            return;
+        }
+        // nesting is not supported here since [Unit Sales] and [Warehouse Sales] are from different base cubes
+        String mdx =
+            "WITH SET [Stores] AS Filter({[Store].[Store City].members},[Measures].[Unit Sales] > 1000)\n"
+            + "SELECT NonEmpty([Stores], [Measures].[Warehouse Sales]) ON 0,\n"
+            + " [Measures].[Unit Sales] on 1\n"
+            + "FROM [Warehouse and Sales] WHERE [Time].[1997].[Q1]";
+        if (!isUseAgg()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `store`.`store_country` as `c0`,\n"
+                + "    `store`.`store_state` as `c1`,\n"
+                + "    `store`.`store_city` as `c2`\n"
+                + "from\n"
+                + "    `store` as `store`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `time_by_day`.`quarter` = 'Q1'\n"
+                + "group by\n"
+                + "    `store`.`store_country`,\n"
+                + "    `store`.`store_state`,\n"
+                + "    `store`.`store_city`\n"
+                + "having\n"
+                + "    (sum(`sales_fact_1997`.`unit_sales`) > 1000)\n"
+                + "order by\n"
+                + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
+                + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC,\n"
+                + "    ISNULL(`store`.`store_city`) ASC, `store`.`store_city` ASC";
+            assertQuerySql(mdx,
+                new SqlPattern[]{new SqlPattern(DatabaseProduct.MYSQL, mysql, null)});
+        }
+        assertQueryReturns(mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "Axis #1:\n"
+            + "{[Store].[USA].[CA].[Los Angeles]}\n"
+            + "{[Store].[USA].[OR].[Salem]}\n"
+            + "{[Store].[USA].[WA].[Bremerton]}\n"
+            + "{[Store].[USA].[WA].[Seattle]}\n"
+            + "{[Store].[USA].[WA].[Tacoma]}\n"
+            + "{[Store].[USA].[WA].[Yakima]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Row #0: 6,373\n"
+            + "Row #0: 12,578\n"
+            + "Row #0: 5,896\n"
+            + "Row #0: 6,098\n"
+            + "Row #0: 8,399\n"
+            + "Row #0: 3,096\n");
+        getTestContext().flushSchemaCache();
+        verifySameNativeAndNot(mdx, "NonEmpty nesting", getTestContext());
+    }
 
     // test a scenario where the members are not related to base cube
     public void testNativeSumInVirtCubeWithMultipleBaseCubes() {
