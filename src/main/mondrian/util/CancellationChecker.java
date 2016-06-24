@@ -11,6 +11,9 @@ package mondrian.util;
 
 import mondrian.olap.MondrianProperties;
 import mondrian.server.Execution;
+import mondrian.server.Locus;
+
+import java.util.EmptyStackException;
 
 /**
  * Encapsulates cancel and timeouts checks
@@ -19,22 +22,39 @@ import mondrian.server.Execution;
  * @since Jan 18, 2016
  */
 public class CancellationChecker {
-    private final int interval;
-    private final Execution execution;
+    private final int interval =
+        MondrianProperties.instance().CheckCancelOrTimeoutInterval.get();
+    private Execution execution;
 
     public CancellationChecker(Execution execution) {
-        this.interval =
-            MondrianProperties.instance().CheckCancelOrTimeoutInterval.get();
         this.execution = execution;
+    }
+
+    public CancellationChecker() {
     }
 
     public void check(int iteration)
     {
-        if (execution != null && interval > 0 && iteration % interval == 0)
+        if (interval > 0 && iteration % interval == 0)
         {
-            synchronized (execution) {
-                execution.checkCancelOrTimeout();
+            Execution execution = getExecution();
+            if (execution != null) {
+                synchronized (execution) {
+                    execution.checkCancelOrTimeout();
+                }
             }
+        }
+    }
+
+    private Execution getExecution() {
+        if (execution != null) {
+            return execution;
+        }
+
+        try {
+            return Locus.peek().execution;
+        } catch (EmptyStackException e) {
+            return null;
         }
     }
 }

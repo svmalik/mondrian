@@ -967,10 +967,8 @@ class BatchLoader {
     LoadBatchResponse load(List<CellRequest> cellRequests) {
         // Check for cancel/timeout. The request might have been on the queue
         // for a while.
-        if (locus.execution != null) {
-            locus.execution.checkCancelOrTimeout();
-        }
-
+        CancellationChecker checker = new CancellationChecker(locus.execution);
+        int iteration = 0;
         final long t1 = System.currentTimeMillis();
 
         // Now we're inside the cache manager, we can see which of our cell
@@ -978,6 +976,7 @@ class BatchLoader {
         // to the segments list; those that can not will be converted into
         // batches and rolled up or loaded using SQL.
         for (CellRequest cellRequest : cellRequests) {
+            checker.check(iteration++);
             recordCellRequest2(cellRequest);
         }
 

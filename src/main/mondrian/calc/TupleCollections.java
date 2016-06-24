@@ -11,6 +11,7 @@ package mondrian.calc;
 
 import mondrian.calc.impl.*;
 import mondrian.olap.*;
+import mondrian.util.CancellationChecker;
 
 import java.util.*;
 
@@ -379,7 +380,11 @@ public final class TupleCollections {
         if (eager) {
             TupleList tupleList = createList(tupleIterable.getArity());
             TupleCursor tupleCursor = tupleIterable.tupleCursor();
+            int currentIteration = 0;
+            CancellationChecker cancellationChecker =
+                new CancellationChecker();
             while (tupleCursor.forward()) {
+                cancellationChecker.check(currentIteration++);
                 tupleList.addCurrent(tupleCursor);
             }
             return tupleList;
