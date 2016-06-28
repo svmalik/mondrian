@@ -147,6 +147,10 @@ public abstract class RolapNativeSet extends RolapNative {
         return false;
     }
 
+    private boolean isMultiThreaded() {
+        return MondrianProperties.instance().SegmentCacheManagerNumberNativeThreads.get() > 0;
+    }
+
     /**
      * Constraint for non empty {crossjoin, member.children,
      * member.descendants, level.members}
@@ -435,8 +439,6 @@ public abstract class RolapNativeSet extends RolapNative {
         }
     }
 
-    private boolean multiThreaded = MondrianProperties.instance().SegmentCacheManagerNumberNativeThreads.get() > 0;
-
     protected class SetEvaluator implements NativeEvaluator {
 
         public static final String KEY_SET_EVALUATOR_CROSSJOIN_ARGS = "mondrian.rolap.RolapNativeSet.SetEvaluator.crossjoin.args";
@@ -560,7 +562,7 @@ public abstract class RolapNativeSet extends RolapNative {
             // to be executed in a separate thread.  return a dummy empty list for now.
             // TODO: figure out partial result case
 
-            if (multiThreaded && !hasEnumTargets && !MondrianProperties.instance().DisableCaching.get()) {
+            if (isMultiThreaded() && !hasEnumTargets && !MondrianProperties.instance().DisableCaching.get()) {
                 // register this for separate thread execution
                 tr.constraint.getEvaluator().addNativeRequest(
                     new NativeRequest(this, key, tr));
@@ -762,7 +764,7 @@ public abstract class RolapNativeSet extends RolapNative {
                 return result;
             }
 
-            if (multiThreaded && !MondrianProperties.instance().DisableCaching.get()) {
+            if (isMultiThreaded() && !MondrianProperties.instance().DisableCaching.get()) {
                 tr.constraint.getEvaluator().addNativeRequest(
                     new NativeSumRequest(this, key, tr));
                 return 0.0;
@@ -896,7 +898,7 @@ public abstract class RolapNativeSet extends RolapNative {
                 return result;
             }
 
-            if (multiThreaded && !MondrianProperties.instance().DisableCaching.get()) {
+            if (isMultiThreaded() && !MondrianProperties.instance().DisableCaching.get()) {
               tr.constraint.getEvaluator().addNativeRequest(new NativeCountRequest(
                   this, key, tr));
               return 0;

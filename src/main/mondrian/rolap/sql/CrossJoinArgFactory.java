@@ -1198,26 +1198,38 @@ public class CrossJoinArgFactory {
         RolapEvaluator evaluator,
         Exp exp)
     {
-        ExpCompiler compiler = evaluator.getQuery().createCompiler();
         CrossJoinArg[] arg0 = null;
         if (shouldExpandNonEmpty(exp)
             && evaluator.getActiveNativeExpansions().add(exp))
         {
-            ListCalc listCalc0 = compiler.compileList(exp);
-            final TupleList tupleList = listCalc0.evaluateList(evaluator);
+            // disable multi-threading as we need a result here
+            MondrianProperties properties = MondrianProperties.instance();
+            int numNativeThreads = properties.SegmentCacheManagerNumberNativeThreads.get();
+            try {
+                properties.SegmentCacheManagerNumberNativeThreads.set(0);
+                ResolvedFunCall call = FunUtil.extractResolvedFunCall(exp);
+                ExpCompiler compiler = evaluator.getQuery().createCompiler();
+                ListCalc listCalc0 = compiler.compileList(
+                    call != null && call.getType() instanceof SetType ? call : exp);
+                final TupleList tupleList = listCalc0.evaluateList(evaluator);
 
-            // Prevent the case when the second argument size is too large
-            Util.checkCJResultLimit(tupleList.size());
+                // Prevent the case when the second argument size is too large
+                Util.checkCJResultLimit(tupleList.size());
 
-            if (tupleList.getArity() == 1) {
-                List<RolapMember> list0 =
-                    Util.cast(tupleList.slice(0));
-                CrossJoinArg arg =
-                    MemberListCrossJoinArg.create(
-                        evaluator, list0, restrictMemberTypes(), false);
-                if (arg != null) {
-                    arg0 = new CrossJoinArg[]{arg};
+                if (tupleList.getArity() == 1) {
+                    List<RolapMember> list0 =
+                        Util.cast(tupleList.slice(0));
+                    if (!list0.isEmpty()) {
+                        CrossJoinArg arg =
+                            MemberListCrossJoinArg.create(
+                                evaluator, list0, restrictMemberTypes(), false);
+                        if (arg != null) {
+                            arg0 = new CrossJoinArg[] {arg};
+                        }
+                    }
                 }
+            } finally {
+                properties.SegmentCacheManagerNumberNativeThreads.set(numNativeThreads);
             }
             evaluator.getActiveNativeExpansions().remove(exp);
         }
