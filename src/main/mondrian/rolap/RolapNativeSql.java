@@ -278,132 +278,16 @@ public class RolapNativeSql {
             final Exp arg0 = ((ResolvedFunCall)exp).getArg(0);
             final Exp arg1 = ((ResolvedFunCall)exp).getArg(1);
 
-            // Must finish by ".Caption" or ".Name"
-            if (!(arg0 instanceof ResolvedFunCall)
-                || ((ResolvedFunCall)arg0).getArgCount() != 1
-                || !(arg0.getType() instanceof StringType)
-                || (!((ResolvedFunCall)arg0).getFunName().equals("Name")
-                    && !((ResolvedFunCall)arg0)
-                            .getFunName().equals("Caption")))
-            {
+            String sourceExp = getCurrentMemberExp(arg0, true);
+            if (sourceExp == null) {
                 return null;
             }
-
-            final boolean useCaption;
-            if (((ResolvedFunCall)arg0).getFunName().equals("Name")) {
-                useCaption = false;
-            } else {
-                useCaption = true;
-            }
-
-            // Must be ".CurrentMember"
-            final Exp currMemberExpr = ((ResolvedFunCall)arg0).getArg(0);
-            if (!(currMemberExpr instanceof ResolvedFunCall)
-                || ((ResolvedFunCall)currMemberExpr).getArgCount() != 1
-                || !(currMemberExpr.getType() instanceof MemberType)
-                || !((ResolvedFunCall)currMemberExpr)
-                        .getFunName().equals("CurrentMember"))
-            {
-                return null;
-            }
-
-            // Must be a dimension, a hierarchy or a level.
-            final RolapCubeDimension dimension;
-            final Exp dimExpr = ((ResolvedFunCall)currMemberExpr).getArg(0);
-            if (dimExpr instanceof DimensionExpr) {
-                dimension =
-                    (RolapCubeDimension) evaluator.getCachedResult(
-                        new ExpCacheDescriptor(dimExpr, evaluator));
-            } else if (dimExpr instanceof HierarchyExpr) {
-                final RolapCubeHierarchy hierarchy =
-                    (RolapCubeHierarchy) evaluator.getCachedResult(
-                        new ExpCacheDescriptor(dimExpr, evaluator));
-                dimension = (RolapCubeDimension) hierarchy.getDimension();
-            } else if (dimExpr instanceof LevelExpr) {
-                final RolapCubeLevel level =
-                    (RolapCubeLevel) evaluator.getCachedResult(
-                        new ExpCacheDescriptor(dimExpr, evaluator));
-                dimension = (RolapCubeDimension) level.getDimension();
-            } else {
-                return null;
-            }
-
-            if (rolapLevel != null
-                && dimension.equals(rolapLevel.getDimension()))
-            {
-                // We can't use the evaluator because the filter is filtering
-                // a set which is uses same dimension as the predicate.
-                // We must use, in order of priority,
-                //  - caption requested: caption->name->key
-                //  - name requested: name->key
-                MondrianDef.Expression expression = useCaption
-                ? rolapLevel.captionExp == null
-                        ? rolapLevel.nameExp == null
-                            ? rolapLevel.keyExp
-                            : rolapLevel.nameExp
-                        : rolapLevel.captionExp
-                    : rolapLevel.nameExp == null
-                        ? rolapLevel.keyExp
-                        : rolapLevel.nameExp;
-                 // If an aggregation table is used, it might be more efficient
-                 // to use only the aggregate table and not the hierarchy table.
-                 // Try to lookup the column bit key. If that fails, we will
-                 // link the aggregate table to the hierarchy table. If no
-                 // aggregate table is used, we can use the column expression
-                 // directly.
-                String sourceExp;
-                if (aggStar != null
-                    && rolapLevel instanceof RolapCubeLevel
-                    && expression == rolapLevel.keyExp)
-                {
-                    int bitPos =
-                        ((RolapCubeLevel)rolapLevel).getStarKeyColumn()
-                            .getBitPosition();
-                    mondrian.rolap.aggmatcher.AggStar.Table.Column col =
-                        aggStar.lookupColumn(bitPos);
-                    if (col != null) {
-                        sourceExp = col.generateExprString(sqlQuery);
-                    } else {
-                        // Make sure the level table is part of the query.
-                        rolapLevel.getHierarchy().addToFrom(
-                            sqlQuery,
-                            expression);
-                        sourceExp = expression.getExpression(sqlQuery);
-                    }
-                } else if (aggStar != null) {
-                    // Make sure the level table is part of the query.
-                    rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
-                    sourceExp = expression.getExpression(sqlQuery);
-                } else {
-                    if (rolapLevel instanceof RolapCubeLevel
-                        && expression.equals(rolapLevel.keyExp)
-                        && evaluator.getBaseCubes() != null
-                        && evaluator.getBaseCubes().size() == 1)
-                    {
-                        RolapCube baseCube = evaluator.getBaseCubes().get(0);
-                        RolapStar.Column column =
-                            ((RolapCubeLevel)rolapLevel).getBaseStarKeyColumn(baseCube);
-                        if (column != null && column.isOptimized()) {
-                            expression = column.optimize().getExpression();
-                        }
-                    }
-                    sourceExp = expression.getExpression(sqlQuery);
-                }
-
-                // The dialect might require the use of the alias rather
-                // then the column exp.
-                if (dialect.requiresHavingAlias()) {
-                    sourceExp = sqlQuery.getAlias(sourceExp);
-                }
-                return
-                    dialect.generateRegularExpression(
-                        sourceExp,
-                        String.valueOf(
-                            evaluator.getCachedResult(
-                                new ExpCacheDescriptor(arg1, evaluator))));
-            } else {
-                return null;
-            }
+            return
+                dialect.generateRegularExpression(
+                    sourceExp,
+                    String.valueOf(
+                        evaluator.getCachedResult(
+                            new ExpCacheDescriptor(arg1, evaluator))));
         }
         public String toString() {
             return "MatchingSqlCompiler";
@@ -651,6 +535,138 @@ public class RolapNativeSql {
             }
             return sqls;
         }
+
+        protected String getCurrentMemberExp(Exp arg, boolean getAlias) {
+            if (evaluator == null || !(arg instanceof ResolvedFunCall)) {
+                return null;
+            }
+
+            ResolvedFunCall call = (ResolvedFunCall)arg;
+            // Must finish by ".Caption" or ".Name"
+            if (call.getArgCount() != 1
+                || !(arg.getType() instanceof StringType)
+                || (!call.getFunName().equals("Name")
+                    && !call.getFunName().equals("Caption")))
+            {
+                return null;
+            }
+
+            final boolean useCaption;
+            if (call.getFunName().equals("Name")) {
+                useCaption = false;
+            } else {
+                useCaption = true;
+            }
+
+            // Must be ".CurrentMember"
+            final Exp currMemberExpr = call.getArg(0);
+            if (!(currMemberExpr instanceof ResolvedFunCall)
+                || ((ResolvedFunCall)currMemberExpr).getArgCount() != 1
+                || !(currMemberExpr.getType() instanceof MemberType)
+                || !((ResolvedFunCall)currMemberExpr)
+                        .getFunName().equals("CurrentMember"))
+            {
+                return null;
+            }
+
+            // Must be a dimension, a hierarchy or a level.
+            final RolapCubeDimension dimension;
+            final Exp dimExpr = ((ResolvedFunCall)currMemberExpr).getArg(0);
+            if (dimExpr instanceof DimensionExpr) {
+                dimension =
+                    (RolapCubeDimension) evaluator.getCachedResult(
+                        new ExpCacheDescriptor(dimExpr, evaluator));
+            } else if (dimExpr instanceof HierarchyExpr) {
+                final RolapCubeHierarchy hierarchy =
+                    (RolapCubeHierarchy) evaluator.getCachedResult(
+                        new ExpCacheDescriptor(dimExpr, evaluator));
+                dimension = (RolapCubeDimension) hierarchy.getDimension();
+            } else if (dimExpr instanceof LevelExpr) {
+                final RolapCubeLevel level =
+                    (RolapCubeLevel) evaluator.getCachedResult(
+                        new ExpCacheDescriptor(dimExpr, evaluator));
+                dimension = level.getDimension();
+            } else {
+                return null;
+            }
+
+            String sourceExp = null;
+            if (rolapLevel != null
+                && dimension.equals(rolapLevel.getDimension()))
+            {
+                // We can't use the evaluator because the filter is filtering
+                // a set which is uses same dimension as the predicate.
+                // We must use, in order of priority,
+                //  - caption requested: caption->name->key
+                //  - name requested: name->key
+                MondrianDef.Expression expression = useCaption
+                ? rolapLevel.captionExp == null
+                        ? rolapLevel.nameExp == null
+                            ? rolapLevel.keyExp
+                            : rolapLevel.nameExp
+                        : rolapLevel.captionExp
+                    : rolapLevel.nameExp == null
+                        ? rolapLevel.keyExp
+                        : rolapLevel.nameExp;
+                 // If an aggregation table is used, it might be more efficient
+                 // to use only the aggregate table and not the hierarchy table.
+                 // Try to lookup the column bit key. If that fails, we will
+                 // link the aggregate table to the hierarchy table. If no
+                 // aggregate table is used, we can use the column expression
+                 // directly.
+                if (aggStar != null
+                    && rolapLevel instanceof RolapCubeLevel
+                    && expression == rolapLevel.keyExp)
+                {
+                    int bitPos =
+                        ((RolapCubeLevel)rolapLevel).getStarKeyColumn()
+                            .getBitPosition();
+                    mondrian.rolap.aggmatcher.AggStar.Table.Column col =
+                        aggStar.lookupColumn(bitPos);
+                    if (col != null) {
+                        sourceExp = col.generateExprString(sqlQuery);
+                    } else {
+                        // Make sure the level table is part of the query.
+                        rolapLevel.getHierarchy().addToFrom(
+                            sqlQuery,
+                            expression);
+                        sourceExp = expression.getExpression(sqlQuery);
+                    }
+                } else if (aggStar != null) {
+                    // Make sure the level table is part of the query.
+                    rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
+                    sourceExp = expression.getExpression(sqlQuery);
+                } else {
+                    if (rolapLevel instanceof RolapCubeLevel
+                        && expression.equals(rolapLevel.keyExp)
+                        && evaluator.getBaseCubes() != null
+                        && evaluator.getBaseCubes().size() == 1)
+                    {
+                        RolapCube baseCube = evaluator.getBaseCubes().get(0);
+                        RolapStar.Column column =
+                            ((RolapCubeLevel)rolapLevel).getBaseStarKeyColumn(baseCube);
+                        if (column != null && column.isOptimized()) {
+                            expression = column.optimize().getExpression();
+                        }
+                    }
+                    // Make sure the level table is part of the query.
+                    rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
+                    sourceExp = expression.getExpression(sqlQuery);
+                }
+
+                // The dialect might require the use of the alias rather
+                // then the column exp.
+                if (sourceExp != null && getAlias && dialect.requiresHavingAlias()) {
+                    String alias = sqlQuery.getAlias(sourceExp);
+                    if (alias == null) {
+                        sourceExp = sqlQuery.addSelect(sourceExp, null);
+                    } else {
+                        sourceExp = alias;
+                    }
+                }
+            }
+            return sourceExp;
+        }
     }
 
     /**
@@ -796,130 +812,29 @@ public class RolapNativeSql {
         }
 
         public String compile(Exp exp) {
+            if (!match(exp)) {
+                return null;
+            }
             String sourceExp = null;
-            /*String[] args = compileArgs(exp, compiler);
-            if (args != null) {
-                sourceExp = args[0];
-            } else */if (match(exp) && exp instanceof ResolvedFunCall && evaluator != null) {
+            if (evaluator != null
+                && exp instanceof ResolvedFunCall
+                && ((ResolvedFunCall) exp).getArgCount() == argCount)
+            {
                 final Exp arg0 = ((ResolvedFunCall) exp).getArg(0);
-
-                // Must finish by ".Caption" or ".Name"
-                if (!(arg0 instanceof ResolvedFunCall)
-                    || ((ResolvedFunCall) arg0).getArgCount() != 1
-                    || !(arg0.getType() instanceof StringType)
-                    || (!((ResolvedFunCall)arg0).getFunName().equals("Name")
-                    && !((ResolvedFunCall)arg0).getFunName().equals("Caption")))
-                {
-                    return null;
-                }
-
-                final boolean useCaption;
-                if (((ResolvedFunCall) arg0).getFunName().equals("Name")) {
-                    useCaption = false;
-                } else {
-                    useCaption = true;
-                }
-
-                // Must be ".CurrentMember"
-                final Exp currMemberExpr = ((ResolvedFunCall) arg0).getArg(0);
-                if (!(currMemberExpr instanceof ResolvedFunCall)
-                    || ((ResolvedFunCall) currMemberExpr).getArgCount() != 1
-                    || !(currMemberExpr.getType() instanceof MemberType)
-                    || !((ResolvedFunCall) currMemberExpr).getFunName().equals("CurrentMember"))
-                {
-                    return null;
-                }
-
-                // Must be a dimension, a hierarchy or a level.
-                final RolapCubeDimension dimension;
-                final Exp dimExpr = ((ResolvedFunCall) currMemberExpr).getArg(0);
-                if (dimExpr instanceof DimensionExpr) {
-                    dimension =
-                        (RolapCubeDimension) evaluator.getCachedResult(
-                            new ExpCacheDescriptor(dimExpr, evaluator));
-                } else if (dimExpr instanceof HierarchyExpr) {
-                    final RolapCubeHierarchy hierarchy =
-                        (RolapCubeHierarchy) evaluator.getCachedResult(
-                            new ExpCacheDescriptor(dimExpr, evaluator));
-                    dimension = (RolapCubeDimension) hierarchy.getDimension();
-                } else if (dimExpr instanceof LevelExpr) {
-                    final RolapCubeLevel level =
-                        (RolapCubeLevel) evaluator.getCachedResult(
-                            new ExpCacheDescriptor(dimExpr, evaluator));
-                    dimension = level.getDimension();
-                } else {
-                    return null;
-                }
-
-                if (rolapLevel != null
-                    && dimension.equals(rolapLevel.getDimension()))
-                {
-                    // We can't use the evaluator because the filter is filtering
-                    // a set which is uses same dimension as the predicate.
-                    // We must use, in order of priority,
-                    //  - caption requested: caption->name->key
-                    //  - name requested: name->key
-                    MondrianDef.Expression expression = useCaption
-                            ? rolapLevel.captionExp == null
-                            ? rolapLevel.nameExp == null
-                            ? rolapLevel.keyExp
-                            : rolapLevel.nameExp
-                            : rolapLevel.captionExp
-                            : rolapLevel.nameExp == null
-                            ? rolapLevel.keyExp
-                            : rolapLevel.nameExp;
-                    // If an aggregation table is used, it might be more efficient
-                    // to use only the aggregate table and not the hierarchy table.
-                    // Try to lookup the column bit key. If that fails, we will
-                    // link the aggregate table to the hierarchy table. If no
-                    // aggregate table is used, we can use the column expression
-                    // directly.
-                    if (aggStar != null
-                        && rolapLevel instanceof RolapCubeLevel
-                        && expression == rolapLevel.keyExp)
-                    {
-                        int bitPos =
-                            ((RolapCubeLevel) rolapLevel).getStarKeyColumn()
-                                .getBitPosition();
-                        mondrian.rolap.aggmatcher.AggStar.Table.Column col =
-                            aggStar.lookupColumn(bitPos);
-                        if (col != null) {
-                            sourceExp = col.generateExprString(sqlQuery);
-                        } else {
-                            // Make sure the level table is part of the query.
-                            rolapLevel.getHierarchy().addToFrom(
-                                sqlQuery,
-                                expression);
-                            sourceExp = expression.getExpression(sqlQuery);
-                        }
-                    } else if (aggStar != null) {
-                        // Make sure the level table is part of the query.
-                        rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
-                        sourceExp = expression.getExpression(sqlQuery);
-                    } else {
-                        if (rolapLevel instanceof RolapCubeLevel
-                            && expression.equals(rolapLevel.keyExp)
-                            && evaluator.getBaseCubes() != null
-                            && evaluator.getBaseCubes().size() == 1)
-                        {
-                            RolapCube baseCube = evaluator.getBaseCubes().get(0);
-                            RolapStar.Column column =
-                                ((RolapCubeLevel)rolapLevel).getBaseStarKeyColumn(baseCube);
-                            if (column != null && column.isOptimized()) {
-                                expression = column.optimize().getExpression();
-                            }
-                        }
-                        sourceExp = expression.getExpression(sqlQuery);
-                    }
-                }
-            } else {
+                sourceExp = getCurrentMemberExp(arg0, false);
+            }
+            if (sourceExp == null) {
                 String[] args = compileArgs(exp, compiler);
                 if (args != null) {
                     sourceExp = args[0];
                 }
             }
 
-            return sourceExp != null ? (this.isUpper ? "UPPER(" : "LOWER(") + sourceExp + ")" : null;
+            return sourceExp == null
+                ? null
+                : this.isUpper
+                    ? dialect.toUpper(sourceExp)
+                    : dialect.toLower(sourceExp);
         }
 
         public String toString() {
@@ -938,8 +853,44 @@ public class RolapNativeSql {
         }
 
         public String compile(Exp exp) {
+            if (!match(exp)) {
+                return null;
+            }
             String[] args;
             try {
+                if (evaluator != null
+                    && exp instanceof ResolvedFunCall
+                    && ((ResolvedFunCall) exp).getArgCount() == argCount)
+                {
+                    final Exp arg0 = ((ResolvedFunCall) exp).getArg(0);
+                    final Exp arg1 = ((ResolvedFunCall) exp).getArg(1);
+                    String string;
+                    String substring = getCurrentMemberExp(arg1, true);
+                    StringBuilder sb = new StringBuilder();
+                    if (substring == null) {
+                        string = getCurrentMemberExp(arg0, true);
+                        if (string != null) {
+                            substring =
+                                String.valueOf(
+                                    evaluator.getCachedResult(
+                                        new ExpCacheDescriptor(arg1, evaluator)));
+                            dialect.quoteStringLiteral(sb, substring);
+                            substring = sb.toString();
+                        }
+                    } else {
+                        string =
+                            String.valueOf(
+                                evaluator.getCachedResult(
+                                    new ExpCacheDescriptor(arg0, evaluator)));
+                        dialect.quoteStringLiteral(sb, string);
+                        string = sb.toString();
+                    }
+                    String sql =
+                        dialect.generateInStrExpression(string, substring);
+                    if (sql != null) {
+                        return sql;
+                    }
+                }
                 args = compileArgs(exp, compiler);
             } catch (Exception e) {
                 return null;
@@ -947,12 +898,7 @@ public class RolapNativeSql {
             if (args == null) {
                 return null;
             }
-            StringBuilder sb = new StringBuilder("POSITION(");
-            dialect.quoteStringLiteral(sb, args[1]);
-            sb.append(" IN ");
-            sb.append(args[0]);
-            sb.append(")");
-            return sb.toString();
+            return dialect.generateInStrExpression(args[0], args[1]);
         }
 
         public String toString() {

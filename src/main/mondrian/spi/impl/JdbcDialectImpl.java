@@ -1193,6 +1193,16 @@ public class JdbcDialectImpl implements Dialect {
     public boolean supportsOrderInSubqueries() {
         return true;
     }
+
+    public String generateInStrExpression(String string, String substring) {
+        return string == null || substring == null
+            ? null
+            : "INSTR(" + string + ", " + substring + ")";
+    }
+
+    public String toLower(String expr) {
+        return "LOWER(" + expr + ")";
+    }
 }
 
 // End JdbcDialectImpl.java

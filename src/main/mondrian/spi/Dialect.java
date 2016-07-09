@@ -851,6 +851,29 @@ public interface Dialect {
     boolean supportsOrderInSubqueries();
 
     /**
+     * Returns a string containing an expression with a function
+     * that gives the position of a substring in a string.
+     *
+     * @param string String to be searched.
+     * @param substring Substring to be found.
+     * @return A dialect specific implementation of a function
+     * that returns the position of a substring in a string.
+     */
+    String generateInStrExpression(String string, String substring);
+
+    /**
+     * Converts an expression to lower case.
+     *
+     * <p>For example, for MySQL, {@code toLower("foo.bar")} returns
+     * {@code "LOWER(foo.bar)"}.</p>
+     *
+     * @param expr SQL expression     *
+     * @return SQL syntax that converts <code>expr</code>
+     * into lower case.
+     */
+    String toLower(String expr);
+
+    /**
      * Enumeration of common database types.
      *
      * <p>Branching on this enumeration allows you to write code which behaves

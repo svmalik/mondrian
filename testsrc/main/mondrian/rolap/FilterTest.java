@@ -1763,6 +1763,52 @@ public class FilterTest extends BatchTestCase {
             + "Row #25: 936\n");
     }
 
+    public void testNativeFilterInStr() {
+        propSaver.set(MondrianProperties.instance().SsasCompatibleNaming, true);
+        String mdx =
+            "WITH MEMBER [Measures].[(Ancestors)] AS "
+            + "Generate(Ascendants([Store].CurrentMember), [Store].CurrentMember.Name, \"^$^\")\n"
+            + "SELECT {[Measures].[(Ancestors)]} ON COLUMNS,\n"
+            + "Filter([Store].[Store State].AllMembers,"
+            + "InStr(\"CA, PA, WA\", [Store].CurrentMember.Name) > 0) ON ROWS\n"
+            + "FROM [Sales]";
+        if (!isUseAgg() && MondrianProperties.instance().EnableNativeFilter.get())
+        {
+            propSaver.set(MondrianProperties.instance().GenerateFormattedSql, true);
+            String sql =
+                "select\n"
+                + "    `store`.`store_country` as `c0`,\n"
+                + "    `store`.`store_state` as `c1`\n"
+                + "from\n"
+                + "    `store` as `store`\n"
+                + "group by\n"
+                + "    `store`.`store_country`,\n"
+                + "    `store`.`store_state`\n"
+                + "having\n"
+                + "    (INSTR('CA, PA, WA', c1) > 0)\n"
+                + "order by\n"
+                + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
+                + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC";
+            assertQuerySql(
+                mdx,
+                new SqlPattern[] {
+                    new SqlPattern(Dialect.DatabaseProduct.MYSQL, sql, null)
+                });
+        }
+
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[(Ancestors)]}\n"
+            + "Axis #2:\n"
+            + "{[Store].[USA].[CA]}\n"
+            + "{[Store].[USA].[WA]}\n"
+            + "Row #0: CA^$^USA^$^All Stores\n"
+            + "Row #1: WA^$^USA^$^All Stores\n");
+    }
+
     public void testNativeFilterMatchNoJoin() {
         if (!getTestContext().getDialect().allowsRegularExpressionInWhereClause()){
             return;
