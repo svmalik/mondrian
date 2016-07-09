@@ -2630,6 +2630,11 @@ public class FunUtil extends Util {
         String string,
         Hierarchy hierarchy)
     {
+        if (hierarchy == null) {
+            IdBatchResolver resolver =
+                new IdBatchResolver(evaluator.getQuery());
+            return resolver.resolveMembers(string);
+        }
         IdentifierParser.MemberListBuilder builder =
             new IdentifierParser.MemberListBuilder(
                 evaluator.getSchemaReader(),

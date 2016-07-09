@@ -12,8 +12,10 @@ package mondrian.olap;
 import mondrian.mdx.*;
 
 import mondrian.rolap.RolapMember;
+import mondrian.util.IdentifierParser;
 import org.apache.commons.collections.*;
 import org.apache.log4j.Logger;
+import org.olap4j.mdx.IdentifierSegment;
 
 import java.util.*;
 
@@ -42,9 +44,6 @@ public final class IdBatchResolver {
     static final Logger LOGGER = Logger.getLogger(IdBatchResolver.class);
 
     private final Query query;
-    private final Formula[] formulas;
-    private final QueryAxis[] axes;
-    private final Cube cube;
 
     // dimension and hierarchy unique names are collected during init
     // to assist in classifying Ids as potentially resolvable to members.
@@ -66,11 +65,32 @@ public final class IdBatchResolver {
 
     public IdBatchResolver(Query query) {
         this.query = query;
-        formulas = query.getFormulas();
-        axes = query.getAxes();
-        cube = query.getCube();
-        initOlapElementNames();
-        initIdentifiers();
+        initOlapElementNames(query.getCube());
+        initIdentifiers(query);
+    }
+
+    public List<Member> resolveMembers(String string) {
+        List<List<IdentifierSegment>> identifierList =
+            IdentifierParser.parseIdentifierList(string);
+        List<Member> members = new ArrayList<>(identifierList.size());
+        if (!identifierList.isEmpty()) {
+            Set<Id> membersIds = new LinkedHashSet<>(identifierList.size());
+            for (List<IdentifierSegment> segments : identifierList) {
+                Id id = new Id(Util.convert(segments));
+                this.identifiers.add(id);
+                membersIds.add(id);
+            }
+            expandIdentifiers(this.identifiers);
+            Map<QueryPart, QueryPart> membersMap =
+                resolveInParentGroupings(this.identifiers);
+            for (Id id : membersIds) {
+                QueryPart q = membersMap.get(id);
+                if (q != null && q instanceof MemberExpr) {
+                    members.add(((MemberExpr) q).getMember());
+                }
+            }
+        }
+        return members;
     }
 
     /**
@@ -79,7 +99,7 @@ public final class IdBatchResolver {
      * will be used to help determine whether identifiers correspond to
      * a dimension/hierarchy/level.
      */
-    private void initOlapElementNames() {
+    private void initOlapElementNames(Cube cube) {
         dimensionUniqueNames.addAll(
             getOlapElementNames(cube.getDimensions(), true));
         for (Dimension dim : cube.getDimensions()) {
@@ -101,8 +121,10 @@ public final class IdBatchResolver {
      *   [Store].[All Store].[USA]
      *   [Store].[All Store]
      */
-    private void initIdentifiers() {
+    private void initIdentifiers(Query query) {
         MdxVisitor identifierVisitor = new IdentifierVisitor(identifiers);
+        QueryAxis[] axes = query.getAxes();
+        Formula[] formulas = query.getFormulas();
         for (QueryAxis axis : axes) {
             axis.accept(identifierVisitor);
         }
@@ -145,7 +167,7 @@ public final class IdBatchResolver {
         SortedSet<Id> identifiers)
     {
         final Map<QueryPart, QueryPart> resolvedIdentifiers =
-            new HashMap<QueryPart, QueryPart>();
+            new LinkedHashMap<>();
 
         while (identifiers.size() > 0) {
             Id parent = identifiers.first();
