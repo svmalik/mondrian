@@ -496,6 +496,7 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             if (this.getEvaluator() instanceof RolapEvaluator) {
                 key.setSlicerMembers(((RolapEvaluator) this.getEvaluator()).getSlicerMembers());
             }
+            key.setValue("nonEmptyMeasures", this.nonEmptyMeasures);
             return key;
         }
     }
