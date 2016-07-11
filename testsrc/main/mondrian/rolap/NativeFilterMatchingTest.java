@@ -4,7 +4,7 @@
 // http://www.eclipse.org/legal/epl-v10.html.
 // You must accept the terms of that agreement to use this software.
 //
-// Copyright (c) 2002-2015 Pentaho Corporation.  All rights reserved.
+// Copyright (c) 2002-2016 Pentaho Corporation.  All rights reserved.
 */
 package mondrian.rolap;
 
@@ -28,7 +28,13 @@ public class NativeFilterMatchingTest extends BatchTestCase {
         final String sqlPgsql =
             "select \"customer\".\"country\" as \"c0\", \"customer\".\"state_province\" as \"c1\", \"customer\".\"city\" as \"c2\", \"customer\".\"customer_id\" as \"c3\", fullname as \"c4\", fullname as \"c5\", \"customer\".\"gender\" as \"c6\", \"customer\".\"marital_status\" as \"c7\", \"customer\".\"education\" as \"c8\", \"customer\".\"yearly_income\" as \"c9\" from \"customer\" as \"customer\", \"sales_fact_1997\" as \"sales_fact_1997\", \"time_by_day\" as \"time_by_day\" where \"sales_fact_1997\".\"customer_id\" = \"customer\".\"customer_id\" and \"sales_fact_1997\".\"time_id\" = \"time_by_day\".\"time_id\" and \"time_by_day\".\"the_year\" = 1997 group by \"customer\".\"country\", \"customer\".\"state_province\", \"customer\".\"city\", \"customer\".\"customer_id\", fullname, \"customer\".\"gender\", \"customer\".\"marital_status\", \"customer\".\"education\", \"customer\".\"yearly_income\" having NOT((sum(\"sales_fact_1997\".\"unit_sales\") is null))  and cast(fullname as text) ~ '(?i).*jeanne.*' order by \"customer\".\"country\" ASC NULLS LAST, \"customer\".\"state_province\" ASC NULLS LAST, \"customer\".\"city\" ASC NULLS LAST, fullname ASC NULLS LAST";
         final String sqlMysql =
-            "select `customer`.`country` as `c0`, `customer`.`state_province` as `c1`, `customer`.`city` as `c2`, `customer`.`customer_id` as `c3`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c4`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c5`, `customer`.`gender` as `c6`, `customer`.`marital_status` as `c7`, `customer`.`education` as `c8`, `customer`.`yearly_income` as `c9` from `customer` as `customer`, `sales_fact_1997` as `sales_fact_1997`, `time_by_day` as `time_by_day` where `sales_fact_1997`.`customer_id` = `customer`.`customer_id` and `sales_fact_1997`.`time_id` = `time_by_day`.`time_id` and `time_by_day`.`the_year` = 1997 group by `customer`.`country`, `customer`.`state_province`, `customer`.`city`, `customer`.`customer_id`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`), `customer`.`gender`, `customer`.`marital_status`, `customer`.`education`, `customer`.`yearly_income` having NOT((sum(`sales_fact_1997`.`unit_sales`) is null))  and UPPER(c5) REGEXP '.*JEANNE.*' order by ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC, ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC, ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC, ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC";
+            "select `customer`.`country` as `c0`, `customer`.`state_province` as `c1`, `customer`.`city` as `c2`, `customer`.`customer_id` as `c3`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c4`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c5`, `customer`.`gender` as `c6`, `customer`.`marital_status` as `c7`, `customer`.`education` as `c8`, `customer`.`yearly_income` as `c9` from `customer` as `customer` group by `customer`.`country`, `customer`.`state_province`, `customer`.`city`, `customer`.`customer_id`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`), `customer`.`gender`, `customer`.`marital_status`, `customer`.`education`, `customer`.`yearly_income` having UPPER(c5) REGEXP '.*JEANNE.*' order by "
+                + (TestContext.instance().getDialect().requiresOrderByAlias()
+                    ? "ISNULL(`c0`) ASC, `c0` ASC, "
+                    + "ISNULL(`c1`) ASC, `c1` ASC, "
+                    + "ISNULL(`c2`) ASC, `c2` ASC, "
+                    + "ISNULL(`c4`) ASC, `c4` ASC"
+                    : "ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC, ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC, ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC, ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC");
 
         SqlPattern[] patterns = {
             new SqlPattern(
@@ -103,7 +109,13 @@ public class NativeFilterMatchingTest extends BatchTestCase {
         final String sqlPgsql =
             "select \"customer\".\"country\" as \"c0\", \"customer\".\"state_province\" as \"c1\", \"customer\".\"city\" as \"c2\", \"customer\".\"customer_id\" as \"c3\", fullname as \"c4\", fullname as \"c5\", \"customer\".\"gender\" as \"c6\", \"customer\".\"marital_status\" as \"c7\", \"customer\".\"education\" as \"c8\", \"customer\".\"yearly_income\" as \"c9\" from \"customer\" as \"customer\", \"sales_fact_1997\" as \"sales_fact_1997\", \"time_by_day\" as \"time_by_day\" where \"sales_fact_1997\".\"customer_id\" = \"customer\".\"customer_id\" and \"sales_fact_1997\".\"time_id\" = \"time_by_day\".\"time_id\" and \"time_by_day\".\"the_year\" = 1997 group by \"customer\".\"country\", \"customer\".\"state_province\", \"customer\".\"city\", \"customer\".\"customer_id\", fullname, \"customer\".\"gender\", \"customer\".\"marital_status\", \"customer\".\"education\", \"customer\".\"yearly_income\" having NOT((sum(\"sales_fact_1997\".\"unit_sales\") is null))  and NOT(cast(fullname as text) ~ '(?i).*jeanne.*')  order by \"customer\".\"country\" ASC NULLS LAST, \"customer\".\"state_province\" ASC NULLS LAST, \"customer\".\"city\" ASC NULLS LAST, fullname ASC NULLS LAST";
         final String sqlMysql =
-            "select `customer`.`country` as `c0`, `customer`.`state_province` as `c1`, `customer`.`city` as `c2`, `customer`.`customer_id` as `c3`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c4`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c5`, `customer`.`gender` as `c6`, `customer`.`marital_status` as `c7`, `customer`.`education` as `c8`, `customer`.`yearly_income` as `c9` from `customer` as `customer`, `sales_fact_1997` as `sales_fact_1997`, `time_by_day` as `time_by_day` where `sales_fact_1997`.`customer_id` = `customer`.`customer_id` and `sales_fact_1997`.`time_id` = `time_by_day`.`time_id` and `time_by_day`.`the_year` = 1997 group by `customer`.`country`, `customer`.`state_province`, `customer`.`city`, `customer`.`customer_id`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`), `customer`.`gender`, `customer`.`marital_status`, `customer`.`education`, `customer`.`yearly_income` having NOT((sum(`sales_fact_1997`.`unit_sales`) is null))  and NOT(UPPER(c5) REGEXP '.*JEANNE.*')  order by ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC, ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC, ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC, ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC";
+            "select `customer`.`country` as `c0`, `customer`.`state_province` as `c1`, `customer`.`city` as `c2`, `customer`.`customer_id` as `c3`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c4`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) as `c5`, `customer`.`gender` as `c6`, `customer`.`marital_status` as `c7`, `customer`.`education` as `c8`, `customer`.`yearly_income` as `c9` from `customer` as `customer` group by `customer`.`country`, `customer`.`state_province`, `customer`.`city`, `customer`.`customer_id`, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`), `customer`.`gender`, `customer`.`marital_status`, `customer`.`education`, `customer`.`yearly_income` having NOT(UPPER(c5) REGEXP '.*JEANNE.*')  order by "
+                + (TestContext.instance().getDialect().requiresOrderByAlias()
+                    ? "ISNULL(`c0`) ASC, `c0` ASC, "
+                    + "ISNULL(`c1`) ASC, `c1` ASC, "
+                    + "ISNULL(`c2`) ASC, `c2` ASC, "
+                    + "ISNULL(`c4`) ASC, `c4` ASC"
+                    : "ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC, ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC, ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC, ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC");
         SqlPattern[] patterns = {
             new SqlPattern(
                 Dialect.DatabaseProduct.ORACLE,
@@ -289,6 +301,8 @@ public class NativeFilterMatchingTest extends BatchTestCase {
         if (MondrianProperties.instance().EnableNativeFilter.get()
             && MondrianProperties.instance().EnableNativeNonEmpty.get())
         {
+            boolean requiresOrderByAlias =
+                    TestContext.instance().getDialect().requiresOrderByAlias();
             final String sqlMysql =
                 propSaver.properties.UseAggregates.get() == false
                     ? "select\n"
@@ -315,8 +329,11 @@ public class NativeFilterMatchingTest extends BatchTestCase {
                     + "having\n"
                     + "    (sum(`sales_fact_1997`.`unit_sales`) > 80)\n"
                     + "order by\n"
-                    + "    ISNULL(`time_by_day`.`the_year`) ASC, `time_by_day`.`the_year` ASC,\n"
-                    + "    ISNULL(`time_by_day`.`quarter`) ASC, `time_by_day`.`quarter` ASC"
+                    + (requiresOrderByAlias
+                        ? "    ISNULL(`c0`) ASC, `c0` ASC,\n"
+                        + "    ISNULL(`c1`) ASC, `c1` ASC"
+                        : "    ISNULL(`time_by_day`.`the_year`) ASC, `time_by_day`.`the_year` ASC,\n"
+                        + "    ISNULL(`time_by_day`.`quarter`) ASC, `time_by_day`.`quarter` ASC")
 
                     : "select\n"
                     + "    `agg_c_14_sales_fact_1997`.`the_year` as `c0`,\n"
@@ -339,8 +356,11 @@ public class NativeFilterMatchingTest extends BatchTestCase {
                     + "having\n"
                     + "    (sum(`agg_c_14_sales_fact_1997`.`unit_sales`) > 80)\n"
                     + "order by\n"
-                    + "    ISNULL(`agg_c_14_sales_fact_1997`.`the_year`) ASC, `agg_c_14_sales_fact_1997`.`the_year` ASC,\n"
-                    + "    ISNULL(`agg_c_14_sales_fact_1997`.`quarter`) ASC, `agg_c_14_sales_fact_1997`.`quarter` ASC";
+                    + (requiresOrderByAlias
+                        ? "    ISNULL(`c0`) ASC, `c0` ASC,\n"
+                        + "    ISNULL(`c1`) ASC, `c1` ASC"
+                        : "    ISNULL(`agg_c_14_sales_fact_1997`.`the_year`) ASC, `agg_c_14_sales_fact_1997`.`the_year` ASC,\n"
+                        + "    ISNULL(`agg_c_14_sales_fact_1997`.`quarter`) ASC, `agg_c_14_sales_fact_1997`.`quarter` ASC");
             final SqlPattern[] patterns = mysqlPattern(sqlMysql);
 
             // Make sure the tuples list is using the HAVING clause.
@@ -400,8 +420,11 @@ public class NativeFilterMatchingTest extends BatchTestCase {
                 + "having\n"
                 + "    (sum(`agg_c_14_sales_fact_1997`.`unit_sales`) > 80)\n"
                 + "order by\n"
-                + "    ISNULL(`agg_c_14_sales_fact_1997`.`the_year`) ASC, `agg_c_14_sales_fact_1997`.`the_year` ASC,\n"
-                + "    ISNULL(`agg_c_14_sales_fact_1997`.`quarter`) ASC, `agg_c_14_sales_fact_1997`.`quarter` ASC";
+                + (TestContext.instance().getDialect().requiresOrderByAlias()
+                    ? "    ISNULL(`c0`) ASC, `c0` ASC,\n"
+                    + "    ISNULL(`c1`) ASC, `c1` ASC"
+                    : "    ISNULL(`agg_c_14_sales_fact_1997`.`the_year`) ASC, `agg_c_14_sales_fact_1997`.`the_year` ASC,\n"
+                    + "    ISNULL(`agg_c_14_sales_fact_1997`.`quarter`) ASC, `agg_c_14_sales_fact_1997`.`quarter` ASC");
             final SqlPattern[] patterns = mysqlPattern(sqlMysql);
 
             // Make sure the tuples list is using the HAVING clause.
@@ -437,6 +460,8 @@ public class NativeFilterMatchingTest extends BatchTestCase {
         if (MondrianProperties.instance().EnableNativeFilter.get()
             && MondrianProperties.instance().EnableNativeNonEmpty.get())
         {
+            boolean requiresOrderByAlias =
+                    TestContext.instance().getDialect().requiresOrderByAlias();
             final String sqlMysql =
                 propSaver.properties.UseAggregates.get() == false
                     ? "select\n"
@@ -480,6 +505,16 @@ public class NativeFilterMatchingTest extends BatchTestCase {
                     + "having\n"
                     + "    (sum(`sales_fact_1997`.`unit_sales`) > 0)) as `countQuery`"
                     // ^^^^ This is what we are interested in. ^^^^
+                    + "order by\n"
+                    + (requiresOrderByAlias
+                        ? "    ISNULL(`c0`) ASC, `c0` ASC,\n"
+                        + "    ISNULL(`c1`) ASC, `c1` ASC,\n"
+                        + "    ISNULL(`c2`) ASC, `c2` ASC,\n"
+                        + "    ISNULL(`c4`) ASC, `c4` ASC"
+                        : "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
+                        + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC,\n"
+                        + "    ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC,\n"
+                        + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC")
 
                     : "select\n"
                     + "    COUNT(*)\n"
