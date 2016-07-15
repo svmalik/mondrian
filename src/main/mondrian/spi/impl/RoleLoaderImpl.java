@@ -51,7 +51,7 @@ public class RoleLoaderImpl implements RoleLoader {
         if (roleNameList != null) {
             List<String> roleNames = Util.parseCommaList(roleNameList);
             for (String roleName : roleNames) {
-                Role role1;
+                Role role1 = null;
                 final LockBox.Entry entry = server.getLockBox()
                                                   .get(roleName);
                 if (entry != null) {
@@ -60,7 +60,8 @@ public class RoleLoaderImpl implements RoleLoader {
                     } catch (ClassCastException e) {
                         role1 = null;
                     }
-                } else {
+                }
+                if (role1 == null) {
                     role1 = schema.lookupRole(roleName);
                 }
                 if (role1 == null) {
@@ -72,4 +73,4 @@ public class RoleLoaderImpl implements RoleLoader {
         return roleList;
     }
 
-}
+}
