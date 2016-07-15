@@ -1892,6 +1892,59 @@ public class FilterTest extends BatchTestCase {
             + "Row #7: Kathleen Oliver^$^Lemon Grove^$^CA^$^USA^$^All Customers\n"
             + "Row #8: Kimberly Oliver^$^Lemon Grove^$^CA^$^USA^$^All Customers\n"
             + "Row #9: Jacqueline Oliver^$^La Mesa^$^CA^$^USA^$^All Customers\n");
+
+        // search by numeric value
+        mdx = "SELECT {} ON COLUMNS,\n"
+            + "Filter([Store].[Store].[Store Name].AllMembers,"
+            + " INSTR([Store].CurrentMember.Caption, \"5\") > 0) ON ROWS\n"
+            + "FROM [Sales]";
+        if (!isUseAgg()) {
+            String sql =
+                "select\n"
+                + "    `store`.`store_country` as `c0`,\n"
+                + "    `store`.`store_state` as `c1`,\n"
+                + "    `store`.`store_city` as `c2`,\n"
+                + "    `store`.`store_name` as `c3`,\n"
+                + "    `store`.`store_type` as `c4`,\n"
+                + "    `store`.`store_manager` as `c5`,\n"
+                + "    `store`.`store_sqft` as `c6`,\n"
+                + "    `store`.`grocery_sqft` as `c7`,\n"
+                + "    `store`.`frozen_sqft` as `c8`,\n"
+                + "    `store`.`meat_sqft` as `c9`,\n"
+                + "    `store`.`coffee_bar` as `c10`,\n"
+                + "    `store`.`store_street_address` as `c11`\n"
+                + "from\n"
+                + "    `store` as `store`\n"
+                + "group by\n"
+                + "    `store`.`store_country`,\n"
+                + "    `store`.`store_state`,\n"
+                + "    `store`.`store_city`,\n"
+                + "    `store`.`store_name`,\n"
+                + "    `store`.`store_type`,\n"
+                + "    `store`.`store_manager`,\n"
+                + "    `store`.`store_sqft`,\n"
+                + "    `store`.`grocery_sqft`,\n"
+                + "    `store`.`frozen_sqft`,\n"
+                + "    `store`.`meat_sqft`,\n"
+                + "    `store`.`coffee_bar`,\n"
+                + "    `store`.`store_street_address`\n"
+                + "having\n"
+                + "    (INSTR(c3, '5') > 0)\n"
+                + "order by\n"
+                + "    ISNULL(`store`.`store_country`) ASC, `store`.`store_country` ASC,\n"
+                + "    ISNULL(`store`.`store_state`) ASC, `store`.`store_state` ASC,\n"
+                + "    ISNULL(`store`.`store_city`) ASC, `store`.`store_city` ASC,\n"
+                + "    ISNULL(`store`.`store_name`) ASC, `store`.`store_name` ASC";
+            assertQuerySql(mdx, mysqlPattern(sql));
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+                + "{}\n"
+                + "Axis #1:\n"
+                + "Axis #2:\n"
+                + "{[Store].[Mexico].[Jalisco].[Guadalajara].[Store 5]}\n"
+                + "{[Store].[USA].[WA].[Seattle].[Store 15]}\n");
     }
 
     public void testNativeFilterMatchNoJoinWithHanger() {

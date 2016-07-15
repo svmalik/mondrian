@@ -646,12 +646,16 @@ public class RolapNativeSql {
                         RolapStar.Column column =
                             ((RolapCubeLevel)rolapLevel).getBaseStarKeyColumn(baseCube);
                         if (column != null && column.isOptimized()) {
-                            expression = column.optimize().getExpression();
+                            column = column.optimize();
+                            rolapLevel.getHierarchy().addToFrom(sqlQuery, column.getTable());
+                            sourceExp = column.generateExprString(sqlQuery);
                         }
                     }
-                    // Make sure the level table is part of the query.
-                    rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
-                    sourceExp = expression.getExpression(sqlQuery);
+                    if (sourceExp == null) {
+                        // Make sure the level table is part of the query.
+                        rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
+                        sourceExp = expression.getExpression(sqlQuery);
+                    }
                 }
 
                 // The dialect might require the use of the alias rather
@@ -856,7 +860,6 @@ public class RolapNativeSql {
             if (!match(exp)) {
                 return null;
             }
-            String[] args;
             try {
                 if (evaluator != null
                     && exp instanceof ResolvedFunCall
@@ -891,14 +894,28 @@ public class RolapNativeSql {
                         return sql;
                     }
                 }
-                args = compileArgs(exp, compiler);
+
+                String[] args = new String[argCount];
+                for (int i = 0; i < argCount; i++) {
+                    Exp arg = ((FunCall) exp).getArg(i);
+                    String sql;
+                    if (arg instanceof Literal) {
+                        StringBuilder sb = new StringBuilder();
+                        dialect.quoteStringLiteral(
+                            sb, String.valueOf(((Literal) arg).getValue()));
+                        sql = sb.toString();
+                    } else {
+                        sql = compiler.compile(arg);
+                    }
+                    if (sql == null) {
+                        return null;
+                    }
+                    args[i] = sql;
+                }
+                return dialect.generateInStrExpression(args[0], args[1]);
             } catch (Exception e) {
                 return null;
             }
-            if (args == null) {
-                return null;
-            }
-            return dialect.generateInStrExpression(args[0], args[1]);
         }
 
         public String toString() {
