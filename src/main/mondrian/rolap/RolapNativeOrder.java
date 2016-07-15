@@ -11,6 +11,7 @@
 */
 package mondrian.rolap;
 
+import mondrian.mdx.MdxVisitorImpl;
 import mondrian.mdx.MemberExpr;
 import mondrian.olap.*;
 import mondrian.rolap.aggmatcher.AggStar;
@@ -20,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.sql.DataSource;
 
@@ -59,11 +61,34 @@ public class RolapNativeOrder extends RolapNativeSet {
         /**
          * {@inheritDoc}
          *
-         * <p>Order always needs to join the fact table because we want to
-         * evaluate the order expression which involves a fact.
+         * <p>We have to join to the fact table if the order
+         * expression references a measure.
          */
         protected boolean isJoinRequired() {
-            return true;
+            // Use a visitor and check all member expressions.
+            // If any of them is a measure, we will have to
+            // force the join to the fact table. If it is something
+            // else then we don't really care. It will show up in
+            // the evaluator as a non-all member and trigger the
+            // join when we call RolapNativeSet.isJoinRequired().
+            final AtomicBoolean mustJoin = new AtomicBoolean(true);
+            if (orderByExpr != null) {
+                mustJoin.set(false);
+                orderByExpr.accept(
+                    new MdxVisitorImpl() {
+                        public Object visit(MemberExpr memberExpr) {
+                            if (memberExpr.getMember() instanceof RolapStoredMeasure
+                                && memberExpr.getMember().isMeasure())
+                            {
+                                mustJoin.set(true);
+                                return null;
+                            }
+                            return super.visit(memberExpr);
+                        }
+                    });
+            }
+            return mustJoin.get()
+                || (parentConstraint != null && parentConstraint.isJoinRequired());
         }
 
         public void addConstraint(

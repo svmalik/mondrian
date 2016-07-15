@@ -1838,7 +1838,8 @@ public class FilterTest extends BatchTestCase {
                 + "    `customer`.`gender` as `c6`,\n"
                 + "    `customer`.`marital_status` as `c7`,\n"
                 + "    `customer`.`education` as `c8`,\n"
-                + "    `customer`.`yearly_income` as `c9`\n"
+                + "    `customer`.`yearly_income` as `c9`,\n"
+                + "    INSTR(LOWER(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)), 'oliv') as `c10`\n"
                 + "from\n"
                 + "    `customer` as `customer`\n"
                 + "group by\n"
@@ -1854,15 +1855,12 @@ public class FilterTest extends BatchTestCase {
                 + "having\n"
                 + "    (UPPER(c5) REGEXP '.*OLIV.*') \n"
                 + "order by\n"
+                + "    ISNULL(INSTR(LOWER(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)), 'oliv')) ASC, INSTR(LOWER(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)), 'oliv') ASC,\n"
                 + "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
                 + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC,\n"
                 + "    ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC,\n"
                 + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC";
-            assertQuerySql(
-                mdx,
-                new SqlPattern[] {
-                    new SqlPattern(Dialect.DatabaseProduct.MYSQL, sql, null)
-                });
+            assertQuerySql(mdx, mysqlPattern(sql));
         }
 
         assertQueryReturns(
@@ -1985,7 +1983,8 @@ public class FilterTest extends BatchTestCase {
                 + "    `customer`.`gender` as `c6`,\n"
                 + "    `customer`.`marital_status` as `c7`,\n"
                 + "    `customer`.`education` as `c8`,\n"
-                + "    `customer`.`yearly_income` as `c9`\n"
+                + "    `customer`.`yearly_income` as `c9`,\n"
+                + "    INSTR(LOWER(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)), 'oliv') as `c10`\n"
                 + "from\n"
                 + "    `customer` as `customer`\n"
                 + "group by\n"
@@ -2001,16 +2000,12 @@ public class FilterTest extends BatchTestCase {
                 + "having\n"
                 + "    (UPPER(c5) REGEXP '.*OLIV.*') \n"
                 + "order by\n"
+                + "    ISNULL(INSTR(LOWER(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)), 'oliv')) ASC, INSTR(LOWER(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)), 'oliv') ASC,\n"
                 + "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
                 + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC,\n"
                 + "    ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC,\n"
                 + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC";
-            assertQuerySql(
-                testContext,
-                mdx,
-                new SqlPattern[] {
-                    new SqlPattern(Dialect.DatabaseProduct.MYSQL, sql, null)
-                });
+            assertQuerySql(testContext, mdx, mysqlPattern(sql));
         }
 
         testContext.assertQueryReturns(
