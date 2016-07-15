@@ -682,6 +682,75 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #2: 180\n");
     }
 
+    public void testNativeTopCountFailsWhenNestingMultipleCubes() {
+        final String mdx =
+            "WITH\n"
+            + "SET TC AS 'TopCount("
+            + "NonEmpty([Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].Children, [Measures].[Unit Sales])"
+            + ", 3, [Measures].[Units Ordered])'\n"
+            + "SELECT [Measures].[Units Ordered] on 0, TC ON 1 \n"
+            + "FROM [Warehouse and Sales] WHERE {[Time].[1997]}\n";
+
+        if (!isUseAgg() && MondrianProperties.instance().EnableNativeTopCount.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysqlQuery =
+                "select\n"
+                + "    `product_class`.`product_family` as `c0`,\n"
+                + "    `product_class`.`product_department` as `c1`,\n"
+                + "    `product_class`.`product_category` as `c2`,\n"
+                + "    `product_class`.`product_subcategory` as `c3`,\n"
+                + "    `product`.`brand_name` as `c4`,\n"
+                + "    `product`.`product_name` as `c5`\n"
+                + "from\n"
+                + "    `product_class` as `product_class`,\n"
+                + "    `product` as `product`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
+                + "and\n"
+                + "    `product`.`product_class_id` = `product_class`.`product_class_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    (`product`.`brand_name` = 'Hermanos' and `product_class`.`product_subcategory` = 'Fresh Vegetables'"
+                + " and `product_class`.`product_category` = 'Vegetables'"
+                + " and `product_class`.`product_department` = 'Produce' and `product_class`.`product_family` = 'Food')\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`unit_sales` is not null\n"
+                + "group by\n"
+                + "    `product_class`.`product_family`,\n"
+                + "    `product_class`.`product_department`,\n"
+                + "    `product_class`.`product_category`,\n"
+                + "    `product_class`.`product_subcategory`,\n"
+                + "    `product`.`brand_name`,\n"
+                + "    `product`.`product_name`\n"
+                + "order by\n"
+                + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
+                + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
+                + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC,\n"
+                + "    ISNULL(`product_class`.`product_subcategory`) ASC, `product_class`.`product_subcategory` ASC,\n"
+                + "    ISNULL(`product`.`brand_name`) ASC, `product`.`brand_name` ASC,\n"
+                + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC";
+            assertQuerySql(mdx, mysqlPattern(mysqlQuery));
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Units Ordered]}\n"
+            + "Axis #2:\n"
+            + "{[Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].[Hermanos Mushrooms]}\n"
+            + "{[Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].[Hermanos Baby Onion]}\n"
+            + "{[Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].[Hermanos Broccoli]}\n"
+            + "Row #0: 456.0\n"
+            + "Row #1: 262.0\n"
+            + "Row #2: 256.0\n");
+    }
+
     /**
      * Aggregate with default measure and TopCount without measure argument.
      */

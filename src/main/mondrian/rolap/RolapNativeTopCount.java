@@ -243,8 +243,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
                 }
             }
 
-            if (sql.addlContext.size() > 0 && sql.storedMeasureCount > 1) {
-                // cannot natively evaluate, multiple tuples are possibly at play here.
+            if (!isValid(evaluator, sql)) {
                 return null;
             }
 
@@ -317,11 +316,11 @@ public class RolapNativeTopCount extends RolapNativeSet {
                 }
             }
 
-            if (sql.addlContext.size() > 0 && sql.storedMeasureCount > 1) {
-                // cannot natively evaluate, multiple tuples are possibly at play here.
+            if (!isValid(evaluator, sql)) {
                 return null;
             }
 
+            LOGGER.debug("using nested native topcount");
             SetConstraint parentConstraint = (SetConstraint)eval.getConstraint();
             evaluator = (RolapEvaluator)parentConstraint.getEvaluator();
             final int savepoint = evaluator.savepoint();
@@ -350,6 +349,24 @@ public class RolapNativeTopCount extends RolapNativeSet {
                 evaluator.restore(savepoint);
             }
         }
+    }
+
+    private boolean isValid(Evaluator evaluator, RolapNativeSql sql) {
+        if (sql.addlContext.size() > 0 && sql.storedMeasureCount > 1) {
+            // cannot natively evaluate, multiple tuples are possibly at play here.
+            return false;
+        }
+
+        if (sql.getStoredMeasure() != null
+            && evaluator.getBaseCubes() != null
+            && (evaluator.getBaseCubes().size() > 1
+            || !evaluator.getBaseCubes().contains(sql.getStoredMeasure().getCube())))
+        {
+            alertNonNativeTopCount("Multiple base cubes at play.");
+            return false;
+        }
+
+        return true;
     }
 
     private void alertNonNativeTopCount(String msg) {
