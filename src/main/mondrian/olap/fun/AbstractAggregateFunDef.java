@@ -10,6 +10,7 @@ package mondrian.olap.fun;
 
 import mondrian.calc.*;
 import mondrian.calc.impl.DelegatingTupleList;
+import mondrian.calc.impl.ListTupleList;
 import mondrian.mdx.UnresolvedFunCall;
 import mondrian.olap.*;
 import mondrian.resource.MondrianResource;
@@ -145,7 +146,7 @@ public class AbstractAggregateFunDef extends FunDefBase {
         RolapMember measure = getRolapMeasureForUnrelatedDimCheck(
             evaluator, tuplesForAggregation);
 
-        if (measure.isCalculated()) {
+        if (measure.isCalculated() || measure.isNull()) {
             return tuplesForAggregation;
         }
 
@@ -237,6 +238,25 @@ public class AbstractAggregateFunDef extends FunDefBase {
     {
         Set<Dimension> nonJoiningDimensions =
             nonJoiningDimensions(baseCube, tuplesForAggregation);
+        if (nonJoiningDimensions.isEmpty()) {
+            return tuplesForAggregation;
+        }
+
+        if (nonJoiningDimensions.size() == tuplesForAggregation.get(0).size()) {
+            final Member member = tuplesForAggregation.get(0).get(0);
+            if (nonJoiningDimensions.contains(member.getDimension())) {
+                final Hierarchy hierarchy =
+                    member.getDimension().getHierarchy();
+                List<Member> tupleCopy = new ArrayList<Member>(1);
+                if (hierarchy.hasAll()) {
+                    tupleCopy.add(hierarchy.getAllMember());
+                } else {
+                    tupleCopy.add(hierarchy.getDefaultMember());
+                }
+                return new ListTupleList(tuplesForAggregation.getArity(), tupleCopy);
+            }
+        }
+
         final Set<List<Member>> processedTuples =
             new LinkedHashSet<List<Member>>(tuplesForAggregation.size());
         for (List<Member> tuple : tuplesForAggregation) {
