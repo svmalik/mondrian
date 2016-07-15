@@ -645,7 +645,7 @@ public class RolapNativeSql {
                         RolapCube baseCube = evaluator.getBaseCubes().get(0);
                         RolapStar.Column column =
                             ((RolapCubeLevel)rolapLevel).getBaseStarKeyColumn(baseCube);
-                        if (column != null && column.isOptimized()) {
+                        if (column != null && getStoredMeasure() != null) {
                             column = column.optimize();
                             rolapLevel.getHierarchy().addToFrom(sqlQuery, column.getTable());
                             sourceExp = column.generateExprString(sqlQuery);
