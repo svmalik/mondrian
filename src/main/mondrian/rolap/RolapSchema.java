@@ -681,16 +681,17 @@ public class RolapSchema implements Schema {
         }
     }
     
-    public void addRole(String xml) {
+    public String addRole(String xml) {
         try {
             final Parser xmlParser = XOMUtil.createDefaultParser();
             final DOMWrapper def = xmlParser.parse(xml);
             MondrianDef.Role xmlRole = new MondrianDef.Role(def);
             Role role = createRole(xmlRole);
             mapNameToRole.put(xmlRole.name, role);
-            if(LOGGER.isDebugEnabled()) {
+            if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("Added role created from XML [" + xml + "]");
             }
+            return xmlRole.name;
         } catch (XOMException e) {
             throw Util.newError(e,
                 "Error while adding role from XML [" + xml + "]");

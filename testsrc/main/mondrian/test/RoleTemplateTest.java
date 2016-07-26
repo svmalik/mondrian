@@ -12,6 +12,7 @@
 
 package mondrian.test;
 
+import java.util.Collections;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -26,6 +27,7 @@ import mondrian.olap.Role;
 import mondrian.olap.Schema;
 import mondrian.olap.SchemaReader;
 import mondrian.olap.Util;
+import mondrian.rolap.RolapConnectionProperties;
 import mondrian.rolap.RolapSchema;
 import mondrian.spi.impl.RoleLoaderImpl;
 
@@ -54,18 +56,10 @@ public class RoleTemplateTest extends FoodMartTestCase {
         Assert.assertEquals(memberName, expectedAccess, actualAccess);
     }
 
-    public final TestContext withRoleTemplates(TestContext testContext, final String templateDefs) {
-        String schema = TestContext.getRawFoodMartSchema();
-        // Put role template at the end
-        if (templateDefs != null) {
-            int i = schema.indexOf("</Schema>");
-            schema = schema.substring(0, i) + templateDefs + schema.substring(i);
-        }
-        return testContext.withSchema(schema);
-    }
-
-    public void testRoleMemberAccessWithRoleTemplate() {
-        String roleTemaplte = "<RoleTemplate name=\"LA Member Role\">\n"
+    private String getTemplate(String dependsOnRole) {
+        return "<RoleTemplate name=\"LA Member Role\""
+            + (dependsOnRole != null ? " dependsOnRole=\"" + dependsOnRole + "\"" : "")
+            + ">\n"
             + "<![CDATA[\n"
             + "<Role name=\"$member\">\n"
             + "  <SchemaGrant access=\"none\">\n"
@@ -79,8 +73,20 @@ public class RoleTemplateTest extends FoodMartTestCase {
             + "</Role>\n"
             + "]]>\n"
             + "</RoleTemplate>";
+    }
 
-        TestContext context = withRoleTemplates(getTestContext(), roleTemaplte);
+    public final TestContext withRoleTemplates(TestContext testContext, final String templateDefs) {
+        String schema = TestContext.getRawFoodMartSchema();
+        // Put role template at the end
+        if (templateDefs != null) {
+            int i = schema.indexOf("</Schema>");
+            schema = schema.substring(0, i) + templateDefs + schema.substring(i);
+        }
+        return testContext.withSchema(schema);
+    }
+
+    public void testRoleMemberAccessWithRoleTemplate() {
+        TestContext context = withRoleTemplates(getTestContext(), getTemplate(null));
         Util.PropertyList properties = context.getConnectionProperties()
                                               .clone();
         properties.put("CustomData", "Los Angeles");
@@ -109,6 +115,78 @@ public class RoleTemplateTest extends FoodMartTestCase {
         testRoleMemberAccessWithRoleTemplate();
     }
 
+    public void testRoleMemberAccessWithRoleTemplateWithDependency() {
+        String role = "California manager";
+        TestContext context = withRoleTemplates(
+            getTestContext().withRole(role),
+            getTemplate(role));
+        Util.PropertyList properties =
+            context.getConnectionProperties().clone();
+        properties.put("CustomData", "Los Angeles");
+        final Connection connection =
+            context.withProperties(properties)
+                .withFreshConnection().getConnection();
+        // because CA has access
+        assertMemberAccess(connection, Access.CUSTOM, "[Store].[USA]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Mexico]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Mexico].[DF]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Mexico].[DF].[Mexico City]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Canada]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Canada].[BC].[Vancouver]");
+        // has access due to custom role
+        assertMemberAccess(connection, Access.ALL, "[Store].[USA].[CA].[Los Angeles]");
+        assertMemberAccess(connection, Access.ALL, "[Store].[USA].[CA].[San Diego]");
+        // USA deny supercedes OR grant
+        assertMemberAccess(connection, Access.NONE, "[Store].[USA].[OR].[Portland]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[USA].[WA].[Seattle]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[USA].[WA]");
+        // above top level
+        assertMemberAccess(connection, Access.NONE, "[Store].[All Stores]");
+    }
+
+    public void testRoleMemberAccessWithRoleTemplateWithDependency2() {
+        TestContext context = withRoleTemplates(
+            getTestContext().withRole("California manager"),
+            getTemplate("California manager2"));
+        Util.PropertyList properties =
+            context.getConnectionProperties().clone();
+        properties.put("CustomData", "Los Angeles");
+        final Connection connection =
+            context.withProperties(properties)
+                .withFreshConnection().getConnection();
+        // because CA has access
+        assertMemberAccess(connection, Access.CUSTOM, "[Store].[USA]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Mexico]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Mexico].[DF]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Mexico].[DF].[Mexico City]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Canada]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[Canada].[BC].[Vancouver]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[USA].[CA].[Los Angeles]");
+        assertMemberAccess(connection, Access.ALL, "[Store].[USA].[CA].[San Diego]");
+        // USA deny supercedes OR grant
+        assertMemberAccess(connection, Access.NONE, "[Store].[USA].[OR].[Portland]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[USA].[WA].[Seattle]");
+        assertMemberAccess(connection, Access.NONE, "[Store].[USA].[WA]");
+        // above top level
+        assertMemberAccess(connection, Access.NONE, "[Store].[All Stores]");
+    }
+
+    public void testRoleMemberAccessWithRoleTemplateWithDependencyNoRestrictions() {
+        String role = "California manager";
+        TestContext context = withRoleTemplates(
+            getTestContext(),
+            getTemplate(role));
+        Util.PropertyList properties =
+            context.getConnectionProperties().clone();
+        properties.put("CustomData", "Los Angeles");
+        final Connection connection =
+            context.withProperties(properties)
+                .withFreshConnection().getConnection();
+        // custom role should not apply here due to dependency
+        assertMemberAccess(connection, Access.ALL, "[Store].[USA]");
+        assertMemberAccess(connection, Access.ALL, "[Store].[USA].[CA].[Los Angeles]");
+    }
+
     public static class CustomDataRoleLoader extends RoleLoaderImpl {
         public List<Role> loadRoles(MondrianServer server, RolapSchema schema,
                                     Util.PropertyList connectInfo) {
@@ -120,13 +198,26 @@ public class RoleTemplateTest extends FoodMartTestCase {
                 for (MondrianDef.RoleTemplate template : templates) {
                     String name = template.name;
                     if (name.equalsIgnoreCase("LA Member Role")) {
+                        String parentRoles = template.dependsOnRole;
+                        if (parentRoles != null && !parentRoles.isEmpty()) {
+                            List<String> parentRolesList = Util.parseCommaList(parentRoles);
+                            String currentRoles = connectInfo.get(RolapConnectionProperties.Role.name());
+                            if (currentRoles == null || currentRoles.isEmpty()) {
+                                continue;
+                            }
+                            List<String> currentRolesList = Util.parseCommaList(currentRoles);
+                            if (Collections.disjoint(parentRolesList, currentRolesList)) {
+                                continue;
+                            }
+                        }
+
                         String xml = template.cdata;
                         for (String id : ids) {
                             id = id.trim();
                             if (id.length() > 0) {
                                 String mod = xml.replace("$member", id);
-                                schema.addRole(mod);
-                                Role created = schema.lookupRole(id);
+                                String roleId = schema.addRole(mod);
+                                Role created = schema.lookupRole(roleId);
                                 roles.add(created);
                             }
                         }

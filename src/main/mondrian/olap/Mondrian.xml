@@ -2203,6 +2203,12 @@ Revision is $Id$
             would be one approach.
         </Doc>
         <Attribute name="name" required="true"/>
+        <Attribute name="dependsOnRole" required="false">
+            <Doc>
+                Optional comma separated list of roles that
+                the template is applicable to.
+            </Doc>
+        </Attribute>
         <CData/>
     </Element>
 
