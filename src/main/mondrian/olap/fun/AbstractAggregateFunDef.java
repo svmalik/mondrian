@@ -243,16 +243,22 @@ public class AbstractAggregateFunDef extends FunDefBase {
         }
 
         if (nonJoiningDimensions.size() == tuplesForAggregation.get(0).size()) {
-            final Member member = tuplesForAggregation.get(0).get(0);
-            if (nonJoiningDimensions.contains(member.getDimension())) {
-                final Hierarchy hierarchy =
-                    member.getDimension().getHierarchy();
-                List<Member> tupleCopy = new ArrayList<Member>(1);
-                if (hierarchy.hasAll()) {
-                    tupleCopy.add(hierarchy.getAllMember());
+            List<Member> tuple = tuplesForAggregation.get(0);
+            List<Member> tupleCopy = new ArrayList<>(tuple.size());
+            for (final Member member : tuple) {
+                if (nonJoiningDimensions.contains(member.getDimension())) {
+                    final Hierarchy hierarchy =
+                        member.getDimension().getHierarchy();
+                    if (hierarchy.hasAll()) {
+                        tupleCopy.add(hierarchy.getAllMember());
+                    } else {
+                        tupleCopy.add(hierarchy.getDefaultMember());
+                    }
                 } else {
-                    tupleCopy.add(hierarchy.getDefaultMember());
+                    break;
                 }
+            }
+            if (tupleCopy.size() == tuplesForAggregation.getArity()) {
                 return new ListTupleList(tuplesForAggregation.getArity(), tupleCopy);
             }
         }
