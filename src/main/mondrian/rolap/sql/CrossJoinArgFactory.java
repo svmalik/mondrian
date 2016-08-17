@@ -597,7 +597,7 @@ public class CrossJoinArgFactory {
             List<RolapMember> children =
                 Util.cast(evaluator.getSchemaReader().getMemberChildren(member));
             CrossJoinArg cjArg = MemberListCrossJoinArg.create(
-                evaluator, children, restrictMemberTypes(), false);
+                evaluator, children, level, restrictMemberTypes(), false);
             return cjArg != null ? new CrossJoinArg[] { cjArg } : null;
         }
         // Children of a member in an access-controlled hierarchy cannot be

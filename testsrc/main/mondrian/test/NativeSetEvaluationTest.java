@@ -2815,6 +2815,53 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #0: 10,281\n");
     }
 
+    public void testNativeCountWithRaggedMemberChildren() {
+        propSaver.set(propSaver.properties.SsasCompatibleNaming, true);
+        TestContext testContext = TestContext.instance()
+            .createSubstitutingCube(
+                "Sales",
+                "  <Dimension name=\"Store Ragged\" foreignKey=\"store_id\">\n"
+                + "    <Hierarchy hasAll=\"true\" primaryKey=\"store_id\">\n"
+                + "      <Table name=\"store_ragged\"/>\n"
+                + "      <Level name=\"Store Country\" column=\"store_country\" uniqueMembers=\"true\"\n"
+                + "          hideMemberIf=\"Never\"/>\n"
+                + "      <Level name=\"Store State\" column=\"store_state\" uniqueMembers=\"true\"\n"
+                + "          hideMemberIf=\"IfParentsName\"/>\n"
+                + "    </Hierarchy>\n"
+                + "  </Dimension>\n");
+        String mdx =
+            "with member [Measures].[Store Count] as "
+            + "Count([Store Ragged].[Store Ragged].[Store Country].[Vatican].Children)\n"
+            + "select {[Measures].[Store Count]} on 0 from [Sales]";
+
+        if (MondrianProperties.instance().EnableNativeCount.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysqlQuery =
+                "select\n"
+                + "    COUNT(*)\n"
+                + "from\n"
+                + "    (select\n"
+                + "    `store_ragged`.`store_country` as `c0`,\n"
+                + "    `store_ragged`.`store_state` as `c1`\n"
+                + "from\n"
+                + "    `store_ragged` as `store_ragged`\n"
+                + "where\n"
+                + "    (1 = 0)\n"
+                + "group by\n"
+                + "    `store_ragged`.`store_country`,\n"
+                + "    `store_ragged`.`store_state`) as `countQuery`";
+            assertQuerySql(testContext, mdx, mysqlPattern(mysqlQuery));
+        }
+
+        testContext.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Store Count]}\n"
+            + "Row #0: 0\n");
+    }
+
     public void testNativeCountWithAllMembers() {
         propSaver.set(propSaver.properties.GenerateFormattedSql, true);
 

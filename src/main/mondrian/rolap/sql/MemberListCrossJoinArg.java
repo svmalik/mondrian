@@ -69,7 +69,6 @@ public class MemberListCrossJoinArg implements CrossJoinArg {
         return !argSizeNotSupported;
     }
 
-
     /**
      * Creates an instance of {@link CrossJoinArg},
      * or returns null if the arguments are invalid. This method also
@@ -97,13 +96,44 @@ public class MemberListCrossJoinArg implements CrossJoinArg {
         final boolean restrictMemberTypes,
         boolean exclude)
     {
+        return create(evaluator, args, null, restrictMemberTypes, exclude);
+    }
+
+    /**
+     * Creates an instance of {@link CrossJoinArg},
+     * or returns null if the arguments are invalid. This method also
+     * records properties of the member list such as containing
+     * calc/non calc members, and containing the All member.
+     *
+     * <p>If restrictMemberTypes is set, then the resulting argument could
+     * contain calculated members. The newly created CrossJoinArg is marked
+     * appropriately for special handling downstream.
+     *
+     * <p>If restrictMemberTypes is false, then the resulting argument
+     * contains non-calculated members of the same level (after filtering
+     * out any null members).
+     *
+     * @param evaluator the current evaluator
+     * @param args members in the list
+     * @param level level
+     * @param restrictMemberTypes whether calculated members are allowed
+     * @param exclude Whether to exclude tuples that match the predicate
+     * @return MemberListCrossJoinArg if member list is well formed,
+     *   null if not.
+     */
+    public static CrossJoinArg create(
+        RolapEvaluator evaluator,
+        final List<RolapMember> args,
+        RolapLevel level,
+        final boolean restrictMemberTypes,
+        boolean exclude)
+    {
         // First check that the member list will not result in a predicate
         // longer than the underlying DB could support.
         if (!isArgSizeSupported(evaluator, args.size())) {
             return null;
         }
 
-        RolapLevel level = null;
         RolapLevel nullLevel = null;
         boolean hasCalcMembers = false;
         boolean hasNonCalcMembers = false;
