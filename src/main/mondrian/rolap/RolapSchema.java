@@ -686,10 +686,14 @@ public class RolapSchema implements Schema {
             final Parser xmlParser = XOMUtil.createDefaultParser();
             final DOMWrapper def = xmlParser.parse(xml);
             MondrianDef.Role xmlRole = new MondrianDef.Role(def);
-            Role role = createRole(xmlRole);
-            mapNameToRole.put(xmlRole.name, role);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Added role created from XML [" + xml + "]");
+            if (!mapNameToRole.containsKey(xmlRole.name)
+                || mapNameToRole.get(xmlRole.name) == null)
+            {
+                Role role = createRole(xmlRole);
+                mapNameToRole.put(xmlRole.name, role);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("Added role created from XML [" + xml + "]");
+                }
             }
             return xmlRole.name;
         } catch (XOMException e) {
