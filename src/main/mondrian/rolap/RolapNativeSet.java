@@ -17,6 +17,7 @@ import mondrian.calc.impl.*;
 import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
+import mondrian.olap.fun.FunUtil;
 import mondrian.rolap.RolapNativeCount.CountConstraint;
 import mondrian.rolap.RolapNativeSum.SumConstraint;
 import mondrian.rolap.TupleReader.MemberBuilder;
@@ -91,13 +92,9 @@ public abstract class RolapNativeSet extends RolapNative {
             return getNestedEvaluator(namedSet.getExp(), evaluator);
         }
         if (exp instanceof ResolvedFunCall) {
-            ResolvedFunCall call = (ResolvedFunCall)exp;
-            if (call.getFunDef().getName().equals("Cache")) {
-                if (call.getArg( 0 ) instanceof ResolvedFunCall) {
-                    call = (ResolvedFunCall)call.getArg(0);
-                } else {
-                    return null;
-                }
+            ResolvedFunCall call = FunUtil.extractResolvedFunCall(exp);
+            if (call == null) {
+                return null;
             }
             if (supportsNesting(call)) {
                 eval = (SetEvaluator)evaluator.getSchemaReader().getSchema().getNativeRegistry().createEvaluator(
