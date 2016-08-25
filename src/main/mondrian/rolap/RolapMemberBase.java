@@ -291,7 +291,12 @@ public class RolapMemberBase
             if (value == null) {
                 value = RolapUtil.mdxNullLiteral();
             }
-            setUniqueName(value);
+            if (this.isAll() || this.isCalculated() || this.isNull() || this.isMeasure()
+                || RolapUtil.sqlNullValue.equals(this.key)
+                || !MondrianProperties.instance().SsasNativeMemberUniqueNameStyle.get())
+            {
+                setUniqueName(value);
+            }
         }
 
         if (name.equals(Property.MEMBER_ORDINAL.name)) {
