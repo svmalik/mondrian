@@ -137,12 +137,16 @@ class RestrictedMemberReader extends DelegatingMemberReader {
             // or doesn't have access include its children.
             // This must be done before applying access-control.
             final Access access;
+            boolean replaceWithChildren = false;
             if (hierarchyAccess != null) {
                 access = hierarchyAccess.getAccess(member);
+                replaceWithChildren = access.equals(Access.NONE)
+                    && member.getLevel() != null
+                    && member.getLevel().getChildLevel() != null;
             } else {
                 access = Access.ALL;
             }
-            if ((ragged && member.isHidden()) || access.equals(Access.NONE)) {
+            if ((ragged && member.isHidden()) || replaceWithChildren) {
                 // Replace this member with all of its children.
                 // They might be hidden too, but we'll get to them in due
                 // course. They also might be access-controlled; that's why
