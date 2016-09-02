@@ -320,10 +320,6 @@ public class RolapConnection extends ConnectionBase {
             appendKeyValue(buf, "Anonymous data source", dataSource);
             appendKeyValue(
                 buf, RolapConnectionProperties.JdbcUser.name(), jdbcUser);
-            appendKeyValue(
-                buf,
-                RolapConnectionProperties.JdbcPassword.name(),
-                jdbcPassword);
             if (jdbcUser != null || jdbcPassword != null) {
                 dataSource =
                     new UserPasswordDataSource(
@@ -337,10 +333,6 @@ public class RolapConnection extends ConnectionBase {
                 buf, RolapConnectionProperties.Jdbc.name(), jdbcConnectString);
             appendKeyValue(
                 buf, RolapConnectionProperties.JdbcUser.name(), jdbcUser);
-            appendKeyValue(
-                buf,
-                RolapConnectionProperties.JdbcPassword.name(),
-                jdbcPassword);
             String jdbcDrivers =
                 connectInfo.get(RolapConnectionProperties.JdbcDrivers.name());
             if (jdbcDrivers != null) {
@@ -395,10 +387,6 @@ public class RolapConnection extends ConnectionBase {
                 buf,
                 RolapConnectionProperties.JdbcUser.name(),
                 jdbcUser);
-            appendKeyValue(
-                buf,
-                RolapConnectionProperties.JdbcPassword.name(),
-                jdbcPassword);
 
             // Data sources are fairly smart, so we assume they look after
             // their own pooling. Therefore the default is false.
