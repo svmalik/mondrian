@@ -12,6 +12,7 @@ package mondrian.olap;
 import mondrian.mdx.*;
 
 import mondrian.rolap.RolapMember;
+import mondrian.rolap.RolapMemberBase;
 import mondrian.util.IdentifierParser;
 import org.apache.commons.collections.*;
 import org.apache.log4j.Logger;
@@ -255,9 +256,7 @@ public final class IdBatchResolver {
                 if (!resolvedIdentifiers.containsKey(childId))
                 {
                     Id.Segment segment = getLastSegment(childId);
-                    if ((segment instanceof Id.NameSegment && segment.matches(child.getName()))
-                        || (segment instanceof Id.KeySegment && child instanceof RolapMember
-                            && segment.getKeyParts().get(0).getName().equals(((RolapMember)child).getKey())))
+                    if (areEqualKeys(segment, child))
                     {
                         resolvedIdentifiers.put(
                             childId, (QueryPart) Util.createExpr(child));
@@ -265,6 +264,17 @@ public final class IdBatchResolver {
                 }
             }
         }
+    }
+
+    private boolean areEqualKeys(Id.Segment segment, Member member) {
+        if (segment instanceof Id.NameSegment) {
+            return segment.matches(member.getName());
+        }
+        if (segment instanceof Id.KeySegment && member instanceof RolapMember) {
+            return segment.getKeyParts().get(0).getName().equals(
+                RolapMemberBase.keyToString(((RolapMember)member).getKey()));
+        }
+        return false;
     }
 
     /**

@@ -908,7 +908,7 @@ public class RolapMemberBase
      * <code>[Sales].[Store SQFT]</code> dimension comes out "20319.0" but we'd
      * like it to be "20319".
      */
-    protected static String keyToString(Object key) {
+    public static String keyToString(Object key) {
         String name;
         if (key == null || RolapUtil.sqlNullValue.equals(key)) {
             name = RolapUtil.mdxNullLiteral();
