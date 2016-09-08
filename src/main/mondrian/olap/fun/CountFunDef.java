@@ -11,6 +11,9 @@ package mondrian.olap.fun;
 
 import mondrian.calc.*;
 import mondrian.calc.impl.AbstractIntegerCalc;
+import mondrian.mdx.DimensionExpr;
+import mondrian.mdx.HierarchyExpr;
+import mondrian.mdx.LevelExpr;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
 import mondrian.rolap.ManyToManyUtil;
@@ -70,18 +73,27 @@ class CountFunDef extends AbstractAggregateFunDef {
                         // TODO: Test how this performs for empty and non-empty scenarios.
                         count = (Integer)nativeEvaluator.execute(ResultStyle.VALUE);
                     } else {
-                      if (calc instanceof IterCalc) {
-                          IterCalc iterCalc = (IterCalc) calc;
-                          TupleIterable iterable =
-                              evaluateCurrentIterable(iterCalc, evaluator);
-                          count = count(evaluator, iterable, includeEmpty);
-                      } else {
-                          // must be ListCalc
-                          ListCalc listCalc = (ListCalc) calc;
-                          TupleList list =
-                              evaluateCurrentList(listCalc, evaluator);
-                          count = count(evaluator, list, includeEmpty);
-                      }
+                        int countByLevels;
+                        try {
+                            countByLevels = evaluateHierarchyLevels(evaluator, manyToManyEval);
+                        } catch (Exception e) {
+                            // we don't want to fail because of this "hack"
+                            countByLevels = FunUtil.IntegerNull;
+                        }
+                        if (countByLevels != FunUtil.IntegerNull) {
+                            count = countByLevels;
+                        } else if (calc instanceof IterCalc) {
+                            IterCalc iterCalc = (IterCalc) calc;
+                            TupleIterable iterable =
+                            evaluateCurrentIterable(iterCalc, evaluator);
+                            count = count(evaluator, iterable, includeEmpty);
+                        } else {
+                            // must be ListCalc
+                            ListCalc listCalc = (ListCalc) calc;
+                            TupleList list =
+                                evaluateCurrentList(listCalc, evaluator);
+                            count = count(evaluator, list, includeEmpty);
+                        }
                     }
                     return count;
                     
@@ -104,6 +116,87 @@ class CountFunDef extends AbstractAggregateFunDef {
                 // dimensions that <Set> depends on, plus all
                 // dimensions not masked by the set.
                 return ! calc.getType().usesHierarchy(hierarchy, true);
+            }
+
+            private int evaluateHierarchyLevels(
+                Evaluator evaluator, RolapEvaluator manyToManyEval)
+            {
+                if (!MondrianProperties.instance().EnableNativeCount.get()) {
+                    return FunUtil.IntegerNull;
+                }
+
+                ResolvedFunCall arg0 = FunUtil.extractResolvedFunCall(call.getArg(0));
+                if (arg0 == null
+                    || arg0.getArgs().length != 1
+                    || (!"AllMembers".equalsIgnoreCase(arg0.getFunName())
+                        && !"Members".equalsIgnoreCase(arg0.getFunName())))
+                {
+                    return FunUtil.IntegerNull;
+                }
+
+                Hierarchy hierarchy = null;
+                if (arg0.getArg(0) instanceof HierarchyExpr) {
+                    hierarchy = ((HierarchyExpr)arg0.getArg(0)).getHierarchy();
+                } else if (arg0.getArg(0) instanceof DimensionExpr) {
+                    Dimension dimension = ((DimensionExpr)arg0.getArg(0)).getDimension();
+                    if (dimension.getHierarchies().length == 1) {
+                        hierarchy = dimension.getHierarchies()[0];
+                    }
+                }
+
+                if (hierarchy == null) {
+                    return FunUtil.IntegerNull;
+                }
+
+                SchemaReader schemaReader = evaluator.getSchemaReader();
+                ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
+                Validator validator = expCompiler.getValidator();
+
+                Exp[] args = call.getArgs().clone();
+                int result = 0;
+                for (Level level : hierarchy.getLevels()) {
+                    int save = evaluator.savepoint();
+                    try {
+                        if (level.isAll()) {
+                            result++;
+                            continue;
+                        }
+                        int levelMembers =
+                            evaluateForLevel(
+                                level, call.getFunDef(), args, arg0.getFunName(),
+                                schemaReader, validator, manyToManyEval);
+                        if (levelMembers == FunUtil.IntegerNull) {
+                            return FunUtil.IntegerNull;
+                        } else {
+                            result += levelMembers;
+                        }
+                    } finally {
+                        evaluator.restore(save);
+                    }
+                }
+                return result;
+            }
+
+            private int evaluateForLevel(
+                Level level, FunDef funDef, Exp[] args,
+                String membersFunName, SchemaReader schemaReader,
+                Validator validator, RolapEvaluator manyToManyEval)
+            {
+                Exp[] levelArgs = new Exp[] { new LevelExpr(level) };
+                FunDef levelFun =
+                    validator.getDef(levelArgs, membersFunName, Syntax.Property);
+                args[0] = new ResolvedFunCall(levelFun, levelArgs, call.getType());
+                NativeEvaluator nativeEvaluator =
+                    schemaReader.getNativeSetEvaluator(
+                        funDef,
+                        args,
+                        manyToManyEval,
+                        this);
+                if (nativeEvaluator != null) {
+                    return (Integer)nativeEvaluator.execute(ResultStyle.VALUE);
+                } else {
+                    return FunUtil.IntegerNull;
+                }
             }
         };
 

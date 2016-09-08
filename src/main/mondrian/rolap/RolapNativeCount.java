@@ -17,7 +17,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import mondrian.mdx.DimensionExpr;
 import mondrian.mdx.HierarchyExpr;
 import mondrian.mdx.MdxVisitorImpl;
-import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.Dimension;
 import mondrian.olap.Exp;
@@ -28,6 +27,7 @@ import mondrian.olap.Literal;
 import mondrian.olap.Member;
 import mondrian.olap.MondrianProperties;
 import mondrian.olap.NativeEvaluator;
+import mondrian.olap.fun.FunUtil;
 import mondrian.rolap.sql.CrossJoinArg;
 import mondrian.rolap.sql.DescendantsCrossJoinArg;
 import mondrian.rolap.sql.MemberListCrossJoinArg;
@@ -67,7 +67,8 @@ public class RolapNativeCount extends RolapNativeSet {
             return null;
         }
 
-        if (!(args[0] instanceof ResolvedFunCall)) {
+        ResolvedFunCall call = FunUtil.extractResolvedFunCall(args[0]);
+        if (call == null) {
             return null;
         }
 
@@ -79,20 +80,6 @@ public class RolapNativeCount extends RolapNativeSet {
                 Arrays.asList(evaluator.getNonAllMembers()), true))
         {
             return null;
-        }
-
-        ResolvedFunCall call = (ResolvedFunCall)args[0];
-
-        if (call.getFunDef().getName().equals("Cache")) {
-            Exp arg0 = call.getArg(0);
-            if (arg0 instanceof NamedSetExpr) {
-                arg0 = ((NamedSetExpr)arg0).getNamedSet().getExp();
-            }
-            if (arg0 instanceof ResolvedFunCall) {
-                call = (ResolvedFunCall)arg0;
-            } else {
-                return null;
-            }
         }
 
         // TODO: Note that this native evaluator won't work against tuples that are mapped to

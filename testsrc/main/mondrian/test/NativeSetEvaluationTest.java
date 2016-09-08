@@ -2957,6 +2957,77 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #0: 5,581\n");
     }
 
+    public void testNativeCountWithAllMembersMultiLevel() {
+        String mdx =
+            "with member [Measures].[Cust Count] as 'Count([Customers].AllMembers)'\n"
+            + "select {[Measures].[Cust Count]} on 0 from [Sales]";
+
+        if (!isUseAgg() && MondrianProperties.instance().EnableNativeCount.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysqlQuery =
+                "select\n"
+                + "    COUNT(*)\n"
+                + "from\n"
+                + "    (select\n"
+                + "    `customer`.`country` as `c0`\n"
+                + "from\n"
+                + "    `customer` as `customer`\n"
+                + "group by\n"
+                + "    `customer`.`country` ) as `count0`\n"
+                + "union all\n"
+                + "select\n"
+                + "    COUNT(*)\n"
+                + "from\n"
+                + "    (select\n"
+                + "    `customer`.`country` as `c0`,\n"
+                + "    `customer`.`state_province` as `c1`\n"
+                + "from\n"
+                + "    `customer` as `customer`\n"
+                + "group by\n"
+                + "    `customer`.`country`,\n"
+                + "    `customer`.`state_province` ) as `count1`\n"
+                + "union all\n"
+                + "select\n"
+                + "    COUNT(*)\n"
+                + "from\n"
+                + "    (select\n"
+                + "    `customer`.`country` as `c0`,\n"
+                + "    `customer`.`state_province` as `c1`,\n"
+                + "    `customer`.`city` as `c2`\n"
+                + "from\n"
+                + "    `customer` as `customer`\n"
+                + "group by\n"
+                + "    `customer`.`country`,\n"
+                + "    `customer`.`state_province`,\n"
+                + "    `customer`.`city` ) as `count2`\n"
+                + "union all\n"
+                + "select\n"
+                + "    COUNT(*)\n"
+                + "from\n"
+                + "    (select\n"
+                + "    `customer`.`country` as `c0`,\n"
+                + "    `customer`.`state_province` as `c1`,\n"
+                + "    `customer`.`city` as `c2`,\n"
+                + "    `customer`.`customer_id` as `c3`\n"
+                + "from\n"
+                + "    `customer` as `customer`\n"
+                + "group by\n"
+                + "    `customer`.`country`,\n"
+                + "    `customer`.`state_province`,\n"
+                + "    `customer`.`city`,\n"
+                + "    `customer`.`customer_id` ) as `count3`";
+            assertQuerySql(mdx, mysqlPattern(mysqlQuery));
+        }
+
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Cust Count]}\n"
+            + "Row #0: 10,407\n");
+    }
+
     public void testNativeCountWithHanger() {
         TestContext testContext = TestContext.instance()
             .createSubstitutingCube(
