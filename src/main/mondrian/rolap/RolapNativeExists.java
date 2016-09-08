@@ -51,7 +51,7 @@ public class RolapNativeExists extends RolapNativeSet {
         }
 
         if (!FilterConstraint.isValidContext(
-                evaluator, false, new Level[]{}, restrictMemberTypes()))
+                evaluator, false, new Level[]{}, restrictMemberTypes(), false))
         {
             return null;
         }
