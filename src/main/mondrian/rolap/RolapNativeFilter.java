@@ -115,6 +115,17 @@ public class RolapNativeFilter extends RolapNativeSet {
             }
         }
 
+        public boolean isSuported(DataSource ds) {
+            Evaluator evaluator = this.getEvaluator();
+            SqlQuery testQuery = SqlQuery.newQuery(ds, "testQuery");
+            SqlTupleReader sqlTupleReader = new SqlTupleReader(this);
+            RolapCube cube = (RolapCube) evaluator.getCube();
+            this.addConstraint
+                    (testQuery, cube, sqlTupleReader.chooseAggStar
+                            (this, evaluator, cube));
+            return testQuery.isSupported();
+        }
+
         /**
          * This returns a CacheKey object
          * @return
@@ -282,12 +293,16 @@ public class RolapNativeFilter extends RolapNativeSet {
                     }
                 }
 
-                SetConstraint constraint =
+                FilterConstraint constraint =
                     new FilterConstraint(combinedArgs, evaluator, filterExpr, existing, sql.preEvalExprs, firstCrossjoinLevel, null);
                 // constraint may still fail
                 if (!isValidFilterConstraint(constraint, evaluator, combinedArgs)) {
                     return null;
                 }
+                if (!constraint.isSuported(ds)) {
+                    return null;
+                }
+
                 LOGGER.debug("using native filter");
                 return new SetEvaluator(cjArgs, schemaReader, constraint, sql.getStoredMeasure());
             } else {
@@ -299,8 +314,12 @@ public class RolapNativeFilter extends RolapNativeSet {
                 for (Member m : sql.addlContext) {
                     evaluator.setContext(m);
                 }
-                SetConstraint constraint =
+                FilterConstraint constraint =
                     new FilterConstraint(crossjoinargs, evaluator, filterExpr, existing, sql.preEvalExprs, firstCrossjoinLevel, parentConstraint);
+                if (!constraint.isSuported(ds)) {
+                    return null;
+                }
+
                 LOGGER.debug("using native filter");
                 eval.setConstraint(constraint);
                 return eval;

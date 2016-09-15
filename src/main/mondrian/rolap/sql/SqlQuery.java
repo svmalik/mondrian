@@ -94,6 +94,9 @@ public class SqlQuery {
     /** Controls whether table optimization hints are used */
     private boolean allowHints;
 
+    /** Is query supported by database vendor. Default is true*/
+    private boolean isSupported = true;
+
     /**
      * This list is used to keep track of what aliases have been  used in the
      * FROM clause. One might think that a java.util.Set would be a more
@@ -1215,6 +1218,14 @@ public class SqlQuery {
                     rightKey,
                     rightAlias));
         }
+    }
+
+    public boolean isSupported() {
+        return isSupported;
+    }
+
+    public void setSupported(boolean supported) {
+        isSupported = supported;
     }
 
     private static class JoinOnClause {
