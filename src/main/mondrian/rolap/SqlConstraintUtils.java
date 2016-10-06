@@ -780,11 +780,9 @@ public class SqlConstraintUtils {
         }
         slicerMembers = updatedSlicerMembers;
         List<Member> expandedSlicers =
-            evaluator.isEvalAxes()
-                ? expandSupportedCalculatedMembers(
+            expandSupportedCalculatedMembers(
                 slicerMembers,
-                evaluator.push()).getMembers()
-                : slicerMembers;
+                evaluator.push()).getMembers();
         if (hasMultiPositionSlicer(expandedSlicers)) {
             for (Member slicerMember : expandedSlicers) {
                 if (slicerMember.isMeasure()) {

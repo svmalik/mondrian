@@ -1394,6 +1394,20 @@ public class CompoundSlicerTest extends FoodMartTestCase {
             "Compound aggregated member should return same results with native filter on/off",
             getTestContext());
     }
+
+    public void testCompoundAggCalcMemberInSlicer3() {
+        String query = "WITH MEMBER [Time].[agg] AS "
+            + "Aggregate(StrToMember(\"[Time].[1997].[Q1]\") : StrToMember(\"[Time].[1997].[Q3]\")) "
+            + "MEMBER [Measures].[m1] AS Sum({[Product].[Product Family].[Drink].Children}) "
+            + "SELECT Filter([Customers].[USA].[OR].[Albany].Children, [Measures].[Unit Sales] > 100) ON 0"
+            + ", [Measures].[m1] ON 1 "
+            + "FROM [Sales] WHERE [Time].[agg]";
+
+        verifySameNativeAndNot(
+            query,
+            "Compound aggregated member should return same results with native filter on/off",
+            getTestContext());
+    }
 }
 
 // End CompoundSlicerTest.java
