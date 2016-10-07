@@ -106,17 +106,19 @@ public class RolapNativeTopCount extends RolapNativeSet {
                         sqlQuery, aggStar, getEvaluator(), null, preEval);
                 final String orderBySql =
                     sql.generateTopCountOrderBy(orderByExpr);
-                boolean nullable =
-                    deduceNullability(orderByExpr);
-                final String orderByAlias =
-                    sqlQuery.addSelect(orderBySql, null);
-                sqlQuery.addOrderBy(
-                    orderBySql,
-                    orderByAlias,
-                    ascending,
-                    true,
-                    nullable,
-                    true);
+                if (!"".equals(orderBySql)) {
+                    boolean nullable =
+                        deduceNullability(orderByExpr);
+                    final String orderByAlias =
+                        sqlQuery.addSelect(orderBySql, null);
+                    sqlQuery.addOrderBy(
+                        orderBySql,
+                        orderByAlias,
+                        ascending,
+                        true,
+                        nullable,
+                        true);
+                }
             }
             if (isJoinRequired()) {
                 super.addConstraint(sqlQuery, baseCube, aggStar);

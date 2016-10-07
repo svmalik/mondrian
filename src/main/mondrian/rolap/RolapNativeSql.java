@@ -1478,6 +1478,12 @@ public class RolapNativeSql {
      * order by clause.
      */
     public String generateTopCountOrderBy(Exp exp) {
+        if (exp instanceof Literal) {
+            String value = String.valueOf(((Literal) exp).getValue());
+            if (value != null && value.trim().equals("")) {
+                return "";
+            }
+        }
         return numericCompiler.compile(exp);
     }
 

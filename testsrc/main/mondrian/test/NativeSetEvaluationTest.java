@@ -1913,6 +1913,58 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #2: 19,477.23\n");
     }
 
+    public void testNativeOrderNoMeasure() {
+        String mdx =
+            "WITH\n"
+            + "  SET [PRODUCT_SET] as 'NonEmpty([Product].[Product Family].Members, [Measures].[Store Cost])'\n"
+            + "  SET [PRODUCT_SET_SORTED] as 'Order([PRODUCT_SET], \"\")' \n"
+            + "SELECT\n"
+            + "  [Measures].[Store Cost] ON COLUMNS,\n"
+            + "  [PRODUCT_SET_SORTED] ON ROWS\n"
+            + "FROM [Sales]";
+        if (!isUseAgg() && propSaver.properties.EnableNativeOrder.get()
+            && propSaver.properties.EnableNativeNonEmptyFunction.get())
+        {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysqlQuery =
+                "select\n"
+                + "    `product_class`.`product_family` as `c0`\n"
+                + "from\n"
+                + "    `product_class` as `product_class`,\n"
+                + "    `product` as `product`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
+                + "and\n"
+                + "    `product`.`product_class_id` = `product_class`.`product_class_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`store_cost` is not null\n"
+                + "group by\n"
+                + "    `product_class`.`product_family`\n"
+                + "order by\n"
+                + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC";
+            assertQuerySql(mdx, mysqlPattern(mysqlQuery));
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Store Cost]}\n"
+            + "Axis #2:\n"
+            + "{[Product].[Drink]}\n"
+            + "{[Product].[Food]}\n"
+            + "{[Product].[Non-Consumable]}\n"
+            + "Row #0: 19,477.23\n"
+            + "Row #1: 163,270.72\n"
+            + "Row #2: 42,879.28\n");
+    }
+
     public void testNativeNonEmptyWithBasicCalcMeasure() {
         final String mdx =
             "WITH MEMBER [Measures].[Calc] AS '[Measures].[Store Sales]'\n"

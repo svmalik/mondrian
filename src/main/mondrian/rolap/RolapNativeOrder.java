@@ -102,17 +102,19 @@ public class RolapNativeOrder extends RolapNativeSet {
                         sqlQuery, aggStar, getEvaluator(), level, preEval);
                 final String orderBySql =
                     sql.generateTopCountOrderBy(orderByExpr);
-                boolean nullable =
-                    deduceNullability(orderByExpr);
-                final String orderByAlias =
-                    sqlQuery.addSelect(orderBySql, null);
-                sqlQuery.addOrderBy(
-                    orderBySql,
-                    orderByAlias,
-                    ascending,
-                    true,
-                    nullable,
-                    true);
+                if (!"".equals(orderBySql)) {
+                    boolean nullable =
+                        deduceNullability(orderByExpr);
+                    final String orderByAlias =
+                        sqlQuery.addSelect(orderBySql, null);
+                    sqlQuery.addOrderBy(
+                        orderBySql,
+                        orderByAlias,
+                        ascending,
+                        true,
+                        nullable,
+                        true);
+                }
             }
             super.addConstraint(sqlQuery, baseCube, aggStar);
         }
@@ -264,7 +266,7 @@ public class RolapNativeOrder extends RolapNativeSet {
         Exp orderByExpr = null;
         if (args.length >= 2) {
             orderByExpr = args[1];
-            String orderBySQL = sql.generateTopCountOrderBy(args[1]);
+            String orderBySQL = sql.generateTopCountOrderBy(orderByExpr);
             if (orderBySQL == null) {
                 return null;
             }
