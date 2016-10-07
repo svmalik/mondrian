@@ -1,19 +1,27 @@
 package mondrian.rolap;
 
+import mondrian.mdx.MemberExpr;
+import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.Exp;
 import mondrian.olap.FunDef;
 import mondrian.olap.Level;
+import mondrian.olap.Member;
 import mondrian.olap.MondrianProperties;
 import mondrian.olap.NativeEvaluator;
 import mondrian.olap.SchemaReader;
 import mondrian.olap.Util;
+import mondrian.olap.fun.FunUtil;
 import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.CrossJoinArg;
+import mondrian.rolap.sql.DescendantsCrossJoinArg;
+import mondrian.rolap.sql.MemberListCrossJoinArg;
 import mondrian.rolap.sql.SqlQuery;
 import mondrian.rolap.sql.TupleConstraint;
 
 import javax.sql.DataSource;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -81,8 +89,12 @@ public class RolapNativeExcept extends RolapNativeSet {
             return null;
         }
 
-        List<CrossJoinArg[]> exceptArgs =
-            crossJoinArgFactory().checkCrossJoinArg(evaluator, args[1]);
+        List<CrossJoinArg[]> exceptArgs = getExceptArgs(evaluator, cjArgs, args[1]);
+        if (exceptArgs == null) {
+            exceptArgs =
+                crossJoinArgFactory().checkCrossJoinArg(evaluator, args[1]);
+        }
+
         if (exceptArgs == null || exceptArgs.isEmpty() || exceptArgs.get(0) == null) {
             return null;
         }
@@ -137,6 +149,50 @@ public class RolapNativeExcept extends RolapNativeSet {
             LOGGER.debug("using native except");
             return eval;
         }
+    }
+
+    private List<CrossJoinArg[]> getExceptArgs(
+        RolapEvaluator evaluator, CrossJoinArg[] cjArgs, Exp arg1)
+    {
+        if (cjArgs.length == 1 && cjArgs[0] instanceof DescendantsCrossJoinArg) {
+            // try to remove members from other levels and NULL to not fail
+            Level level = cjArgs[0].getLevel();
+            ResolvedFunCall arg1Call = FunUtil.extractResolvedFunCall(arg1);
+            if (level != null && arg1Call != null && "{}".equals(arg1Call.getFunName())) {
+                HashSet<Level> levels = new HashSet<>();
+                while (level != null) {
+                    levels.add(level);
+                    level = level.getChildLevel();
+                }
+                List<RolapMember> exceptMembers = new ArrayList<>(arg1Call.getArgCount());
+                for (Exp exp : arg1Call.getArgs()) {
+                    if (exp instanceof MemberExpr) {
+                        Member member = ((MemberExpr) exp).getMember();
+                        if (!levels.contains(member.getLevel()) || member.isNull()) {
+                            continue;
+                        }
+                        if (member.isCalculated() && !member.isParentChildLeaf()) {
+                            exceptMembers.clear();
+                            break;
+                        }
+                        exceptMembers.add((RolapMember) member);
+                    } else {
+                        exceptMembers.clear();
+                        break;
+                    }
+                }
+
+                if (!exceptMembers.isEmpty()) {
+                    CrossJoinArg exceptArg =
+                        MemberListCrossJoinArg.create(
+                            evaluator, exceptMembers, restrictMemberTypes(), false);
+                    if (exceptArg != null) {
+                        return Collections.singletonList(new CrossJoinArg[] { exceptArg });
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     static class ExceptFunctionConstraint extends DelegatingSetConstraint {

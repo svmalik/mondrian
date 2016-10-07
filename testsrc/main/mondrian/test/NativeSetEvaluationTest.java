@@ -6826,6 +6826,65 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "{[Promotion Media].[Daily Paper, Radio, TV]}\n"
             + "Axis #2:\n");
     }
+
+    public void testNativeExcept() {
+        String mdx = "SELECT Except("
+            + " {[Gender].[Gender].Members},"
+            + " {[Gender].[Gender].[M]}) ON COLUMNS, "
+            + "{} ON ROWS FROM [Sales]";
+        if (MondrianProperties.instance().EnableNativeExcept.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `customer`.`gender` as `c0`\n"
+                + "from\n"
+                + "    `customer` as `customer`\n"
+                + "where\n"
+                + "    ((not (`customer`.`gender` = 'M') or (`customer`.`gender` is null)))\n"
+                + "group by\n"
+                + "    `customer`.`gender`\n"
+                + "order by\n"
+                + "    ISNULL(`customer`.`gender`) ASC, `customer`.`gender` ASC";
+            assertQuerySql(mdx, mysqlPattern(mysql));
+        }
+        String result =
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Gender].[F]}\n"
+            + "Axis #2:\n";
+        assertQueryReturns(mdx, result);
+    }
+
+    public void testNativeExceptWithAll() {
+        // member [All] should be ignored here
+        String mdx = "SELECT Except("
+            + " {[Gender].[Gender].Members},"
+            + " {[Gender].[Gender].[M], [Gender].[All Gender]}) ON COLUMNS, "
+            + "{} ON ROWS FROM [Sales]";
+        if (MondrianProperties.instance().EnableNativeExcept.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `customer`.`gender` as `c0`\n"
+                + "from\n"
+                + "    `customer` as `customer`\n"
+                + "where\n"
+                + "    ((not (`customer`.`gender` = 'M') or (`customer`.`gender` is null)))\n"
+                + "group by\n"
+                + "    `customer`.`gender`\n"
+                + "order by\n"
+                + "    ISNULL(`customer`.`gender`) ASC, `customer`.`gender` ASC";
+            assertQuerySql(mdx, mysqlPattern(mysql));
+        }
+        String result =
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Gender].[F]}\n"
+            + "Axis #2:\n";
+        assertQueryReturns(mdx, result);
+    }
 }
 
 // End NativeSetEvaluationTest.java
