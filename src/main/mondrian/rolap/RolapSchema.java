@@ -36,6 +36,7 @@ import java.io.*;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.sql.DataSource;
 
@@ -157,6 +158,8 @@ public class RolapSchema implements Schema {
      * <p>Expect a different ID for each Mondrian instance node.
      */
     private final String id;
+
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
     /**
      * This is ONLY called by other constructors (and MUST be called
@@ -689,9 +692,7 @@ public class RolapSchema implements Schema {
             if (!mapNameToRole.containsKey(xmlRole.name)
                 || mapNameToRole.get(xmlRole.name) == null)
             {
-                Role role = createRole(xmlRole);
-                mapNameToRole.put(xmlRole.name, role);
-                if (LOGGER.isDebugEnabled()) {
+                if (addRole(xmlRole) && LOGGER.isDebugEnabled()) {
                     LOGGER.debug("Added role created from XML [" + xml + "]");
                 }
             }
@@ -700,6 +701,22 @@ public class RolapSchema implements Schema {
             throw Util.newError(e,
                 "Error while adding role from XML [" + xml + "]");
         }
+    }
+
+    private boolean addRole(MondrianDef.Role xmlRole) {
+        try {
+            lock.writeLock().lock();
+            if (!mapNameToRole.containsKey(xmlRole.name)
+                || mapNameToRole.get(xmlRole.name) == null)
+            {
+                Role role = createRole(xmlRole);
+                mapNameToRole.put(xmlRole.name, role);
+                return true;
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+        return false;
     }
 
     static Scripts.ScriptDefinition toScriptDef(MondrianDef.Script script) {
