@@ -64,12 +64,12 @@ public class ConcatenableList<T> extends AbstractList<T> {
                 this.plainList.addAll(list);
             }
         }
-        this.plainSet.clear();
+        this.plainSet = new HashSet<>(this.plainList);
     }
 
     public boolean addAll(final Collection<? extends T> collection) {
+        this.plainSet.addAll(collection);
         if (this.plainList == null) {
-            plainSet.addAll(collection);
             final List<T> list = (List<T>) collection;
             return this.lists.add(list);
         } else {
@@ -137,8 +137,8 @@ public class ConcatenableList<T> extends AbstractList<T> {
     }
 
     public boolean add(final T t) {
+        this.plainSet.add(t);
         if (this.plainList == null) {
-            plainSet.add(t);
             return this.lists.add(Collections.singletonList(t));
         } else {
             return this.plainList.add(t);
@@ -149,6 +149,7 @@ public class ConcatenableList<T> extends AbstractList<T> {
         if (this.plainList == null) {
             throw new UnsupportedOperationException();
         } else {
+            this.plainSet.add(t);
             this.plainList.add(index, t);
         }
     }
@@ -157,6 +158,7 @@ public class ConcatenableList<T> extends AbstractList<T> {
         if (this.plainList == null) {
             throw new UnsupportedOperationException();
         } else {
+            this.plainSet.add(t);
             return this.plainList.set(index, t);
         }
     }
@@ -237,7 +239,7 @@ public class ConcatenableList<T> extends AbstractList<T> {
     }
 
     public boolean contains(Object o) {
-        return this.plainList == null ? plainSet.contains(o) : plainList.contains(o);
+        return this.plainSet.contains(o);
     }
 }
 
