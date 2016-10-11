@@ -47,7 +47,7 @@ public abstract class ListPredicate implements StarPredicate {
         // Ensure that columns are sorted by bit-key, for determinacy.
         final SortedSet<RolapStar.Column> columnSet =
             new TreeSet<RolapStar.Column>(RolapStar.Column.COMPARATOR);
-        children = new ArrayList<StarPredicate>(predicateList);
+        children = predicateList;
         for (StarPredicate predicate : predicateList) {
             columnSet.addAll(predicate.getConstrainedColumnList());
         }

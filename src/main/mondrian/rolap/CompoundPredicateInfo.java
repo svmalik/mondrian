@@ -20,6 +20,7 @@ import mondrian.olap.fun.VisualTotalsFunDef;
 import mondrian.olap.type.SetType;
 import mondrian.olap.type.Type;
 import mondrian.resource.MondrianResource;
+import mondrian.rolap.agg.AbstractColumnPredicate;
 import mondrian.rolap.agg.AndPredicate;
 import mondrian.rolap.agg.ListColumnPredicate;
 import mondrian.rolap.agg.ListPredicate;
@@ -218,32 +219,31 @@ public class CompoundPredicateInfo {
             }
 
             BitKey bitKey = BitKey.Factory.makeBitKey(starColumnCount);
-            RolapCubeMember[] tuple;
-
-            tuple = new RolapCubeMember[aggregation.size()];
+            RolapCubeMember[] tuple = new RolapCubeMember[aggregation.size()];
+            boolean tupleUnsatisfiable = false;
             int i = 0;
             for (Member member : aggregation) {
+                RolapCubeMember rolapMember;
                 if (member instanceof VisualTotalsFunDef.VisualTotalMember) {
-                    tuple[i] = (RolapCubeMember)
+                    rolapMember = (RolapCubeMember)
                         ((VisualTotalsFunDef.VisualTotalMember) member)
                             .getMember();
                 } else {
-                    tuple[i] = (RolapCubeMember)member;
+                    rolapMember = (RolapCubeMember)member;
                 }
-                i++;
-            }
 
-            boolean tupleUnsatisfiable = false;
-            for (RolapCubeMember member : tuple) {
                 // Tuple cannot be constrained if any of the member cannot be.
                 tupleUnsatisfiable =
-                    makeCompoundGroupForMember(member, baseCube, bitKey);
+                    makeCompoundGroupForMember(rolapMember, baseCube, bitKey);
                 if (tupleUnsatisfiable) {
                     // If this tuple is unsatisfiable, skip it and try to
                     // constrain the next tuple.
                     unsatisfiableTupleCount ++;
                     break;
                 }
+
+                tuple[i] = rolapMember;
+                i++;
             }
 
             if (!tupleUnsatisfiable && !bitKey.isEmpty()) {
@@ -302,12 +302,15 @@ public class CompoundPredicateInfo {
         List<StarPredicate> compoundPredicateList =
             new ArrayList<StarPredicate> ();
         for (List<RolapCubeMember[]> group : compoundGroupMap.values()) {
+            if (addSimpleGroupPredicate(baseCube, group, compoundPredicateList)) {
+                continue;
+            }
             // e.g {[USA].[CA], [Canada].[BC]}
             StarPredicate compoundGroupPredicate = null;
-            List<StarPredicate> predicateList = new ArrayList<StarPredicate>(group.size());
+            List<StarPredicate> groupPredicates = new ArrayList<>(group.size());
             for (RolapCubeMember[] tuple : group) {
                 // [USA].[CA]
-                List<StarPredicate> groupPredicates = new ArrayList<StarPredicate>(tuple.length);
+                List<StarPredicate> tuplePredicates = new ArrayList<>(tuple.length);
                 for (RolapCubeMember member : tuple) {
                     while (member != null) {
                         RolapCubeLevel level = member.getLevel();
@@ -321,24 +324,24 @@ public class CompoundPredicateInfo {
                                 memberPredicate = makeCalculatedMemberPredicate(
                                     member, baseCube, evaluator);
                             }
-                            groupPredicates.add(memberPredicate);
+                            tuplePredicates.add(memberPredicate);
                         }
                         // Don't need to constrain USA if CA is unique
-                        if (member.getLevel().isUnique()) {
+                        if (level.isUnique()) {
                             break;
                         }
                         member = member.getParentMember();
                     }
                 }
-                if (!groupPredicates.isEmpty()) {
-                    predicateList.add(new AndPredicate(groupPredicates));
+                if (!tuplePredicates.isEmpty()) {
+                    groupPredicates.add(new AndPredicate(tuplePredicates));
                 }
             }
 
-            if (predicateList.size() == 1) {
-                compoundGroupPredicate = predicateList.get(0);
-            } else if (predicateList.size() > 1){
-                compoundGroupPredicate = new OrPredicate(predicateList);
+            if (groupPredicates.size() == 1) {
+                compoundGroupPredicate = groupPredicates.get(0);
+            } else if (groupPredicates.size() > 1){
+                compoundGroupPredicate = new OrPredicate(groupPredicates);
             }
 
             if (compoundGroupPredicate != null
@@ -365,6 +368,73 @@ public class CompoundPredicateInfo {
         }
 
         return compoundPredicate;
+    }
+
+    /**
+     * Convert a full crossjoin tuple-based predicate to a column-based one.
+     * Calculated members are not supported here.
+     */
+    private static boolean addSimpleGroupPredicate(
+        RolapCube baseCube, List<RolapCubeMember[]> group,
+        List<StarPredicate> compoundPredicateList)
+    {
+        int tupleSize = group.size() == 0 ? 0 : group.get(0).length;
+        if (tupleSize == 0) {
+            return false;
+        }
+        Set<RolapCubeLevel> levels = new LinkedHashSet<>();
+        Map<RolapStar.Column, Set<StarColumnPredicate>> colPredicates = new LinkedHashMap<>(tupleSize);
+        for (int i = 0; i < group.size(); i++) {
+            RolapCubeMember[] tuple = group.get(i);
+            if (tupleSize != tuple.length) {
+                return false;
+            }
+            for (RolapCubeMember member : tuple) {
+                if (levels.add(member.getLevel()) && i > 0) {
+                    return false;
+                }
+                while (member != null) {
+                    if (member.isCalculated()) {
+                        return false;
+                    }
+                    if (!member.getLevel().isAll()) {
+                        RolapStar.Column column = member.getLevel().getBaseStarKeyColumn(baseCube);
+                        Set<StarColumnPredicate> predicates;
+                        if (i == 0) {
+                            predicates = new LinkedHashSet<>();
+                            colPredicates.put(column, predicates);
+                        } else {
+                            predicates = colPredicates.get(column);
+                        }
+                        predicates.add(new ValueColumnPredicate(column, member.getKey()));
+                    }
+                    if (member.getLevel().isUnique()) {
+                        break;
+                    }
+                    member = member.getParentMember();
+                }
+            }
+        }
+
+        int cardinality = 1;
+        for (Set<StarColumnPredicate> colPredicate : colPredicates.values()) {
+            if (colPredicate != null) {
+                cardinality *= colPredicate.size();
+            }
+        }
+        if (cardinality <= group.size()) {
+            List<StarPredicate> predicates = new ArrayList<>(colPredicates.size());
+            for (Map.Entry<RolapStar.Column, Set<StarColumnPredicate>> entry : colPredicates.entrySet()) {
+                predicates.add(new ListColumnPredicate(entry.getKey(), new ArrayList<>(entry.getValue())));
+            }
+
+            if (predicates.size() > 0) {
+                compoundPredicateList.add(
+                    predicates.size() == 1 ? predicates.get(0) : new AndPredicate(predicates));
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -407,9 +477,10 @@ public class CompoundPredicateInfo {
             for (StarPredicate childPredicate : listPredicate.getChildren()) {
                 extractColumnPredicates(childPredicate, map);
             }
-        } else if (predicate instanceof ValueColumnPredicate) {
-            ValueColumnPredicate valuePredicate =
-                (ValueColumnPredicate) predicate;
+        } else if (predicate instanceof ValueColumnPredicate
+                || predicate instanceof ListColumnPredicate) {
+            AbstractColumnPredicate valuePredicate =
+                (AbstractColumnPredicate) predicate;
             Set<StarColumnPredicate> list =
                 map.get(valuePredicate.getConstrainedColumn());
             if (list == null) {

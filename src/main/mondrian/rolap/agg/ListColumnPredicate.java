@@ -69,10 +69,19 @@ public class ListColumnPredicate extends AbstractColumnPredicate {
 
     private Set<Object> createValues(List<StarColumnPredicate> list) {
         createdValues = true;
-        final HashSet<Object> set = new HashSet<Object>();
+        final HashSet<Object> set = new LinkedHashSet<Object>();
         for (StarColumnPredicate predicate : list) {
             if (predicate instanceof ValueColumnPredicate) {
                 set.add(((ValueColumnPredicate) predicate).getValue());
+            } if (predicate instanceof ListColumnPredicate) {
+                List<StarColumnPredicate> predicates =
+                    ((ListColumnPredicate) predicate).getPredicates();
+                Set<Object> childSet = createValues(predicates);
+                if (childSet == null) {
+                    return null;
+                } else {
+                    set.addAll(childSet);
+                }
             } else {
                 // One of the children is not a value predicate. We will have to
                 // evaluate the predicate long-hand.
