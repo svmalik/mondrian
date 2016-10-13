@@ -103,7 +103,6 @@ public class ManyToManyUtil {
      * this method returns the hierarchy for m2m functions for both
      * regular and virtual cubes.
      *
-     * @param evaluator the current evaluator to determine the cube
      * @param m the member to resolve the hierarchy for
      * @return the rolap cube hierarchy
      */
@@ -122,7 +121,7 @@ public class ManyToManyUtil {
      *
      * @param evaluator
      * @param m
-     * @param parentHierarchyList
+     * @param bridgeHierarchyList
      * @return
      */
     private static TupleList getBridgeMembers(
@@ -143,16 +142,17 @@ public class ManyToManyUtil {
             return newList;
         }
 
-        Evaluator neweval = evaluator.push();
+        RolapEvaluator neweval = (RolapEvaluator) evaluator.push();
 
         // clear out the full context including the slicer
-        for (Member dm : ((RolapEvaluator)neweval).root.defaultMembers) {
+        for (Member dm : neweval.root.defaultMembers) {
             neweval.setContext(dm);
         }
         
-        List<Member> slicer = ((RolapEvaluator)neweval).getSlicerMembers();
+        List<Member> slicer = neweval.getSlicerMembers();
         slicer.clear();
         neweval.setContext(m);
+        neweval.setExpanding(m); // because of SqlConstraintUtils.measuresConflictWithMembers
 
         // force native non-empty to on for this calculation.
         // an alternative approach would be to throw an
@@ -332,7 +332,7 @@ public class ManyToManyUtil {
      *
      * This is used by the Native Filter and Native Top Count implementations.
      *
-     * @param original evaluator
+     * @param evaluator original evaluator
      * @return new evaluator
      */
     public static RolapEvaluator getManyToManyEvaluator(
