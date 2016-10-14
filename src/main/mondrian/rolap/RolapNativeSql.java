@@ -156,8 +156,11 @@ public class RolapNativeSql {
             Literal literal = (Literal) exp;
             String expr = String.valueOf(literal.getValue());
             if (!DECIMAL.matcher(expr).matches()) {
+                return null;
+                /*
                 throw new MondrianEvaluationException(
                     "Expected to get decimal, but got " + expr);
+                */
             }
 
             if (dialect.getDatabaseProduct().getFamily()
