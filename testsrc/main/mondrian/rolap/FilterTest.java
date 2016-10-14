@@ -2124,6 +2124,38 @@ public class FilterTest extends BatchTestCase {
             + "Row #0: Glenn Olivera^$^Bellingham^$^WA^$^USA^$^All Customers\n");
     }
 
+    public void testNativeFilterUCaseWithEmptyString() {
+        String mdx =
+            "Select Filter([Store].Members, UCase(\"\") = \"\" "
+            + "and [Store].CurrentMember.Name = \"Bellingham\") "
+            + "on 0 from [Sales]";
+        if (MondrianProperties.instance().EnableNativeFilter.get())
+        {
+            String mysql =
+                "select\n"
+                + "    \"store\".\"store_country\" as \"c0\"\n"
+                + "from\n"
+                + "    \"store\" as \"store\"\n"
+                + "group by\n"
+                + "    \"store\".\"store_country\"\n"
+                + "having\n"
+                + "    ((UPPER(\"\") = \"\") AND (\"store\".\"store_country\" = \"Bellingham\"))\n"
+                + "order by\n"
+                + "    ISNULL(\"store\".\"store_country\") ASC, \"store\".\"store_country\" ASC";
+            propSaver.set(MondrianProperties.instance().GenerateFormattedSql, true);
+            assertQuerySql(mdx, mysqlPattern(mysql));
+            verifySameNativeAndNot(
+                mdx, "Filtering with UCase and empty string", getTestContext());
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Store].[USA].[WA].[Bellingham]}\n"
+            + "Row #0: 2,237\n");
+    }
+
     public void testNativeFilterMatchNoJoinOnMultiLevelHierarchy() {
         if (!getTestContext().getDialect().allowsRegularExpressionInWhereClause()) {
             return;

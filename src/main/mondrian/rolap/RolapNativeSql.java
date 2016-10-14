@@ -294,6 +294,22 @@ public class RolapNativeSql {
         }
     }
 
+    class CurrentMemberNameCompiler extends FunCallSqlCompilerBase {
+        CurrentMemberNameCompiler() {
+            super(Category.String, null, 1);
+        }
+
+        public String compile(Exp exp) {
+            if (!match(exp)) {
+                return null;
+            }
+            return getCurrentMemberExp(exp, false);
+        }
+
+        public String toString() {
+            return "CurrentMemberNameCompiler";
+        }
+    }
 
     /**
      * Compiles CurrentMember IN {} into SQL.
@@ -505,11 +521,10 @@ public class RolapNativeSql {
                 return false;
             }
             FunCall fc = (FunCall) exp;
-            if (!mdx.equalsIgnoreCase(fc.getFunName())) {
+            if (mdx != null && !mdx.equalsIgnoreCase(fc.getFunName())) {
                 return false;
             }
-            Exp[] args = fc.getArgs();
-            if (args.length != argCount) {
+            if (fc.getArgCount() != argCount) {
                 return false;
             }
             return true;
@@ -1327,7 +1342,9 @@ public class RolapNativeSql {
                 }
             } else if (exp instanceof ParameterExpr) {
                 return true;
-            } 
+            } else if (exp instanceof Literal && exp.getCategory() == Category.String) {
+                return true;
+            }
             return false;
         }
         
@@ -1357,6 +1374,11 @@ public class RolapNativeSql {
                                                            .equalsIgnoreCase("strtomember")) {
                 MemberExpr expr = getMemberExpr(exp);
                 results = parentCompiler.compile(expr);
+            } else if (exp instanceof Literal && exp.getCategory() == Category.String) {
+                StringBuilder sb = new StringBuilder();
+                dialect.quoteStringLiteral(
+                    sb, String.valueOf(((Literal) exp).getValue()));
+                results = sb.toString();
             } else {
                 ExpCompiler compiler = evaluator.getQuery().createCompiler();
                 Calc calc = compiler.compileScalar(exp, true);
@@ -1429,6 +1451,7 @@ public class RolapNativeSql {
         numericCompiler.add(
             new InStrSqlCompiler(
                 Category.String, numericCompiler));
+        numericCompiler.add(new CurrentMemberNameCompiler());
 
         booleanCompiler.add(
             new InfixOpSqlCompiler(
