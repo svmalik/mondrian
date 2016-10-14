@@ -19,8 +19,6 @@ import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
 import mondrian.olap.type.MemberType;
 import mondrian.olap.type.SetType;
-import mondrian.rolap.ManyToManyUtil;
-import mondrian.rolap.RolapEvaluator;
 import mondrian.server.Locus;
 import mondrian.util.CancellationChecker;
 
@@ -131,21 +129,18 @@ class FilterFunDef extends FunDefBase {
                 // Use a native evaluator, if more efficient.
                 // TODO: Figure this out at compile time.
                 SchemaReader schemaReader = evaluator.getSchemaReader();
-                RolapEvaluator manyToManyEval =
-                    ManyToManyUtil.getManyToManyEvaluator(
-                        (RolapEvaluator)evaluator);
                 NativeEvaluator nativeEvaluator =
                     schemaReader.getNativeSetEvaluator(
                         call.getFunDef(),
                         call.getArgs(),
-                        manyToManyEval,
+                        evaluator,
                         this);
                 if (nativeEvaluator != null) {
                     return (TupleIterable)
                         nativeEvaluator.execute(ResultStyle.ITERABLE);
                 } else {
                     TupleIterable tuples = evaluateIterableLevels(evaluator);
-                    return tuples != null ? tuples : makeIterable(evaluator);
+                    return tuples != null ? tuples : makeIterable(evaluator, getCalcs()[0], (BooleanCalc) getCalcs()[1]);
                 }
             } finally {
                 evaluator.getTiming().markEnd(TIMING_NAME);
@@ -162,9 +157,8 @@ class FilterFunDef extends FunDefBase {
             ResolvedFunCall call = (ResolvedFunCall) exp;
             Exp[] args = call.getArgs();
             ResolvedFunCall arg0 = FunUtil.extractResolvedFunCall(args[0]);
-            if (arg0 == null
-                || !supported.contains(arg0.getFunName().toLowerCase())
-                || arg0.getArgs().length != 1)
+            if (arg0 == null || arg0.getArgCount() != 1
+                || !supported.contains(arg0.getFunName().toLowerCase()))
             {
                 return null;
             }
@@ -183,28 +177,25 @@ class FilterFunDef extends FunDefBase {
                 return null;
             }
 
-            SchemaReader reader = evaluator.getSchemaReader();
-            RolapEvaluator manyToManyEval =
-                ManyToManyUtil.getManyToManyEvaluator((RolapEvaluator)evaluator);
             ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
-            Validator validator = expCompiler.getValidator();
-
             TupleList result = new UnaryTupleList();
             List<Member> members = result.slice(0);
             for (Level level : hierarchy.getLevels()) {
-                if (level.isAll()) {
-                    continue;
-                }
-                TupleIterable tuples =
-                    evaluateForLevel(
-                        level, call.getFunDef(), args, arg0.getFunName(),
-                        reader, validator, manyToManyEval);
-                if (tuples == null) {
-                    return null;
-                } else {
-                    for (Member m : tuples.slice(0)) {
-                        members.add(m);
+                int save = evaluator.savepoint();
+                try {
+                    TupleIterable tuples =
+                        evaluateForLevel(
+                            level, call.getFunDef(), args.clone(),
+                            arg0.getFunName(), evaluator, expCompiler);
+                    if (tuples == null) {
+                        return null;
+                    } else {
+                        for (Member m : tuples.slice(0)) {
+                            members.add(m);
+                        }
                     }
+                } finally {
+                    evaluator.restore(save);
                 }
             }
             return FunUtil.hierarchizeTupleList(result, false);
@@ -212,20 +203,21 @@ class FilterFunDef extends FunDefBase {
 
         private TupleIterable evaluateForLevel(
             Level level, FunDef funDef, Exp[] args,
-            String membersFunName, SchemaReader schemaReader,
-            Validator validator, RolapEvaluator manyToManyEval)
+            String membersFunName, Evaluator evaluator,
+            ExpCompiler expCompiler)
         {
             Exp[] levelArgs = new Exp[] { new LevelExpr(level) };
-            FunDef levelFun =
-                validator.getDef(levelArgs, membersFunName, Syntax.Property);
+            FunDef levelFun = expCompiler.getValidator()
+                .getDef(levelArgs, membersFunName, Syntax.Property);
             args[0] = new ResolvedFunCall(
                 levelFun, levelArgs, new SetType(MemberType.Unknown));
-            NativeEvaluator nativeEvaluator =
-                schemaReader.getNativeSetEvaluator(
-                    funDef,
-                    args,
-                    manyToManyEval,
-                    this);
+            if (level.isAll()) {
+                Calc imlcalc = expCompiler.compileAs(
+                    args[0], null, ResultStyle.ITERABLE_LIST_MUTABLELIST);
+                return makeIterable(evaluator, imlcalc, (BooleanCalc) getCalcs()[1]);
+            }
+            NativeEvaluator nativeEvaluator = evaluator.getSchemaReader()
+                .getNativeSetEvaluator(funDef, args, evaluator, this);
             if (nativeEvaluator != null) {
                 return (TupleIterable) nativeEvaluator.execute(ResultStyle.ITERABLE);
             } else {
@@ -233,7 +225,7 @@ class FilterFunDef extends FunDefBase {
             }
         }
 
-        protected abstract TupleIterable makeIterable(Evaluator evaluator);
+        protected abstract TupleIterable makeIterable(Evaluator evaluator, Calc calc, BooleanCalc bcalc);
 
         public boolean dependsOn(Hierarchy hierarchy) {
             if (existing) {
@@ -253,14 +245,11 @@ class FilterFunDef extends FunDefBase {
             assert calcs[1] instanceof BooleanCalc;
         }
 
-        protected TupleIterable makeIterable(Evaluator evaluator) {
+        protected TupleIterable makeIterable(Evaluator evaluator, Calc calc, BooleanCalc bcalc) {
             evaluator.getTiming().markStart(TIMING_NAME);
             final int savepoint = evaluator.savepoint();
             try {
-                Calc[] calcs = getCalcs();
-                ListCalc lcalc = (ListCalc) calcs[0];
-                BooleanCalc bcalc = (BooleanCalc) calcs[1];
-
+                ListCalc lcalc = (ListCalc) calc;
                 TupleList list = lcalc.evaluateList(evaluator);
 
                 // make list mutable; guess selectivity .5
@@ -294,10 +283,8 @@ class FilterFunDef extends FunDefBase {
             assert calcs[1] instanceof BooleanCalc;
         }
 
-        protected TupleIterable makeIterable(Evaluator evaluator) {
-            Calc[] calcs = getCalcs();
-            ListCalc lcalc = (ListCalc) calcs[0];
-            BooleanCalc bcalc = (BooleanCalc) calcs[1];
+        protected TupleIterable makeIterable(Evaluator evaluator, Calc calc, BooleanCalc bcalc) {
+            ListCalc lcalc = (ListCalc) calc;
             TupleList members = lcalc.evaluateList(evaluator);
 
             // Not mutable, must create new list
@@ -332,10 +319,8 @@ class FilterFunDef extends FunDefBase {
             assert calcs[1] instanceof BooleanCalc;
         }
 
-        protected TupleIterable makeIterable(Evaluator evaluator) {
-            Calc[] calcs = getCalcs();
-            IterCalc icalc = (IterCalc) calcs[0];
-            final BooleanCalc bcalc = (BooleanCalc) calcs[1];
+        protected TupleIterable makeIterable(Evaluator evaluator, final Calc calc, final BooleanCalc bcalc) {
+            IterCalc icalc = (IterCalc) calc;
 
             // This does dynamics, just in time,
             // as needed filtering

@@ -2172,7 +2172,7 @@ public class FilterTest extends BatchTestCase {
             + "Order(Filter([Customers].AllMembers, ([Customers].CurrentMember.Caption "
             + "MATCHES \"(?i).*oliv.*\")), [Measures].[(order)], BASC) ON ROWS\n"
             + "FROM [Sales]";
-        SqlPattern mysql = new SqlPattern(Dialect.DatabaseProduct.MYSQL,
+        String mysql =
             "select\n"
             + "    `customer`.`country` as `c0`,\n"
             + "    `customer`.`state_province` as `c1`,\n"
@@ -2202,8 +2202,7 @@ public class FilterTest extends BatchTestCase {
             + "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
             + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC,\n"
             + "    ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC,\n"
-            + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC",
-            null);
+            + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC";
         String result =
             "Axis #0:\n"
             + "{}\n"
@@ -2231,10 +2230,10 @@ public class FilterTest extends BatchTestCase {
             + "Row #8: Kimberly Oliver^$^Lemon Grove^$^CA^$^USA^$^All Customers\n"
             + "Row #9: Jacqueline Oliver^$^La Mesa^$^CA^$^USA^$^All Customers\n";
 
-        if (!isUseAgg() && MondrianProperties.instance().EnableNativeFilter.get())
+        if (MondrianProperties.instance().EnableNativeFilter.get())
         {
             propSaver.set(MondrianProperties.instance().GenerateFormattedSql, true);
-            assertQuerySql(mdx, new SqlPattern[] { mysql });
+            assertQuerySql(mdx, mysqlPattern(mysql));
             verifySameNativeAndNot(
                 mdx, "Filtering AllMembers on a multi-level hierarchy", getTestContext());
         }
@@ -2250,10 +2249,10 @@ public class FilterTest extends BatchTestCase {
             + "Order(Filter([Customers].Members, ([Customers].CurrentMember.Caption "
             + "MATCHES \"(?i).*oliv.*\")), [Measures].[(order)], BASC) ON ROWS\n"
             + "FROM [Sales]";
-        if (!isUseAgg() && MondrianProperties.instance().EnableNativeFilter.get())
+        if (MondrianProperties.instance().EnableNativeFilter.get())
         {
             propSaver.set(MondrianProperties.instance().GenerateFormattedSql, true);
-            assertQuerySql(getTestContext().withFreshConnection(), mdx, new SqlPattern[] { mysql });
+            assertQuerySql(getTestContext().withFreshConnection(), mdx, mysqlPattern(mysql));
             verifySameNativeAndNot(
                 mdx, "Filtering AllMembers on a multi-level hierarchy", getTestContext());
         }
