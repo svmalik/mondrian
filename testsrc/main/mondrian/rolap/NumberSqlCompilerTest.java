@@ -112,7 +112,9 @@ public class NumberSqlCompilerTest extends TestCase {
     private void checkRejectsString(String value) {
         Exp exp = Literal.createString(value);
         try {
-            compiler.compile(exp);
+            if (compiler.compile(exp) == null) {
+                return;
+            }
         } catch (MondrianEvaluationException e) {
             return;
         }
