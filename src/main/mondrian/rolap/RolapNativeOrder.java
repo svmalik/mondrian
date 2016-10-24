@@ -13,11 +13,20 @@ package mondrian.rolap;
 
 import mondrian.mdx.MdxVisitorImpl;
 import mondrian.mdx.MemberExpr;
-import mondrian.olap.*;
+import mondrian.olap.Exp;
+import mondrian.olap.FunDef;
+import mondrian.olap.Level;
+import mondrian.olap.Literal;
+import mondrian.olap.Member;
+import mondrian.olap.MondrianProperties;
+import mondrian.olap.NativeEvaluator;
+import mondrian.olap.SchemaReader;
+import mondrian.olap.Util;
 import mondrian.rolap.aggmatcher.AggStar;
-import mondrian.rolap.sql.*;
+import mondrian.rolap.sql.CrossJoinArg;
+import mondrian.rolap.sql.SqlQuery;
+import mondrian.rolap.sql.TupleConstraint;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,11 +86,18 @@ public class RolapNativeOrder extends RolapNativeSet {
                 orderByExpr.accept(
                     new MdxVisitorImpl() {
                         public Object visit(MemberExpr memberExpr) {
-                            if (memberExpr.getMember() instanceof RolapStoredMeasure
-                                && memberExpr.getMember().isMeasure())
-                            {
-                                mustJoin.set(true);
+                            if (mustJoin.get()) {
+                                turnOffVisitChildren();
                                 return null;
+                            }
+                            if (memberExpr.getMember().isMeasure()) {
+                                if (memberExpr.getMember() instanceof RolapStoredMeasure) {
+                                    mustJoin.set(true);
+                                    turnOffVisitChildren();
+                                    return null;
+                                } else if (memberExpr.getMember().isCalculated()) {
+                                    memberExpr.getMember().getExpression().accept(this);
+                                }
                             }
                             return super.visit(memberExpr);
                         }
@@ -207,11 +223,6 @@ public class RolapNativeOrder extends RolapNativeSet {
         SetConstraint parentConstraint = null;
         RolapLevel firstCrossjoinLevel = null;
         if (eval == null) {
-            if (!evaluator.isNonEmpty()) {
-                // requires OUTER JOIN which is not yet supported
-                return null;
-            }
-
             // extract the set expression
             allArgs = crossJoinArgFactory().checkCrossJoinArg(evaluator, args[0]);
 
@@ -234,6 +245,18 @@ public class RolapNativeOrder extends RolapNativeSet {
             }
 
             firstCrossjoinLevel = cjArgs[0].getLevel();
+
+            if (!evaluator.isNonEmpty()) {
+                if (cjArgs.length > 1) {
+                    // cannot support this without joining
+                    return null;
+                }
+                if (!firstCrossjoinLevel.isUnique()) {
+                    // MemberExcludeConstraint would produce bad query
+                    return null;
+                }
+            }
+
         } else {
             if (isHierarchical && !isParentLevelAll(eval.getArgs())) {
                 // cannot natively evaluate, parent-child hierarchies in play
@@ -304,6 +327,8 @@ public class RolapNativeOrder extends RolapNativeSet {
                         combinedArgs, evaluator, orderByExpr, ascending, sql.preEvalExprs, firstCrossjoinLevel, parentConstraint);
                 SetEvaluator sev =
                     new SetEvaluator(cjArgs, schemaReader, constraint, sql.getStoredMeasure());
+                sev.setCompleteWithNullValues(!evaluator.isNonEmpty());
+                sev.setCompleteWithNullValuesPosition(ascending);
                 return sev;
             } finally {
                 evaluator.restore(savepoint);

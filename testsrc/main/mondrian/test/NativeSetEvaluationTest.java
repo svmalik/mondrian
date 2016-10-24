@@ -1965,6 +1965,65 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #2: 42,879.28\n");
     }
 
+    public void testNativeOrderWithNulls() {
+        String mdx = "SELECT [Measures].[Unit Sales] ON COLUMNS, "
+            + "Order([Customers].[State Province].Members, [Measures].[Unit Sales], BDESC) ON ROWS "
+            + "FROM [Sales] "
+            + "WHERE [Time].[1997].[Q3]";
+        if (MondrianProperties.instance().EnableNativeOrder.get()) {
+            propSaver.set(MondrianProperties.instance().GenerateFormattedSql, true);
+            // separate query to load members which don't join to the fact table
+            String mysql =
+                "select\n"
+                + "    `customer`.`country` as `c0`,\n"
+                + "    `customer`.`state_province` as `c1`\n"
+                + "from\n"
+                + "    `customer` as `customer`\n"
+                + "where\n"
+                + "    ((not (`customer`.`state_province` in ('WA', 'CA', 'OR')) or (`customer`.`state_province` is null)))\n"
+                + "group by\n"
+                + "    `customer`.`country`,\n"
+                + "    `customer`.`state_province`\n"
+                + "order by\n"
+                + "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
+                + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC";
+            assertQuerySql(mdx, mysqlPattern(mysql));
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q3]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Customers].[USA].[WA]}\n"
+            + "{[Customers].[USA].[CA]}\n"
+            + "{[Customers].[USA].[OR]}\n"
+            + "{[Customers].[Canada].[BC]}\n"
+            + "{[Customers].[Mexico].[DF]}\n"
+            + "{[Customers].[Mexico].[Guerrero]}\n"
+            + "{[Customers].[Mexico].[Jalisco]}\n"
+            + "{[Customers].[Mexico].[Mexico]}\n"
+            + "{[Customers].[Mexico].[Oaxaca]}\n"
+            + "{[Customers].[Mexico].[Sinaloa]}\n"
+            + "{[Customers].[Mexico].[Veracruz]}\n"
+            + "{[Customers].[Mexico].[Yucatan]}\n"
+            + "{[Customers].[Mexico].[Zacatecas]}\n"
+            + "Row #0: 30,538\n"
+            + "Row #1: 18,370\n"
+            + "Row #2: 16,940\n"
+            + "Row #3: \n"
+            + "Row #4: \n"
+            + "Row #5: \n"
+            + "Row #6: \n"
+            + "Row #7: \n"
+            + "Row #8: \n"
+            + "Row #9: \n"
+            + "Row #10: \n"
+            + "Row #11: \n"
+            + "Row #12: \n");
+    }
+
     public void testNativeNonEmptyWithBasicCalcMeasure() {
         final String mdx =
             "WITH MEMBER [Measures].[Calc] AS '[Measures].[Store Sales]'\n"

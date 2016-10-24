@@ -228,6 +228,9 @@ public class RolapNativeSubset extends RolapNativeSet {
                 new SubsetConstraint(
                     start, count, cjArgs, evaluator, (SetConstraint)eval.getConstraint());
             eval.setConstraint(constraint);
+            if (count != null) {
+                eval.setMaxRows(count);
+            }
             LOGGER.debug("using native subset");
             return eval;
         }

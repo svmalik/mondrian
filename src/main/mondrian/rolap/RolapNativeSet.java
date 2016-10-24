@@ -446,6 +446,7 @@ public abstract class RolapNativeSet extends RolapNative {
         private TupleConstraint constraint;
         private int maxRows = 0;
         private boolean completeWithNullValues;
+        private boolean completeWithNullValuesAtTop;
         private Member measure = null;
 
         public SetEvaluator(
@@ -477,6 +478,10 @@ public abstract class RolapNativeSet extends RolapNative {
 
         public void setCompleteWithNullValues(boolean completeWithNullValues) {
             this.completeWithNullValues = completeWithNullValues;
+        }
+
+        public void setCompleteWithNullValuesPosition(boolean completeAtTop) {
+            this.completeWithNullValuesAtTop = completeAtTop;
         }
 
         /**
@@ -617,7 +622,7 @@ public abstract class RolapNativeSet extends RolapNative {
 
             // Did not get as many members as expected - try to complete using
             // less constraints
-            if (completeWithNullValues && result.size() < maxRows) {
+            if (completeWithNullValues && (result.size() < maxRows || maxRows == 0)) {
                 RolapLevel l = args[0].getLevel();
                 List<RolapMember> list = new ArrayList<RolapMember>();
                 for (List<Member> lm : result) {
@@ -637,8 +642,13 @@ public abstract class RolapNativeSet extends RolapNative {
                 }
 
                 str.setMaxRows(maxRows - result.size());
-                result.addAll(
-                    str.readMembers(dataSource, null, null));
+                if (completeWithNullValuesAtTop) {
+                    result.addAll(0,
+                        str.readMembers(dataSource, null, null));
+                } else {
+                    result.addAll(
+                        str.readMembers(dataSource, null, null));
+                }
             }
             return result;
         }
