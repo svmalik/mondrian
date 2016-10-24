@@ -8,12 +8,12 @@
 // Copyright (C) 2005-2017 Pentaho
 // All Rights Reserved.
 */
-
 package mondrian.xmla;
 
 import mondrian.olap.MondrianException;
 import mondrian.olap.Parameter;
 import mondrian.olap.Util;
+import mondrian.util.XmlParserFactoryProducer;
 import mondrian.xmla.impl.DefaultXmlaResponse;
 
 import org.olap4j.OlapConnection;
@@ -163,10 +163,11 @@ public class XmlaUtil implements XmlaConstants {
     {
         try {
             DocumentBuilderFactory factory =
-                DocumentBuilderFactory.newInstance();
+                XmlParserFactoryProducer.createSecureDocBuilderFactory();
             factory.setIgnoringElementContentWhitespace(true);
             factory.setIgnoringComments(true);
             factory.setNamespaceAware(true);
+
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document doc = builder.parse(source);
             return doc.getDocumentElement();
