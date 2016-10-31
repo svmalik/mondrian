@@ -242,6 +242,12 @@ public abstract class DelegatingSchemaReader implements SchemaReader {
         return schemaReader.getLevelMembers(level, context);
     }
 
+    public List<Member> getLevelMembers(
+        Level level, List<Id.KeySegment> memberKeys, MatchType matchType)
+    {
+        return schemaReader.getLevelMembers(level, memberKeys, matchType);
+    }
+
     public List<Member> getMemberChildren(Member member, Evaluator context) {
         return schemaReader.getMemberChildren(member, context);
     }

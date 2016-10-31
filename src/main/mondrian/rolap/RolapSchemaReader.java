@@ -600,6 +600,33 @@ public class RolapSchemaReader
         return Util.cast(membersInLevel);
     }
 
+    public List<Member> getLevelMembers(
+        Level level, List<Id.KeySegment> memberKeys, MatchType matchType)
+    {
+        List<List<String>> keyValues = new ArrayList<>(memberKeys.size());
+        for (Id.KeySegment keySegment : memberKeys) {
+            List<String> colKeys = new ArrayList<>();
+            for (Id.NameSegment nameSegment : keySegment.getKeyParts()) {
+                final String keyValue = nameSegment.name;
+                if (RolapUtil.mdxNullLiteral().equalsIgnoreCase(keyValue)) {
+                    colKeys.add(RolapUtil.sqlNullValue.toString());
+                } else {
+                    colKeys.add(keyValue);
+                }
+            }
+            keyValues.add(colKeys);
+        }
+
+        RolapLevel rolapLevel = (RolapLevel) level;
+        TupleConstraint constraint =
+            sqlConstraintFactory.getLevelMembersConstraint(rolapLevel, keyValues);
+        final MemberReader memberReader =
+            getMemberReader(level.getHierarchy());
+        List<RolapMember> membersInLevel =
+            memberReader.getMembersInLevel(rolapLevel, constraint);
+        return Util.cast(membersInLevel);
+    }
+
     public List<Dimension> getCubeDimensions(Cube cube) {
         assert cube != null;
         final List<Dimension> dimensions = new ArrayList<Dimension>();

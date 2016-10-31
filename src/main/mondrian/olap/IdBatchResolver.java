@@ -188,16 +188,13 @@ public final class IdBatchResolver {
                         parent, parentMember, identifiers, resolvedIdentifiers);
                 } else if (getLastSegment(parent) instanceof Id.KeySegment) {
                     batchResolveChildrenByKey(
-                        parent, parentMember, identifiers, resolvedIdentifiers);
+                        parent, parentMember, parentMember.getLevel(), identifiers, resolvedIdentifiers);
                 }
             }
             if (exp instanceof LevelExpr) {
                 Level level = ((LevelExpr)exp).getLevel();
-                if (level.areMembersUnique() && level.getHierarchy().hasAll()) {
-                    parentMember = level.getHierarchy().getAllMember();
-                    batchResolveChildrenByKey(
-                        parent, parentMember, identifiers, resolvedIdentifiers);
-                }
+                batchResolveChildrenByKey(
+                    parent, null, level, identifiers, resolvedIdentifiers);
             }
         }
         return resolvedIdentifiers;
@@ -353,7 +350,7 @@ public final class IdBatchResolver {
     }
 
     private void batchResolveChildrenByKey(
-        Id parent, Member parentMember, SortedSet<Id> identifiers,
+        Id parent, Member parentMember, Level level, SortedSet<Id> identifiers,
         Map<QueryPart, QueryPart> resolvedIdentifiers)
     {
         final List<Id> children = findChildIds(parent, identifiers);
@@ -362,28 +359,26 @@ public final class IdBatchResolver {
             collectChildrenKeySegments(parentMember, children);
         if (childKeySegments.size() > 0) {
             List<Member> childMembers =
-                lookupChildrenByKeys(parentMember, childKeySegments);
+                lookupChildrenByKeys(level, childKeySegments);
             addChildrenToResolvedMap(
                 resolvedIdentifiers, children, childMembers);
         }
     }
 
     private List<Member> lookupChildrenByKeys(
-        Member parentMember,
-        List<Id.KeySegment> childKeySegments)
+        Level level,
+        List<Id.KeySegment> childKeys)
     {
         try {
             return query.getSchemaReader(true)
-                .lookupMemberChildrenByKeys(
-                    parentMember,
-                    childKeySegments, MatchType.EXACT);
+                .getLevelMembers(level, childKeys, MatchType.EXACT);
         } catch (Exception e) {
             LOGGER.info(
                 String.format(
-                    "Failure while looking up children of '%s' during  "
+                    "Failure while looking up members of '%s' during  "
                     + "batch member resolution.  Child member refs:  %s",
-                    parentMember,
-                    Arrays.toString(childKeySegments.toArray())), e);
+                    level,
+                    Arrays.toString(childKeys.toArray())), e);
         }
         // don't want to fail at this point.  Member resolution still has
         // another chance to succeed.
@@ -399,7 +394,8 @@ public final class IdBatchResolver {
                 public boolean evaluate(Object theId)
                 {
                     Id id = (Id)theId;
-                    return !Util.matches(parentMember, id.getSegments())
+                    return (parentMember == null ||
+                            !Util.matches(parentMember, id.getSegments()))
                         && supportedIdentifierKey(id, false);
                 }
             });

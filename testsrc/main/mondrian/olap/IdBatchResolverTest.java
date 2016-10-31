@@ -43,6 +43,9 @@ public class IdBatchResolverTest  extends BatchTestCase {
     private ArgumentCaptor<Member> parentMember;
 
     @Captor
+    private ArgumentCaptor<Level> level;
+
+    @Captor
     private ArgumentCaptor<MatchType> matchType;
 
     @Override
@@ -113,13 +116,13 @@ public class IdBatchResolverTest  extends BatchTestCase {
 
         verify(
             query.getSchemaReader(true), times(1))
-                .lookupMemberChildrenByKeys(
-                    parentMember.capture(),
+                .getLevelMembers(
+                    level.capture(),
                     childKeys.capture(),
                     matchType.capture());
         assertEquals(
-            "[Store].[Store].[All Stores]",
-            parentMember.getAllValues().get(0).getUniqueName());
+            "[Store].[Store].[Store Country]",
+            level.getAllValues().get(0).getUniqueName());
         assertEquals(childKeys.getAllValues().get(0).size(), 2);
         // should only be invoked to resolve dimension, hierarchy and level
         verify(query.getSchemaReader(true), times(3)).withoutAccessControl();
@@ -134,6 +137,42 @@ public class IdBatchResolverTest  extends BatchTestCase {
             list(
                 "[Product].[Product].[Product Department].&[Dairy]&[Food]"));
                 // "[Product].[Product].[Product Department].&[Food].&[Deli]")); // not supported now
+    }
+
+    public void testSimpleEnumSecondLevelWithKeys() {
+        // verify members referenced via keys
+        propSaver.set(propSaver.properties.SsasCompatibleNaming, true);
+        propSaver.set(propSaver.properties.SsasNativeMemberUniqueNameStyle, true);
+        propSaver.set(propSaver.properties.FullHierarchyNames, true);
+        assertContains(
+            "Resolved map omitted one or more members",
+            batchResolve(
+                "SELECT "
+                    + "{[Store].[Store].[Store State].&[CA], "
+                    + "[Store].[Store].[Store State].&[Zacatecas], "
+                    + "[Store].[Store].[Store City].&[Acapulco]&[Guerrero], "
+                    + "[Store].[Store].[Store City].&[Yakima]&[WA] "
+                    + "} on 0 FROM SALES"),
+            list(
+                "[Store].[Store].[Store State].&[CA]",
+                "[Store].[Store].[Store State].&[Zacatecas]"));
+
+        verify(
+            query.getSchemaReader(true), times(2))
+            .getLevelMembers(
+                level.capture(),
+                childKeys.capture(),
+                matchType.capture());
+        assertEquals(
+            "[Store].[Store].[Store City]",
+            level.getAllValues().get(0).getUniqueName());
+        assertEquals(
+            "[Store].[Store].[Store State]",
+            level.getAllValues().get(1).getUniqueName());
+        assertEquals(childKeys.getAllValues().get(0).size(), 2);
+        assertEquals(childKeys.getAllValues().get(1).size(), 2);
+        // should only be invoked to resolve dimension, hierarchy and 2 levels
+        verify(query.getSchemaReader(true), times(4)).withoutAccessControl();
     }
 
     public void testSimpleEnumWithNumericKeys() {
@@ -154,13 +193,13 @@ public class IdBatchResolverTest  extends BatchTestCase {
 
         verify(
             query.getSchemaReader(true), times(1))
-                .lookupMemberChildrenByKeys(
-                    parentMember.capture(),
+                .getLevelMembers(
+                    level.capture(),
                     childKeys.capture(),
                     matchType.capture());
         assertEquals(
-            "[Store Size in SQFT].[Store Size in SQFT].[All Store Size in SQFTs]",
-            parentMember.getAllValues().get(0).getUniqueName());
+            "[Store Size in SQFT].[Store Size in SQFT].[Store Sqft]",
+            level.getAllValues().get(0).getUniqueName());
         assertEquals(childKeys.getAllValues().get(0).size(), 2);
 
         // should only be invoked to resolve dimension, hierarchy and level

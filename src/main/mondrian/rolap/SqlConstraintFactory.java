@@ -260,6 +260,12 @@ public class SqlConstraintFactory {
             datatypeList,
             keyValues);
     }
+
+    public TupleConstraint getLevelMembersConstraint(
+        RolapLevel level, List<List<String>> keyValues)
+    {
+        return new LevelMembersConstraint(level, keyValues);
+    }
 }
 
 // End SqlConstraintFactory.java

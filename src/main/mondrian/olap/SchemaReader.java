@@ -402,6 +402,19 @@ public interface SchemaReader {
         Evaluator context);
 
     /**
+     * Returns members of a level filtering them out by keys.
+     *
+     * @param level Level
+     * @param memberKeys Members keys
+     * @param matchType Match type
+     * @return Members of this level
+     */
+    List<Member> getLevelMembers(
+        Level level,
+        List<Id.KeySegment> memberKeys,
+        MatchType matchType);
+
+    /**
      * Returns the accessible levels of a hierarchy.
      *
      * @param hierarchy Hierarchy
