@@ -18,7 +18,6 @@ import mondrian.rolap.ManyToManyUtil;
 import mondrian.rolap.RolapAggregator;
 import mondrian.rolap.RolapCubeHierarchy;
 import mondrian.rolap.RolapEvaluator;
-import mondrian.rolap.RolapResult;
 import mondrian.rolap.SqlConstraintUtils;
 
 import org.apache.log4j.Logger;
@@ -269,46 +268,25 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
             TupleList tupleList,
             Evaluator ev)
         {
-          if (requiresPushdownAggregation(aggregator)) {
-              return true;
-          }
-          if (!pushdownAggregation) {
-              return false;
-          }
+            if (requiresPushdownAggregation(aggregator)) {
+                return true;
+            }
+            if (!pushdownAggregation) {
+                return false;
+            }
             RolapEvaluator rolapEvaluator = null;
-            //List<Member> slicerMembers = new ArrayList<Member>();
             if (ev instanceof RolapEvaluator) {
                 rolapEvaluator = (RolapEvaluator)ev;
-                //slicerMembers = rolapEvaluator.getSlicerMembers();
             }
-
-            //Set<Member> argMembers = new HashSet<Member>();
             for (List<Member> members : tupleList) {
                 for (Member member : members) {
                     if (member.isMeasure() || member.isCalculated())
                     {
                         return false;
                     }
-                    /*if (!slicerMembers.contains(member)) {
-                        argMembers.add(member);
-                    }*/
                 }
             }
-            /*for (Member m : argMembers) {
-                Member parentMember = m.getParentMember();
-                while (parentMember != null && !parentMember.isAll()) {
-                    if (argMembers.contains(parentMember)) {
-                        return false;
-                    }
-                    parentMember = parentMember.getParentMember();
-                }
-            }*/
             if (rolapEvaluator != null) {
-                for (Member member : rolapEvaluator.getNonAllMembers()) {
-                    if (member instanceof RolapResult.CompoundSlicerRolapMember) {
-                        return false;
-                    }
-                }
                 for (Member member : rolapEvaluator.getSlicerMembers()) {
                     if (member.isCalculated()
                         && member != rolapEvaluator.getExpanding())
@@ -318,22 +296,6 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                 }
             }
             return true;
-          /*
-          // if Many to Many Dimensions are at play, push down the aggregation
-          if (tupleList.size() > 0) {
-              for (Member member : tupleList.get(0)) {
-                  if (member.getHierarchy() instanceof RolapCubeHierarchy) {
-                      if (((RolapCubeHierarchy)member.getHierarchy())
-                          .getManyToManyHierarchies() != null
-                          && ((RolapCubeHierarchy)member.getHierarchy())
-                          .getManyToManyHierarchies().size() > 0)
-                      {
-                        return true;
-                      }
-                  }
-              }
-          }
-          return false;/**/
         }
 
         private static boolean requiresPushdownAggregation(Aggregator aggregator) {
@@ -346,7 +308,6 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
          * be safely optimized. If a member of the tuple list is on
          * a hierarchy for which a rollup policy of PARTIAL is set,
          * it is not safe to optimize that list.
-         * Same for levels with non-unique members.
          */
         private static boolean canOptimize(
             Evaluator evaluator,
@@ -361,14 +322,6 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
             // the parent while not all children are actually accessible.
             if (tupleList.size() > 0) {
                 for (Member member : tupleList.get(0)) {
-                    if (!member.getLevel().areMembersUnique()) {
-                        //return false;
-                    }
-                    if (member.getHierarchy() instanceof RolapCubeHierarchy
-                        && ((RolapCubeHierarchy)member.getHierarchy()).isManyToMany())
-                    {
-                        //return false;
-                    }
                     final RollupPolicy policy =
                         evaluator.getSchemaReader().getRole()
                             .getAccessDetails(member.getHierarchy())
