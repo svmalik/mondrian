@@ -1214,6 +1214,33 @@ public class ManyToManyTest  extends CsvDBTestCase {
         prop.EnableNativeTopCount.set(topcount);
     }
 
+    public void testNativeSubsetOrderNonEmpty() {
+        // this used to be breaking due to invalid SQL generated in RolapNativeSql
+        propSaver.set(MondrianProperties.instance().EnableNativeOrder, true);
+        propSaver.set(MondrianProperties.instance().EnableNativeSubset, true);
+        TestContext context = createTestContext();
+        context.assertQueryReturns(
+            "WITH\n"
+            + "SET [Cust] AS NonEmpty({[Customer].[Customer Name].Members}, {[Measures].[Count]})\n"
+            + "SET [Cust Order] AS Order([Cust], [Customer].[Customer Name].CurrentMember.Name, BASC)\n"
+            + "SET [Cust Subset] AS Subset([Cust Order], 0, 3)\n"
+            + "SELECT\n"
+            + "[Cust Subset] ON COLUMNS,\n"
+            + "{[Measures].[Count]} ON ROWS\n"
+            + "from [M2M]",
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Customer].[Luke]}\n"
+            + "{[Customer].[Mark]}\n"
+            + "{[Customer].[Paul]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[Count]}\n"
+            + "Row #0: 2\n"
+            + "Row #0: 5\n"
+            + "Row #0: 3\n");
+    }
+
     public void testSsasCompatibleNaming() {
         // this verifies that ssas compatible naming doesn't impact any of the
         // m2m logic

@@ -691,6 +691,18 @@ public class SqlQuery {
         return new String[] {alias, exprStr};
     }
 
+    public String getSubqueryColumnAlias(MondrianDef.Expression expression) {
+        if (expression.getTableAlias() != null && subqueries.size() > 0) {
+            for (SqlQuery subquery : subqueries.values()) {
+                if (subquery.containsFromAlias(expression.getTableAlias()))
+                {
+                    return subquery.getAlias(expression.getExpression(subquery));
+                }
+            }
+        }
+        return null;
+    }
+
     /**
      * Adds an expression to the select clause, automatically creating a
      * column alias.
@@ -952,11 +964,10 @@ public class SqlQuery {
         }
     }
 
-    public String toString()
-    {
-        buf.setLength(0);
-        toBuffer(buf, "");
-        return buf.toString();
+    public String toString() {
+        StringBuilder sb = new StringBuilder(128);
+        toBuffer(sb, "");
+        return sb.toString();
     }
 
     /**

@@ -643,17 +643,7 @@ public class RolapNativeSql {
                         aggStar.lookupColumn(bitPos);
                     if (col != null) {
                         sourceExp = col.generateExprString(sqlQuery);
-                    } else {
-                        // Make sure the level table is part of the query.
-                        rolapLevel.getHierarchy().addToFrom(
-                            sqlQuery,
-                            expression);
-                        sourceExp = expression.getExpression(sqlQuery);
                     }
-                } else if (aggStar != null) {
-                    // Make sure the level table is part of the query.
-                    rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
-                    sourceExp = expression.getExpression(sqlQuery);
                 } else {
                     if (rolapLevel instanceof RolapCubeLevel
                         && expression.equals(rolapLevel.keyExp)
@@ -669,11 +659,12 @@ public class RolapNativeSql {
                             sourceExp = column.generateExprString(sqlQuery);
                         }
                     }
-                    if (sourceExp == null) {
-                        // Make sure the level table is part of the query.
-                        rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
-                        sourceExp = expression.getExpression(sqlQuery);
-                    }
+                }
+                if (sourceExp == null) {
+                    // Make sure the level table is part of the query.
+                    rolapLevel.getHierarchy().addToFrom(sqlQuery, expression);
+                    String subColumn = sqlQuery.getSubqueryColumnAlias(expression);
+                    sourceExp = subColumn != null ? subColumn : expression.getExpression(sqlQuery);
                 }
 
                 // The dialect might require the use of the alias rather
