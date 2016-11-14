@@ -917,7 +917,8 @@ public interface Dialect {
         SYBASE,
         TERADATA,
         VERTICA,
-        VECTORWISE;
+        VECTORWISE,
+        MARIADB;
 
         /**
          * Return the root of the family of products this database product

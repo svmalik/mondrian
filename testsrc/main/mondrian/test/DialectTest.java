@@ -106,6 +106,14 @@ public class DialectTest extends TestCase {
             dialect.getDatabaseProduct();
         final DatabaseMetaData databaseMetaData = getConnection().getMetaData();
         switch (databaseProduct) {
+        case MARIADB:
+          // Dialect has identified that it is MariaDB.
+          assertTrue(dialect instanceof MySqlDialect);
+          assertFalse(dialect instanceof InfobrightDialect);
+          assertTrue(dialect instanceof MariaDBDialect);
+          assertFalse(MySqlDialect.isInfobright(databaseMetaData));
+          assertEquals("MariaDB", databaseMetaData.getDatabaseProductName());
+          break;
         case MYSQL:
             // Dialect has identified that it is MySQL.
             assertTrue(dialect instanceof MySqlDialect);
@@ -1021,6 +1029,7 @@ public class DialectTest extends TestCase {
             s = s.replace("]", "");
             s = s.replaceAll(" as ", " ");
             break;
+        case MARIADB:
         case MYSQL:
         case INFOBRIGHT:
             s = s.replace('[', '`');
@@ -1299,6 +1308,7 @@ public class DialectTest extends TestCase {
         }
         switch (getDialect().getDatabaseProduct()) {
         case MYSQL:
+        case MARIADB:
             assertTrue(couldTranslate);
             assertNull(throwable);
             break;
@@ -1339,6 +1349,7 @@ public class DialectTest extends TestCase {
         }
         switch (getDialect().getDatabaseProduct()) {
         case MYSQL:
+        case MARIADB:
             assertNotNull(throwable);
             assertTrue(couldTranslate);
             assertTrue(

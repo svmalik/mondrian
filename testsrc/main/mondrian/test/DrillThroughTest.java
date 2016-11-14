@@ -1309,6 +1309,7 @@ public class DrillThroughTest extends FoodMartTestCase {
         String sql = cell.getDrillThroughSQL(false);
         String expectedSql;
         switch (getTestContext().getDialect().getDatabaseProduct()) {
+        case MARIADB:
         case MYSQL:
             expectedSql =
                 "select\n"
@@ -1357,6 +1358,7 @@ public class DrillThroughTest extends FoodMartTestCase {
         // Note that gender and marital status get their own predicates,
         // independent of the time portion of the slicer
         switch (getTestContext().getDialect().getDatabaseProduct()) {
+        case MARIADB:
         case MYSQL:
             expectedSql =
                 "select\n"
@@ -1433,6 +1435,7 @@ public class DrillThroughTest extends FoodMartTestCase {
         // Note that gender and marital status get their own predicates,
         // independent of the time portion of the slicer
         switch (getTestContext().getDialect().getDatabaseProduct()) {
+        case MARIADB:
         case MYSQL:
             expectedSql =
                 "select\n"
@@ -1489,6 +1492,7 @@ public class DrillThroughTest extends FoodMartTestCase {
         // With overlapping slicer members, the first slicer predicate is
         // redundant, but does not affect the query's results
         switch (getTestContext().getDialect().getDatabaseProduct()) {
+        case MARIADB:
         case MYSQL:
             expectedSql =
                 "select\n"
@@ -1536,6 +1540,7 @@ public class DrillThroughTest extends FoodMartTestCase {
         assertTrue(cell.canDrillThrough());
         sql = cell.getDrillThroughSQL(false);
         switch (getTestContext().getDialect().getDatabaseProduct()) {
+        case MARIADB:
         case MYSQL:
             expectedSql =
                 "select\n"
@@ -1725,6 +1730,7 @@ public class DrillThroughTest extends FoodMartTestCase {
                 5, rs.getMetaData().getColumnCount());
             Object expectedYear;
             switch (getTestContext().getDialect().getDatabaseProduct()) {
+            case MARIADB:
             case MYSQL:
                 expectedYear = new Integer(1997);
                 break;

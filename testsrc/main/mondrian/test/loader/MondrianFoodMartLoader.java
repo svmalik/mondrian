@@ -2160,6 +2160,7 @@ public class MondrianFoodMartLoader {
                     buf.append("DROP INDEX ")
                         .append(quoteId(schema, indexName));
                     switch (dialect.getDatabaseProduct()) {
+                    case MARIADB:
                     case MYSQL:
                     case INFOBRIGHT:
                     case TERADATA:
@@ -3326,6 +3327,7 @@ public class MondrianFoodMartLoader {
                 case NETEZZA:
                 case HSQLDB:
                     return name;
+                case MARIADB:
                 case MYSQL:
                 case INFOBRIGHT:
                     return "TINYINT(1)";
@@ -3358,6 +3360,7 @@ public class MondrianFoodMartLoader {
             if (this == Timestamp) {
                 switch (dialect.getDatabaseProduct()) {
                 case MSSQL:
+                case MARIADB:
                 case MYSQL:
                 case INFOBRIGHT:
                 case SYBASE:

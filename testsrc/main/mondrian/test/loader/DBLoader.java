@@ -552,6 +552,7 @@ public abstract class DBLoader {
                 switch (dialect.getDatabaseProduct()) {
                 case POSTGRESQL:
                     return name;
+                case MARIADB:
                 case MYSQL:
                     return "TINYINT(1)";
                 case MSSQL:
@@ -580,6 +581,7 @@ public abstract class DBLoader {
             if (this == Timestamp) {
                 switch (dialect.getDatabaseProduct()) {
                 case MSSQL:
+                case MARIADB:
                 case MYSQL:
                     return "DATETIME";
                 case INGRES:
@@ -1352,6 +1354,7 @@ public abstract class DBLoader {
             if (value instanceof String) {
                 String trimmedValue = ((String) value).trim();
                 switch (dialect.getDatabaseProduct()) {
+                case MARIADB:
                 case MYSQL:
                 case ORACLE:
                 case DB2:

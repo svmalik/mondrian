@@ -1588,7 +1588,8 @@ public class TestContext {
         final Dialect.DatabaseProduct databaseProduct =
             dialect.getDatabaseProduct();
         switch (databaseProduct) {
-        case MYSQL:
+          case MYSQL:
+          case MARIADB:
             // Mysql would generate "CONCAT(...)"
             sql = sql.replaceAll(
                 search,
