@@ -660,8 +660,8 @@ public class SegmentBuilderTest extends BatchTestCase {
             + "Cube:[Sales]\n"
             + "Measure:[Unit Sales]\n"
             + "Axes:[\n"
-            + "    {time_by_day.the_year=('1998')}\n"
-            + "    {time_by_day.quarter=('Q1','Q3')}]\n"
+            + "    {time_by_day.quarter=('Q1','Q3')}\n"
+            + "    {time_by_day.the_year=('1998')}]\n"
             + "Excluded Regions:[]\n"
             + "Compound Predicates:[]\n");
     }
