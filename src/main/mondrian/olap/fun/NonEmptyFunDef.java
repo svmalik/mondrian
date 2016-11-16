@@ -26,6 +26,7 @@ import mondrian.olap.Evaluator;
 import mondrian.olap.Exp;
 import mondrian.olap.FunDef;
 import mondrian.olap.Hierarchy;
+import mondrian.olap.Literal;
 import mondrian.olap.Member;
 import mondrian.olap.MondrianProperties;
 import mondrian.olap.NativeEvaluator;
@@ -43,6 +44,7 @@ import mondrian.util.CancellationChecker;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -116,6 +118,7 @@ public class NonEmptyFunDef extends FunDefBase {
                         final boolean tryNonNative =
                             MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubesAndNonNative.get();
                         Exp[] args = call.getArgs();
+                        boolean isPartiallyNative = false;
                         if (args.length == 2 && args[1] instanceof ResolvedFunCall) {
                             ResolvedFunCall arg2Call = FunUtil.extractResolvedFunCall(args[1]);
                             if (arg2Call != null) {
@@ -131,6 +134,7 @@ public class NonEmptyFunDef extends FunDefBase {
                                         evaluator.restore(save);
                                         if (nativeEvaluator != null) {
                                             nonEmptyTuples.add((TupleList) nativeEvaluator.execute(ResultStyle.LIST));
+                                            isPartiallyNative = true;
                                         } else {
                                             if (!tryNonNative) {
                                                 nonEmptyTuples = null;
@@ -156,7 +160,9 @@ public class NonEmptyFunDef extends FunDefBase {
                                             }
                                             FunUtil.addUnique(result, tuples, added);
                                         }
-                                        return result;
+                                        return isPartiallyNative
+                                            ? restoreNaturalOrder(result, args[0], evaluator, expCompiler)
+                                            : result;
                                     }
                                 }
                             }
@@ -365,19 +371,11 @@ public class NonEmptyFunDef extends FunDefBase {
         }
         List<ResolvedFunCall> nonEmptyCalls = new ArrayList<>(measureMap.size());
         for (Set<Member> measures : measureMap.values()) {
-            Exp[] setArgs = new Exp[measures.size()];
-            int i = 0;
-            for (Member measure : measures) {
-                setArgs[i++] = new MemberExpr(measure);
-            }
-            FunDef measureSet = validator.getDef(setArgs, "{}", Syntax.Braces);
-            ResolvedFunCall measureExp = new ResolvedFunCall(
-                measureSet, setArgs, new SetType(MemberType.Unknown));
             ResolvedFunCall nonEmptyArgs;
             if (otherSet == null) {
-                nonEmptyArgs = measureExp;
+                nonEmptyArgs = getSetExp(measures);
             } else {
-                nonEmptyArgs = getCrossJoinCall(funName, otherSet, measureExp, validator);
+                nonEmptyArgs = getCrossJoinCall(funName, otherSet, getSetExp(measures), validator);
             }
             ResolvedFunCall nonEmpty =
                 getNonEmptyCall(mainArgs, nonEmptyArgs, validator);
@@ -445,6 +443,39 @@ public class NonEmptyFunDef extends FunDefBase {
             Exp namedSetExp = ((NamedSetExpr)exp).getNamedSet().getExp();
             findMeasures(namedSetExp, measureMap, cubes, foundMeasures);
         }
+    }
+
+    private ResolvedFunCall getSetExp(Collection<Member> memberList) {
+        Exp[] members = new Exp[memberList.size()];
+        int i = 0;
+        for (Member member : memberList) {
+            members[i++] = new MemberExpr(member);
+        }
+        return SetFunDef.wrapAsSet(members);
+    }
+
+    private TupleList restoreNaturalOrder(
+        TupleList tupleList, Exp mainArgs, Evaluator evaluator, ExpCompiler compiler)
+    {
+        if (tupleList == null || tupleList.isEmpty() || tupleList.getArity() != 1
+            || !hasMembersFun(FunUtil.extractResolvedFunCall(mainArgs)))
+        {
+            return tupleList;
+        }
+
+        Exp[] orderArgs = new Exp[] { getSetExp(tupleList.slice(0)), Literal.createString("") };
+        FunDef orderFun =
+            compiler.getValidator().getDef(orderArgs, "Order", Syntax.Function);
+        ResolvedFunCall orderFunCall = new ResolvedFunCall(
+            orderFun, orderArgs, new SetType(MemberType.Unknown));
+        Calc orderCalc = orderFun.compileCall(orderFunCall, compiler);
+        return (TupleList) orderCalc.evaluate(evaluator);
+    }
+
+    private boolean hasMembersFun(ResolvedFunCall call) {
+        return call != null
+            && Arrays.asList("members", "allmembers", "children")
+                .contains(call.getFunName().toLowerCase());
     }
 }
 // End NonEmptyFunDef.java

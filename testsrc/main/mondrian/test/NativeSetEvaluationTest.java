@@ -2619,6 +2619,95 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         assertQuerySql(mdx, new SqlPattern[]{mysql});
     }
 
+    public void testNativeNonEmptyDifferentCubesCorrectOrder() {
+        if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()
+            || !MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubes.get())
+        {
+            return;
+        }
+        String mdx =
+            "WITH SET [NonEmptySet] AS"
+            + "  NonEmpty({[Time].[Time].[Month].MEMBERS},{[Measures].[Warehouse Sales], [Measures].[Store Sales]})\n"
+            + "SELECT\n"
+            + "  {[Measures].[Warehouse Sales], [Measures].[Store Sales]} ON 0\n"
+            + "  , [NonEmptySet] ON 1\n"
+            + "FROM [Warehouse and Sales]\n"
+            + "WHERE [Store].[Store].[Store Name].[Store 6]";
+        if (!isUseAgg()) {
+            propSaver.set(MondrianProperties.instance().GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `time_by_day`.`the_year` as `c0`,\n"
+                + "    `time_by_day`.`quarter` as `c1`,\n"
+                + "    `time_by_day`.`month_of_year` as `c2`\n"
+                + "from\n"
+                + "    `time_by_day` as `time_by_day`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `store` as `store`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+                + "and\n"
+                + "    `store`.`store_name` = 'Store 6'\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`store_sales` is not null\n"
+                + "group by\n"
+                + "    `time_by_day`.`the_year`,\n"
+                + "    `time_by_day`.`quarter`,\n"
+                + "    `time_by_day`.`month_of_year`\n"
+                + "order by\n"
+                + "    ISNULL(`time_by_day`.`the_year`) ASC, `time_by_day`.`the_year` ASC,\n"
+                + "    ISNULL(`time_by_day`.`quarter`) ASC, `time_by_day`.`quarter` ASC,\n"
+                + "    ISNULL(`time_by_day`.`month_of_year`) ASC, `time_by_day`.`month_of_year` ASC";
+            assertQuerySql(mdx, mysqlPattern(mysql));
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Store].[USA].[CA].[Beverly Hills].[Store 6]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Warehouse Sales]}\n"
+            + "{[Measures].[Store Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Time].[1997].[Q1].[1]}\n"
+            + "{[Time].[1997].[Q1].[2]}\n"
+            + "{[Time].[1997].[Q1].[3]}\n"
+            + "{[Time].[1997].[Q2].[4]}\n"
+            + "{[Time].[1997].[Q2].[5]}\n"
+            + "{[Time].[1997].[Q2].[6]}\n"
+            + "{[Time].[1997].[Q3].[7]}\n"
+            + "{[Time].[1997].[Q3].[8]}\n"
+            + "{[Time].[1997].[Q3].[9]}\n"
+            + "{[Time].[1997].[Q4].[10]}\n"
+            + "{[Time].[1997].[Q4].[11]}\n"
+            + "{[Time].[1997].[Q4].[12]}\n"
+            + "Row #0: \n"
+            + "Row #0: 2,629.09\n"
+            + "Row #1: \n"
+            + "Row #1: 2,836.37\n"
+            + "Row #2: \n"
+            + "Row #2: 2,738.43\n"
+            + "Row #3: \n"
+            + "Row #3: 5,065.00\n"
+            + "Row #4: \n"
+            + "Row #4: 3,667.80\n"
+            + "Row #5: \n"
+            + "Row #5: 3,864.35\n"
+            + "Row #6: \n"
+            + "Row #6: 2,778.63\n"
+            + "Row #7: \n"
+            + "Row #7: 3,253.57\n"
+            + "Row #8: 2,478.11\n"
+            + "Row #8: 4,076.52\n"
+            + "Row #9: 2,415.848\n"
+            + "Row #9: 4,781.49\n"
+            + "Row #10: 2,792.656\n"
+            + "Row #10: 4,577.35\n"
+            + "Row #11: 2,469.882\n"
+            + "Row #11: 5,481.64\n");
+    }
+
     public void testNativeNonEmptyDifferentCubesWithCrossJoin() {
         if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()
             || !MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubes.get())
@@ -2688,15 +2777,15 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "{[Measures].[Sales Count]}\n"
             + "{[Measures].[Units Ordered]}\n"
             + "Axis #2:\n"
-            + "{[Store].[USA].[WA]}\n"
             + "{[Store].[USA].[CA]}\n"
             + "{[Store].[USA].[OR]}\n"
-            + "Row #0: 40,784\n"
-            + "Row #0: 116025.0\n"
-            + "Row #1: 24,442\n"
-            + "Row #1: 66307.0\n"
-            + "Row #2: 21,611\n"
-            + "Row #2: 44906.0\n";
+            + "{[Store].[USA].[WA]}\n"
+            + "Row #0: 24,442\n"
+            + "Row #0: 66307.0\n"
+            + "Row #1: 21,611\n"
+            + "Row #1: 44906.0\n"
+            + "Row #2: 40,784\n"
+            + "Row #2: 116025.0\n";
         assertQueryReturns(mdx, result);
         sql =
             "select\n"

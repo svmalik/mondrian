@@ -24,7 +24,6 @@ import mondrian.olap.fun.CrossJoinFunDef;
 import mondrian.olap.fun.FunDefBase;
 import mondrian.olap.fun.NonEmptyCrossJoinFunDef;
 import mondrian.olap.fun.TupleFunDef;
-import mondrian.rolap.RolapNativeFilter.FilterConstraint;
 import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.CrossJoinArg;
 import mondrian.rolap.sql.SqlQuery;
@@ -59,7 +58,7 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             return null;
         }
 
-        if (!FilterConstraint.isValidContext(
+        if (!NonEmptyFunctionConstraint.isValidContext(
                 evaluator, false, new Level[]{}, restrictMemberTypes()))
         {
             return null;
