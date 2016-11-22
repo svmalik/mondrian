@@ -145,13 +145,14 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             }
             for (Member m : measures) {
                 if (m instanceof RolapStoredMeasure) {
-                    measure = (RolapStoredMeasure) m;
-                    if (!areFromSameCube(returnArgs, measure)) {
+                    RolapStoredMeasure rsm = (RolapStoredMeasure) m;
+                    if (!areFromSameCube(returnArgs, rsm)) {
                         // trying to skip this measure
-                        if (!unrelatedCubes.contains(measure.getCube())) {
+                        if (!unrelatedCubes.contains(rsm.getCube())) {
                             return null;
                         }
                     } else {
+                        measure = rsm;
                         nativeMeasures.add(measure);
                         baseCubes.add(measure.getCube());
                     }

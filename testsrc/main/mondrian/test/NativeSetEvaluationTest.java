@@ -2462,7 +2462,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             "SELECT { [Measures].[Units Shipped] } ON COLUMNS,\n"
             + "[Time].[Quarter].members ON ROWS\n"
             + "FROM [Warehouse and Sales]\n"
-            + "WHERE NonEmpty({[Warehouse].[Country].AllMembers}, {[Measures].[Sales Count], [Measures].[Units Ordered]})";
+            + "WHERE NonEmpty({[Warehouse].[Country].AllMembers}, {[Measures].[Units Ordered], [Measures].[Sales Count]})";
         verifySameNativeAndNot(mdx, "", getTestContext());
         if (!isUseAgg() && MondrianProperties.instance().EnableNativeNonEmptyFunction.get()) {
             propSaver.set(propSaver.properties.GenerateFormattedSql, true);
