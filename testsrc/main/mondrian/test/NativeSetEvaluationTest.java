@@ -1517,6 +1517,42 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         propSaver.reset();
     }
 
+    public void testNativeRoleRestrictionsWithUnrelatedDimension() {
+        String roleDef =
+            "  <Role name=\"Test\">\n"
+            + "    <SchemaGrant access=\"all\">\n"
+            + "      <CubeGrant cube=\"Warehouse and Sales3\" access=\"all\">\n"
+            + "        <HierarchyGrant hierarchy=\"[Customers]\" rollupPolicy=\"partial\" access=\"custom\">\n"
+            + "          <MemberGrant member=\"[Customers].[USA].[CA]\" access=\"all\" />\n"
+            + "          <MemberGrant member=\"[Customers].[USA].[CA].[Los Angeles]\" access=\"none\"/>\n"
+            + "        </HierarchyGrant>\n"
+            + "      </CubeGrant>\n"
+            + "    </SchemaGrant>\n"
+            + "  </Role>";
+        String virtCube =
+            "<VirtualCube name=\"Warehouse and Sales3\" defaultMeasure=\"Store Invoice\">\n"
+            + "  <CubeUsages>\n"
+            + "       <CubeUsage cubeName=\"Sales\" ignoreUnrelatedDimensions=\"true\"/>"
+            + "       <CubeUsage cubeName=\"Warehouse\" ignoreUnrelatedDimensions=\"true\"/>"
+            + "   </CubeUsages>\n"
+            + "   <VirtualCubeDimension cubeName=\"Sales\" name=\"Customers\"/>\n"
+            + "   <VirtualCubeDimension name=\"Store\"/>\n"
+            + "   <VirtualCubeDimension name=\"Product\"/>\n"
+            + "   <VirtualCubeDimension cubeName=\"Warehouse\" name=\"Warehouse\"/>\n"
+            + "   <VirtualCubeMeasure cubeName=\"Sales\" name=\"[Measures].[Customer Count]\"/>\n"
+            + "   <VirtualCubeMeasure cubeName=\"Warehouse\" name=\"[Measures].[Warehouse Cost]\"/>\n"
+            + "</VirtualCube>";
+        final TestContext ctx = getTestContext().create(
+            null, null, virtCube, null, null, roleDef).withRole("Test");
+        verifySameNativeAndNot(
+            "WITH SET [s] AS NonEmpty([Warehouse].[USA].Children, [Measures].[Warehouse Cost])\n"
+            + "SELECT {[Measures].[Warehouse Cost]} ON 0, {[s]} ON 1\n"
+            + "FROM [Warehouse and Sales3]",
+            "Native native nonempty mismatch",
+            ctx
+        );
+    }
+
     public void testNativeSubsetWithVirtualCube() {
         final boolean useAgg =
             MondrianProperties.instance().UseAggregates.get()

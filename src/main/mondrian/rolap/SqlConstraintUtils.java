@@ -656,9 +656,11 @@ public class SqlConstraintUtils {
     }
 
     public static Map<Level, List<RolapMember>> getRoleConstraintMembers(
-        SchemaReader schemaReader,
-        Member[] members)
+        Evaluator evaluator,
+        RolapCube baseCube)
     {
+        SchemaReader schemaReader = evaluator.getSchemaReader();
+        Member[] members = evaluator.getMembers();
         // LinkedHashMap keeps insert-order
         Map<Level, List<RolapMember>> roleMembers =
             new LinkedHashMap<Level, List<RolapMember>>();
@@ -672,6 +674,13 @@ public class SqlConstraintUtils {
                 List<Level> hierarchyLevels =
                     schemaReader.getHierarchyLevels(member.getHierarchy());
                 for (Level affectedLevel : hierarchyLevels) {
+                    if (evaluator.shouldIgnoreUnrelatedDimensions()
+                        && affectedLevel instanceof RolapCubeLevel
+                        && ((RolapCubeLevel) affectedLevel).getBaseStarKeyColumn(baseCube) == null)
+                    {
+                        // skipping unrelated levels
+                        continue;
+                    }
                     List<RolapMember> slicerMembers =
                         new ArrayList<RolapMember>();
                     boolean hasCustom = false;
@@ -706,8 +715,8 @@ public class SqlConstraintUtils {
     {
         Map<Level, List<RolapMember>> roleMembers =
             getRoleConstraintMembers(
-                evaluator.getSchemaReader(),
-                evaluator.getMembers());
+                evaluator,
+                baseCube);
         for (Map.Entry<Level, List<RolapMember>> entry
             : roleMembers.entrySet())
         {
