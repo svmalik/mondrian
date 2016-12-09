@@ -1945,6 +1945,67 @@ public class FilterTest extends BatchTestCase {
                 + "{[Store].[USA].[WA].[Seattle].[Store 15]}\n");
     }
 
+    public void testNativeNonEmptyFilterMatchOptimization() {
+        if (!getTestContext().getDialect().allowsRegularExpressionInWhereClause()) {
+            return;
+        }
+        propSaver.set(MondrianProperties.instance().SsasCompatibleNaming, true);
+        TestContext testContext = TestContext.instance()
+            .createSubstitutingCube(
+                "Sales",
+                "  <Dimension name=\"Customer IDs\" foreignKey=\"customer_id\">\n"
+                + "    <Hierarchy hasAll=\"true\" allMemberName=\"All Customer IDs\" primaryKey=\"customer_id\">\n"
+                + "      <Table name=\"customer\"/>\n"
+                + "      <Level name=\"ID\" column=\"customer_id\" uniqueMembers=\"true\"/>\n"
+                + "    </Hierarchy>\n"
+                + "  </Dimension>");
+        String mdx =
+            "WITH MEMBER [Measures].[(Ancestors)] AS "
+            + "Generate(Ascendants([Customer IDs].CurrentMember), [Customer IDs].CurrentMember.Caption, \"^$^\")\n"
+            + "SELECT {[Measures].[(Ancestors)]} ON COLUMNS,\n"
+            + "Subset(NonEmpty(Filter([Customer IDs].[Customer IDs].[ID].AllMembers, ([Customer IDs].CurrentMember.Caption "
+            + "MATCHES \"(?i)^(1771|1493|10198|123)$\")), [Measures].[Sales Count]), 0, 10) ON ROWS\n"
+            + "FROM [Sales]";
+        if (!isUseAgg() && MondrianProperties.instance().EnableNativeFilter.get()
+            && MondrianProperties.instance().EnableNativeNonEmpty.get())
+        {
+            propSaver.set(MondrianProperties.instance().GenerateFormattedSql, true);
+            String sql =
+                "select\n"
+                + "    `sales_fact_1997`.`customer_id` as `c0`\n"
+                + "from\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`product_id` is not null\n"
+                + "group by\n"
+                + "    `sales_fact_1997`.`customer_id`\n"
+                + "having\n"
+                + "    (UPPER(c0) REGEXP '^(1771|1493|10198|123)$') \n"
+                + "order by\n"
+                + "    ISNULL(`sales_fact_1997`.`customer_id`) ASC, `sales_fact_1997`.`customer_id` ASC limit 10 offset 0";
+            assertQuerySql(testContext, mdx, mysqlPattern(sql));
+        }
+
+        testContext.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[(Ancestors)]}\n"
+            + "Axis #2:\n"
+            + "{[Customer IDs].[1493]}\n"
+            + "{[Customer IDs].[1771]}\n"
+            + "{[Customer IDs].[10198]}\n"
+            + "Row #0: 1493^$^All Customer IDs\n"
+            + "Row #1: 1771^$^All Customer IDs\n"
+            + "Row #2: 10198^$^All Customer IDs\n");
+    }
+
     public void testNativeFilterMatchNoJoinWithHanger() {
         if (!getTestContext().getDialect().allowsRegularExpressionInWhereClause()){
             return;

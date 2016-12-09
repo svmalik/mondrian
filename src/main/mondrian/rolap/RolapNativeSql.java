@@ -15,7 +15,6 @@ import mondrian.calc.ExpCompiler;
 import mondrian.calc.MemberCalc;
 import mondrian.mdx.*;
 import mondrian.olap.*;
-import mondrian.olap.fun.MondrianEvaluationException;
 import mondrian.olap.type.MemberType;
 import mondrian.olap.type.NullType;
 import mondrian.olap.type.SetType;
@@ -646,16 +645,23 @@ public class RolapNativeSql {
                     }
                 } else {
                     if (rolapLevel instanceof RolapCubeLevel
-                        && expression.equals(rolapLevel.keyExp)
-                        && evaluator.getBaseCubes() != null
-                        && evaluator.getBaseCubes().size() == 1)
+                        && expression.equals(rolapLevel.keyExp))
                     {
-                        RolapCube baseCube = evaluator.getBaseCubes().get(0);
+                        RolapCube baseCube =
+                            evaluator.getBaseCubes() != null
+                            && evaluator.getBaseCubes().size() == 1
+                                ? evaluator.getBaseCubes().get(0)
+                                : null;
                         RolapStar.Column column =
                             ((RolapCubeLevel)rolapLevel).getBaseStarKeyColumn(baseCube);
-                        if (column != null && getStoredMeasure() != null) {
-                            column = column.optimize();
-                            rolapLevel.getHierarchy().addToFrom(sqlQuery, column.getTable());
+                        if (column != null) {
+                            RolapStar.Column optimized = column.optimize();
+                            if (optimized.getTable().getParentTable() == null
+                                && sqlQuery.hasFrom(optimized.getTable().getRelation(), null))
+                            {
+                                column = optimized;
+                            }
+                            rolapLevel.getHierarchy().addToFrom(sqlQuery, column.getTable(), getStoredMeasure() != null);
                             sourceExp = column.generateExprString(sqlQuery);
                         }
                     }
