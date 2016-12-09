@@ -278,7 +278,7 @@ public class RolapResult extends ResultBase {
             }
 
             // Save evaluator that has slicer as its context.
-            slicerEvaluator = evaluator.push();
+            // slicerEvaluator = evaluator.push();
 
             /////////////////////////////////////////////////////////////////
             // Execute Slicer

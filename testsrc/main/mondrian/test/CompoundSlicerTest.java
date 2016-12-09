@@ -1408,6 +1408,26 @@ public class CompoundSlicerTest extends FoodMartTestCase {
             "Compound aggregated member should return same results with native filter on/off",
             getTestContext());
     }
+
+    public void testCompoundAggCalcMemberInSlicer4() {
+        String query = "WITH "
+            + "SET [s] AS "
+            + "Filter(NonEmpty([Gender].[Gender].Members, {[Measures].[Unit Sales]})"
+            + ", Aggregate({[Store].[USA], [Store].[Mexico]}, [Measures].[Unit Sales])>100) "
+            + "MEMBER [Gender].[agg] AS Aggregate([s]) "
+            + "SELECT {[Measures].[Unit Sales]} ON 0"
+            + "FROM [Sales] "
+            + "WHERE {[Gender].[agg]} * {[Store].[USA], [Store].[Mexico]} * {[Time].[1997].[Q1], [Time].[1997].[Q2]}";
+        assertQueryReturns(query,
+            "Axis #0:\n"
+            + "{[Gender].[agg], [Store].[USA], [Time].[1997].[Q1]}\n"
+            + "{[Gender].[agg], [Store].[USA], [Time].[1997].[Q2]}\n"
+            + "{[Gender].[agg], [Store].[Mexico], [Time].[1997].[Q1]}\n"
+            + "{[Gender].[agg], [Store].[Mexico], [Time].[1997].[Q2]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Row #0: 128,901\n");
+    }
 }
 
 // End CompoundSlicerTest.java
