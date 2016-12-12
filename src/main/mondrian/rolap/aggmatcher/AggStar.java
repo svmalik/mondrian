@@ -71,7 +71,7 @@ public class AggStar {
         final RolapStar star,
         final JdbcSchema.Table dbTable,
         final MessageRecorder msgRecorder,
-        final int approxRowCount)
+        final long approxRowCount)
     {
         AggStar aggStar = new AggStar(star, dbTable, approxRowCount);
         AggStar.FactTable aggStarFactTable = aggStar.getFactTable();
@@ -225,12 +225,12 @@ public class AggStar {
     /**
      * An approximate number of rows present in this aggregate table.
      */
-    private final int approxRowCount;
+    private final long approxRowCount;
 
     AggStar(
         final RolapStar star,
         final JdbcSchema.Table aggTable,
-        final int approxRowCount)
+        final long approxRowCount)
     {
         this.star = star;
         this.approxRowCount = approxRowCount;
@@ -272,7 +272,7 @@ public class AggStar {
      * If the property {@link MondrianProperties#ChooseAggregateByVolume}
      * is true, then volume is returned, otherwise row count.
      */
-    public int getSize() {
+    public long getSize() {
         return MondrianProperties.instance().ChooseAggregateByVolume.get()
             ? getFactTable().getVolume()
             : getFactTable().getNumberOfRows();
@@ -1276,7 +1276,7 @@ public class AggStar {
         private Column factCountColumn;
         private final List<Measure> measures;
         private final int totalColumnSize;
-        private int numberOfRows;
+        private long numberOfRows;
 
         FactTable(final JdbcSchema.Table aggTable) {
             this(
@@ -1290,7 +1290,7 @@ public class AggStar {
             final String name,
             final MondrianDef.Relation relation,
             final int totalColumnSize,
-            final int numberOfRows)
+            final long numberOfRows)
         {
             super(name, relation);
             this.totalColumnSize = totalColumnSize;
@@ -1317,21 +1317,21 @@ public class AggStar {
         /**
          * Get the volume of the table (now of rows * size of a row).
          */
-        public int getVolume() {
+        public long getVolume() {
             return getTotalColumnSize() * getNumberOfRows();
         }
 
         /**
          * Get the total size of all columns in a row.
          */
-        public int getTotalColumnSize() {
+        public long getTotalColumnSize() {
             return totalColumnSize;
         }
 
         /**
          * Get the number of rows in this aggregate table.
          */
-        public int getNumberOfRows() {
+        public long getNumberOfRows() {
             if (numberOfRows < 0) {
                 numberOfRows =
                     star.getStatisticsCache().getRelationCardinality(

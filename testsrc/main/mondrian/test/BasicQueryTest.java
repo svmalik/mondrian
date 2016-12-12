@@ -7927,7 +7927,7 @@ public class BasicQueryTest extends FoodMartTestCase {
                 statisticsProviders.get(1) instanceof SqlStatisticsProvider);
 
             for (StatisticsProvider statisticsProvider : statisticsProviders) {
-                int rowCount =
+                long rowCount =
                     statisticsProvider.getTableCardinality(
                         dialect,
                         testContext.getConnection().getDataSource(),
@@ -7946,7 +7946,7 @@ public class BasicQueryTest extends FoodMartTestCase {
                         rowCount > 10000 && rowCount < 15000);
                 }
 
-                int valueCount =
+                long valueCount =
                     statisticsProvider.getColumnCardinality(
                         dialect,
                         testContext.getConnection().getDataSource(),

@@ -228,7 +228,7 @@ public class JdbcSchema {
     /**
      * Enumeration of ways that an aggregate table can use a column.
      */
-    enum UsageType {
+    public enum UsageType {
         UNKNOWN,
         FOREIGN_KEY,
         MEASURE,
@@ -905,7 +905,7 @@ public class JdbcSchema {
         /**
          * Returns the number of rows in the table.
          */
-        public int getNumberOfRows() {
+        public long getNumberOfRows() {
             return -1;
         }
 
