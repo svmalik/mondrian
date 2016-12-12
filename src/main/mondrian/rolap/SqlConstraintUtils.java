@@ -674,7 +674,7 @@ public class SqlConstraintUtils {
                 List<Level> hierarchyLevels =
                     schemaReader.getHierarchyLevels(member.getHierarchy());
                 for (Level affectedLevel : hierarchyLevels) {
-                    if (evaluator.shouldIgnoreUnrelatedDimensions()
+                    if (shouldIgnoreUnrelatedDimensions(evaluator, baseCube)
                         && affectedLevel instanceof RolapCubeLevel
                         && ((RolapCubeLevel) affectedLevel).getBaseStarKeyColumn(baseCube) == null)
                     {
@@ -704,6 +704,27 @@ public class SqlConstraintUtils {
             }
         }
         return roleMembers;
+    }
+
+    private static boolean shouldIgnoreUnrelatedDimensions(
+        Evaluator evaluator, RolapCube baseCube)
+    {
+        boolean ignore = false;
+        if (evaluator instanceof RolapEvaluator) {
+            RolapCube cube = ((RolapEvaluator) evaluator).getCube();
+            if (cube.isVirtual()) {
+                String cubeName =
+                    baseCube != null
+                        ? baseCube.getName()
+                        : evaluator.getMeasureCube() != null
+                            ? evaluator.getMeasureCube().getName()
+                            : null;
+                if (cubeName != null) {
+                    ignore = cube.shouldIgnoreUnrelatedDimensions(cubeName);
+                }
+            }
+        }
+        return ignore;
     }
 
     private static void addRoleAccessConstraints(
