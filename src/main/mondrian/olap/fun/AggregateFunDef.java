@@ -275,17 +275,36 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                 return false;
             }
             RolapEvaluator rolapEvaluator = null;
+            boolean isSlicer = false;
             if (ev instanceof RolapEvaluator) {
                 rolapEvaluator = (RolapEvaluator)ev;
+                isSlicer = rolapEvaluator.getSlicerTuples() == tupleList;
             }
+            Set<Member> argMembers = new HashSet<>();
             for (List<Member> members : tupleList) {
                 for (Member member : members) {
                     if (member.isMeasure() || member.isCalculated())
                     {
                         return false;
                     }
+                    if (!isSlicer) {
+                        argMembers.add(member);
+                    }
                 }
             }
+            for (Member m : argMembers) {
+                Member parentMember = m.getParentMember();
+                while (parentMember != null) {
+                    if (argMembers.contains(parentMember)) {
+                        // if tuple list contains parent and its children
+                        // Mondrian should not push down the calculation
+                        // and has to double sum or count
+                        return false;
+                    }
+                    parentMember = parentMember.getParentMember();
+                }
+            }
+
             if (rolapEvaluator != null) {
                 for (Member member : rolapEvaluator.getSlicerMembers()) {
                     if (member.isCalculated()
