@@ -2060,6 +2060,82 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #12: \n");
     }
 
+    public void testNativeOrderFailure() {
+        if (!propSaver.properties.EnableNativeOrder.get()) {
+            return;
+        }
+        propSaver.set(propSaver.properties.ExpandNonNative, false);
+        String mdx =
+            "WITH\n"
+            + "  SET [PRODUCT_SET] as 'NonEmpty([Product].[Product Family].Members)'\n"
+            + "  SET [PRODUCT_SET_SORTED] as 'Order([PRODUCT_SET], ([Measures].[Store Cost], [Store Type].[Small Grocery]), BDESC)' \n"
+            + "SELECT\n"
+            + "  { NonEmpty([Store Type].Members) } ON COLUMNS,\n"
+            + "  [PRODUCT_SET_SORTED] ON ROWS\n"
+            + "FROM [Sales]\n"
+            + "WHERE ([Measures].[Store Cost], [Promotions].[Go For It])";
+        if (!isUseAgg()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `product_class`.`product_family` as `c0`,\n"
+                + "    sum(`sales_fact_1997`.`store_cost`) as `c1`\n"
+                + "from\n"
+                + "    `product_class` as `product_class`,\n"
+                + "    `product` as `product`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`,\n"
+                + "    `promotion` as `promotion`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
+                + "and\n"
+                + "    `product`.`product_class_id` = `product_class`.`product_class_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`promotion_id` = `promotion`.`promotion_id`\n"
+                + "and\n"
+                + "    `promotion`.`promotion_name` = 'Go For It'\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`store_cost` is not null\n"
+                + "group by\n"
+                + "    `product_class`.`product_family`\n"
+                + "order by\n"
+                + "    sum(`sales_fact_1997`.`store_cost`) DESC,\n"
+                + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC";
+            assertNoQuerySql(
+                mdx,
+                mysqlPattern(mysql));
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Measures].[Store Cost], [Promotions].[Go For It]}\n"
+            + "Axis #1:\n"
+            + "{[Store Type].[All Store Types]}\n"
+            + "{[Store Type].[Mid-Size Grocery]}\n"
+            + "{[Store Type].[Small Grocery]}\n"
+            + "{[Store Type].[Supermarket]}\n"
+            + "Axis #2:\n"
+            + "{[Product].[Food]}\n"
+            + "{[Product].[Drink]}\n"
+            + "{[Product].[Non-Consumable]}\n"
+            + "Row #0: 385.73\n"
+            + "Row #0: 119.56\n"
+            + "Row #0: 25.24\n"
+            + "Row #0: 240.93\n"
+            + "Row #1: 39.90\n"
+            + "Row #1: 16.16\n"
+            + "Row #1: 8.82\n"
+            + "Row #1: 14.92\n"
+            + "Row #2: 120.80\n"
+            + "Row #2: 26.28\n"
+            + "Row #2: 5.05\n"
+            + "Row #2: 89.47\n");
+    }
+
     public void testNativeNonEmptyWithBasicCalcMeasure() {
         final String mdx =
             "WITH MEMBER [Measures].[Calc] AS '[Measures].[Store Sales]'\n"

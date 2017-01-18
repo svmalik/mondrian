@@ -270,8 +270,8 @@ public class RolapNativeOrder extends RolapNativeSet {
                 return null;
             }
 
-            cjArgs = new CrossJoinArg[0];
-            firstCrossjoinLevel = ((SetConstraint)eval.getConstraint()).getArgs()[0].getLevel();
+            cjArgs = CrossJoinArg.EMPTY_ARRAY;
+            firstCrossjoinLevel = parentConstraint.getArgs()[0].getLevel();
         }
 
         // extract "order by" expression
@@ -295,8 +295,8 @@ public class RolapNativeOrder extends RolapNativeSet {
             }
         }
 
-        if (sql.addlContext.size() > 0 && sql.storedMeasureCount > 1) {
-            // cannot natively evaluate, multiple tuples are possibly at play here.
+        if (sql.addlContext.size() > 0) {
+            // cannot natively evaluate
             return null;
         }
 
