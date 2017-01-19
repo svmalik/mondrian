@@ -423,6 +423,26 @@ public class SqlConstraintUtils {
         return tupleList.size() < piatory;
     }
 
+    public static boolean isDisjointTuples(List<RolapCubeMember[]> tupleList) {
+        // This assumes the same level for each hierarchy;
+        // won't work if the level restriction is eliminated
+        List<Set<Member>> counters = new ArrayList<>();
+        for (int i = 0; i < tupleList.size(); i++) {
+            final RolapCubeMember[] tuple = tupleList.get(i);
+            for (int j = 0; j < tuple.length; j++) {
+                if (i == 0) {
+                    counters.add(new HashSet<Member>());
+                }
+                counters.get(j).add(tuple[j]);
+            }
+        }
+        int piatory = 1;
+        for (Set<Member> counter : counters) {
+            piatory *= counter.size();
+        }
+        return tupleList.size() < piatory;
+    }
+
     /**
      * Utility function used by RolapEvaluator to determine if slicer.
      * positions are multi-level  RolapEvaluator caches the result.

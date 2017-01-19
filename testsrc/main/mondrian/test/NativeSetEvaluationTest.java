@@ -7197,6 +7197,58 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Axis #2:\n";
         assertQueryReturns(mdx, result);
     }
+
+    public void testCompoundSlicerMultiLevel() {
+        propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+        String mdx =
+            "select [Measures].[Unit Sales] on 0,\n"
+            + "[Gender].Members on 1\n"
+            + "from [Sales]\n"
+            + "where {[Time].[1997].[Q3].[9], [Time].[1997].[Q4].[12]}"
+            + " * {[Store].[USA], [Store].[Mexico]}"
+            + " * {[Education Level].[Bachelors Degree], [Education Level].[Graduate Degree]}";
+        String mysql =
+            "select\n"
+            + "    sum(`sales_fact_1997`.`unit_sales`) as `m0`\n"
+            + "from\n"
+            + "    `store` as `store`,\n"
+            + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+            + "    `time_by_day` as `time_by_day`,\n"
+            + "    `customer` as `customer`\n"
+            + "where\n"
+            + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+            + "and\n"
+            + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+            + "and\n"
+            + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
+            + "and\n"
+            + "    (`store`.`store_country` in ('USA', 'Mexico')"
+            + " and `customer`.`education` in ('Bachelors Degree', 'Graduate Degree')"
+            + " and (((`time_by_day`.`the_year`, `time_by_day`.`quarter`, `time_by_day`.`month_of_year`) in ((1997, 'Q3', 9), (1997, 'Q4', 12)))))";
+        assertQuerySql(mdx, mysqlPattern(mysql));
+
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+                + "{[Time].[1997].[Q3].[9], [Store].[USA], [Education Level].[Bachelors Degree]}\n"
+                + "{[Time].[1997].[Q3].[9], [Store].[USA], [Education Level].[Graduate Degree]}\n"
+                + "{[Time].[1997].[Q3].[9], [Store].[Mexico], [Education Level].[Bachelors Degree]}\n"
+                + "{[Time].[1997].[Q3].[9], [Store].[Mexico], [Education Level].[Graduate Degree]}\n"
+                + "{[Time].[1997].[Q4].[12], [Store].[USA], [Education Level].[Bachelors Degree]}\n"
+                + "{[Time].[1997].[Q4].[12], [Store].[USA], [Education Level].[Graduate Degree]}\n"
+                + "{[Time].[1997].[Q4].[12], [Store].[Mexico], [Education Level].[Bachelors Degree]}\n"
+                + "{[Time].[1997].[Q4].[12], [Store].[Mexico], [Education Level].[Graduate Degree]}\n"
+                + "Axis #1:\n"
+                + "{[Measures].[Unit Sales]}\n"
+                + "Axis #2:\n"
+                + "{[Gender].[All Gender]}\n"
+                + "{[Gender].[F]}\n"
+                + "{[Gender].[M]}\n"
+                + "Row #0: 14,763\n"
+                + "Row #1: 7,411\n"
+                + "Row #2: 7,352\n"
+        );
+    }
 }
 
 // End NativeSetEvaluationTest.java

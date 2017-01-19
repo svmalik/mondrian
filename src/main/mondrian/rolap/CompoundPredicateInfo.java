@@ -302,7 +302,9 @@ public class CompoundPredicateInfo {
         List<StarPredicate> compoundPredicateList =
             new ArrayList<StarPredicate> ();
         for (List<RolapCubeMember[]> group : compoundGroupMap.values()) {
-            if (addSimpleGroupPredicate(baseCube, group, compoundPredicateList)) {
+            if (!SqlConstraintUtils.isDisjointTuples(group)
+                && addSimpleGroupPredicate(baseCube, group, compoundPredicateList))
+            {
                 continue;
             }
             // e.g {[USA].[CA], [Canada].[BC]}
@@ -384,6 +386,7 @@ public class CompoundPredicateInfo {
         }
         Set<RolapCubeLevel> levels = new LinkedHashSet<>();
         Map<RolapStar.Column, Set<StarColumnPredicate>> colPredicates = new LinkedHashMap<>(tupleSize);
+        Map<RolapCubeLevel, List<StarPredicate>> multiLevelPredicates = new LinkedHashMap<>();
         for (int i = 0; i < group.size(); i++) {
             RolapCubeMember[] tuple = group.get(i);
             if (tupleSize != tuple.length) {
@@ -393,25 +396,8 @@ public class CompoundPredicateInfo {
                 if (levels.add(member.getLevel()) && i > 0) {
                     return false;
                 }
-                while (member != null) {
-                    if (member.isCalculated()) {
-                        return false;
-                    }
-                    if (!member.getLevel().isAll()) {
-                        RolapStar.Column column = member.getLevel().getBaseStarKeyColumn(baseCube);
-                        Set<StarColumnPredicate> predicates;
-                        if (i == 0) {
-                            predicates = new LinkedHashSet<>();
-                            colPredicates.put(column, predicates);
-                        } else {
-                            predicates = colPredicates.get(column);
-                        }
-                        predicates.add(new ValueColumnPredicate(column, member.getKey()));
-                    }
-                    if (member.getLevel().isUnique()) {
-                        break;
-                    }
-                    member = member.getParentMember();
+                if (!memberPredicate(member, baseCube, colPredicates, multiLevelPredicates)) {
+                    return false;
                 }
             }
         }
@@ -428,13 +414,71 @@ public class CompoundPredicateInfo {
                 predicates.add(new ListColumnPredicate(entry.getKey(), new ArrayList<>(entry.getValue())));
             }
 
-            if (predicates.size() > 0) {
+            if (!predicates.isEmpty()) {
+                if (!multiLevelPredicates.isEmpty()) {
+                    for (RolapCubeLevel level : multiLevelPredicates.keySet()) {
+                        predicates.add(new OrPredicate(multiLevelPredicates.get(level)));
+                    }
+                }
                 compoundPredicateList.add(
                     predicates.size() == 1 ? predicates.get(0) : new AndPredicate(predicates));
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean memberPredicate(
+        RolapCubeMember member, RolapCube baseCube,
+        Map<RolapStar.Column, Set<StarColumnPredicate>> singleLevelPredicates,
+        Map<RolapCubeLevel, List<StarPredicate>> multiLevelPredicates)
+    {
+        boolean isFirstLevel = true;
+        List<StarPredicate> memberPredicates = new ArrayList<>();
+        while (member != null) {
+            if (member.isCalculated()) {
+                return false;
+            }
+            RolapCubeLevel level = member.getLevel();
+            if (!level.isAll()) {
+                RolapStar.Column column = member.getLevel().getBaseStarKeyColumn(baseCube);
+                if (isFirstLevel && level.isUnique()) {
+                    Set<StarColumnPredicate> predicates =
+                        singleLevelPredicates.containsKey(column)
+                            ? singleLevelPredicates.get(column)
+                            : new LinkedHashSet<StarColumnPredicate>();
+                    predicates.add(new ValueColumnPredicate(column, member.getKey()));
+                    singleLevelPredicates.put(column, predicates);
+                    break;
+                } else {
+                    memberPredicates.add(
+                        new ValueColumnPredicate(column, member.getKey()));
+                    if (level.isUnique()) {
+                        AndPredicate predicate = new AndPredicate(memberPredicates);
+                        boolean exists = false;
+                        List<StarPredicate> multiPredicates =
+                            multiLevelPredicates.containsKey(level)
+                                ? multiLevelPredicates.get(level)
+                                : new ArrayList<StarPredicate>();
+                        for (StarPredicate starPredicate : multiPredicates) {
+                            // simple HashSet will not work for uniqueness here
+                            if (starPredicate.equalConstraint(predicate)) {
+                                exists = true;
+                                break;
+                            }
+                        }
+                        if (!exists) {
+                            multiPredicates.add(predicate);
+                            multiLevelPredicates.put(level, multiPredicates);
+                        }
+                        break;
+                    }
+                }
+            }
+            member = member.getParentMember();
+            isFirstLevel = false;
+        }
+        return true;
     }
 
     /**
