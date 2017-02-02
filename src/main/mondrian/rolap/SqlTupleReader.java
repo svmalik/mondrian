@@ -2213,6 +2213,27 @@ public class SqlTupleReader implements TupleReader {
             if (((RolapNativeSet.SetConstraint) constraint).skipAggTable()) {
                 return null;
             }
+
+            if (constraint
+                instanceof RolapNativeCrossJoin.NonEmptyCrossJoinConstraint)
+            {
+                RolapNativeCrossJoin.NonEmptyCrossJoinConstraint necj =
+                    (RolapNativeCrossJoin.NonEmptyCrossJoinConstraint)
+                        constraint;
+                for (CrossJoinArg arg : necj.args) {
+                    if (arg instanceof MemberListCrossJoinArg) {
+                        final RolapLevel level = arg.getLevel();
+                        if (level != null && !level.isAll()) {
+                            // member constraint with name columns in agg table is not supported
+                            if (level.getNameExp() != null && !Util.equals(level.getNameExp(), level.getKeyExp())) {
+                                LOGGER.warn("Member constraint is not supported with name column in agg table");
+                                return null;
+                            }
+                        }
+                    }
+                }
+            }
+
             ((RolapNativeSet.SetConstraint) constraint)
                 .constrainExtraLevels(baseCube, levelBitKey);
         }
