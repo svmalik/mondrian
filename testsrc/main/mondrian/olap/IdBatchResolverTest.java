@@ -9,6 +9,7 @@
  */
 package mondrian.olap;
 
+import mondrian.mdx.MemberExpr;
 import mondrian.parser.*;
 import mondrian.rolap.*;
 import mondrian.server.*;
@@ -173,6 +174,21 @@ public class IdBatchResolverTest  extends BatchTestCase {
         assertEquals(childKeys.getAllValues().get(1).size(), 2);
         // should only be invoked to resolve dimension, hierarchy and 2 levels
         verify(query.getSchemaReader(true), times(4)).withoutAccessControl();
+    }
+
+    public void testMultiLevelWithSameKey() {
+        propSaver.set(propSaver.properties.SsasCompatibleNaming, true);
+        propSaver.set(propSaver.properties.SsasNativeMemberUniqueNameStyle, true);
+        propSaver.set(propSaver.properties.FullHierarchyNames, true);
+        String mdx =
+            "SELECT {[Time].[Time].[Quarter].&[Q1]&[1997], [Time].[Time].[Quarter].&[Q1]&[1998] "
+            + "} on 0 FROM SALES";
+        assertContains(
+            "Resolved map omitted one or more members",
+            batchResolveMembers(mdx),
+            list(
+                "[Time].[Time].[Quarter].&[Q1]&[1997]",
+                "[Time].[Time].[Quarter].&[Q1]&[1998]"));
     }
 
     public void testSimpleEnumWithNumericKeys() {
@@ -509,10 +525,19 @@ public class IdBatchResolverTest  extends BatchTestCase {
     }
 
     public Set<String> batchResolve(String mdx) {
+        Set<String> resolvedNames = getResolvedNames(batchResolveInternal(mdx));
+        return resolvedNames;
+    }
+
+    public Set<String> batchResolveMembers(String mdx) {
+        Set<String> resolvedNames = getResolvedMemberNames(batchResolveInternal(mdx));
+        return resolvedNames;
+    }
+
+    private Map<QueryPart, QueryPart> batchResolveInternal(String mdx) {
         IdBatchResolver batchResolver = makeTestBatchResolver(mdx);
         Map<QueryPart, QueryPart> resolvedIdents = batchResolver.resolve();
-        Set<String> resolvedNames = getResolvedNames(resolvedIdents);
-        return resolvedNames;
+        return resolvedIdents;
     }
 
     private String sortedNames(List<Id.NameSegment> items) {
@@ -543,6 +568,29 @@ public class IdBatchResolverTest  extends BatchTestCase {
                         return o.toString();
                     }
                 }));
+    }
+
+    private Set<String> getResolvedMemberNames(
+        Map<QueryPart, QueryPart> resolvedIdents)
+    {
+        return new HashSet(
+            CollectionUtils.collect(
+                CollectionUtils
+                    .select(
+                        resolvedIdents.values(),
+                        new Predicate() {
+                            @Override
+                            public boolean evaluate(Object o) {
+                                return o instanceof MemberExpr;
+                            }
+                        }),
+                new Transformer() {
+                    @Override
+                    public Object transform(Object o) {
+                        return ((MemberExpr) o).getMember().getUniqueName();
+                    }
+                }
+            ));
     }
 
     public IdBatchResolver makeTestBatchResolver(String mdx) {
