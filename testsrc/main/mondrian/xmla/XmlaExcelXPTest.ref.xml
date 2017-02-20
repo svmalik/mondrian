@@ -750,7 +750,7 @@
                     <row>
                         <CATALOG_NAME>FoodMart</CATALOG_NAME>
                         <DESCRIPTION>No description available</DESCRIPTION>
-                        <ROLES>California manager,No HR Cube</ROLES>
+                        <ROLES>Administrator,California manager,No HR Cube</ROLES>
                     </row>
                 </root>
             </return>
@@ -3835,7 +3835,7 @@
                     <row>
                         <CATALOG_NAME>FoodMart</CATALOG_NAME>
                         <DESCRIPTION>No description available</DESCRIPTION>
-                        <ROLES>California manager,No HR Cube</ROLES>
+                        <ROLES>Administrator,California manager,No HR Cube</ROLES>
                     </row>
                 </root>
             </return>
