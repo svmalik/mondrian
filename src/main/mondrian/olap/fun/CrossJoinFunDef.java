@@ -5,7 +5,7 @@
 // You must accept the terms of that agreement to use this software.
 //
 // Copyright (C) 2002-2005 Julian Hyde
-// Copyright (C) 2005-2016 Pentaho and others
+// Copyright (C) 2005-2017 Pentaho and others
 // All Rights Reserved.
 */
 package mondrian.olap.fun;
@@ -848,7 +848,7 @@ public class CrossJoinFunDef extends FunDefBase {
                 // Throws an exception in case of timeout is exceeded
                 // see MONDRIAN-2425
                 cancellationChecker.check(currentIteration++);
-                if (checkData(
+                if (tupleContainsCalcs( cursor.current() ) || checkData(
                         nonAllMembers,
                         nonAllMembers.length - 1,
                         measureSet,
@@ -861,6 +861,15 @@ public class CrossJoinFunDef extends FunDefBase {
         } finally {
             evaluator.restore(savepoint);
         }
+    }
+
+    private boolean tupleContainsCalcs( List<Member> current ) {
+        for (Member member : current) {
+            if (member.isCalculated()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Map<Hierarchy, Set<Member>> getSlicerMemberMap(
