@@ -14020,6 +14020,28 @@ Intel platforms):
             + "Row #0: 14\n");
     }
 
+    public void testExistingCompoundSlicerDiffHierarchySsasNaming() {
+        propSaver.set(propSaver.properties.EnableNativeExisting, false);
+        propSaver.set(propSaver.properties.SsasCompatibleNaming, true);
+        propSaver.set(propSaver.properties.SsasNativeMemberUniqueNameStyle, true);
+        // test existing constraining a set by a member in a different
+        // hierarchy in the same dimension
+        String mdx = "WITH MEMBER [Measures].[Count Existing]"
+            + " AS Count(existing [Time].[Weekly].[Week].Members)\n"
+            + "SELECT {[Measures].[Count Existing]} ON 0\n"
+            + " FROM [Sales]\n"
+            + "WHERE {[Time].[1997].[Q2],[Time].[1998]}";
+        TestContext context = TestContext.instance().withFreshConnection();
+        context.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Time].[Quarter].&[Q2]&[1997]}\n"
+            + "{[Time].[Year].&[1998]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Count Existing]}\n"
+            + "Row #0: 66\n");
+    }
+
     public void testNonEmptyFunSlicer() {
         assertQueryReturns(
             "SELECT\n"

@@ -19,13 +19,13 @@ import mondrian.olap.Member;
 import mondrian.olap.MondrianProperties;
 import mondrian.olap.NativeEvaluator;
 import mondrian.olap.Util;
+import mondrian.olap.fun.FunUtil;
 import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.CrossJoinArg;
 import mondrian.rolap.sql.MemberListCrossJoinArg;
 import mondrian.rolap.sql.SqlQuery;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -125,12 +125,8 @@ public class RolapNativeExisting extends RolapNativeSet {
                     : getContextMembers(evaluator, dimension))
                 {
                     if (!contextMember.isAll()) {
-                        List<RolapMember> contextMembers;
-                        if (contextMember instanceof RolapResult.CompoundSlicerRolapMember) {
-                            contextMembers = evaluator.getSlicerMembers(contextMember.getHierarchy());
-                        } else {
-                            contextMembers = Collections.singletonList(contextMember);
-                        }
+                        List<RolapMember> contextMembers =
+                            (List<RolapMember>) FunUtil.expandMember(contextMember, evaluator);
                         CrossJoinArg predicate =
                             MemberListCrossJoinArg.create(
                                 evaluator,
@@ -237,10 +233,10 @@ public class RolapNativeExisting extends RolapNativeSet {
         // get only hierarchy member, by level
         Map<RolapLevel, List<RolapMember>> leftMembers =
             extractHierarchyMembers(
-                hierarchyLeft, leftSet, evaluator.isNonEmpty());
+                hierarchyLeft, leftSet, evaluator);
         Map<RolapLevel, List<RolapMember>> rightMembers =
             extractHierarchyMembers(
-                hierarchyRight, rightSet, evaluator.isNonEmpty());
+                hierarchyRight, rightSet, evaluator);
         // ensure no set is bigger than MaxConstraints
         Iterable<List<RolapMember>> leftChunks =
             getMemberLists(leftMembers);
@@ -249,9 +245,8 @@ public class RolapNativeExisting extends RolapNativeSet {
         // find which members will be removed by any of the constraints
         Set<RolapMember> removedMembers = new HashSet<RolapMember>();
         for (List<RolapMember> left : leftChunks) {
+            Set<RolapMember> removedMembersPart = new HashSet<>(left);
             for (List<RolapMember> right : rightChunks) {
-                Set<RolapMember> removedMembersPart =
-                    new HashSet<RolapMember>(left);
                 SqlTupleReader reader =
                     getFilterExistingReader(evaluator, left, right);
                 // unary tuple list
@@ -259,8 +254,8 @@ public class RolapNativeExisting extends RolapNativeSet {
                     evaluator.getSchemaReader().getDataSource(), null, null);
                 List<Member> filteredLeftMembers = members.slice(0);
                 removedMembersPart.removeAll(filteredLeftMembers);
-                removedMembers.addAll(removedMembersPart);
             }
+            removedMembers.addAll(removedMembersPart);
         }
         // filter tuple list
         return removeInvalidTuples(
@@ -324,13 +319,13 @@ public class RolapNativeExisting extends RolapNativeSet {
      * Get members of target hierarchy by level
      * @param targetHierarchy
      * @param tuples
-     * @param isNonEmpty if can join with fact table
+     * @param evaluator
      * @return Map with members of each level for target hierarchy
      */
     private static Map<RolapLevel, List<RolapMember>> extractHierarchyMembers(
         Hierarchy targetHierarchy,
         TupleList tuples,
-        final boolean isNonEmpty)
+        RolapEvaluator evaluator)
     {
         Map<RolapLevel, List<RolapMember>> result =
             new LinkedHashMap<RolapLevel, List<RolapMember>>();
@@ -339,22 +334,34 @@ public class RolapNativeExisting extends RolapNativeSet {
                 if (member.getHierarchy().equals(targetHierarchy)
                     && member instanceof RolapMember)
                 {
-                    // avoiding rolapCubeMember will prevent fact table joins
-                    // TODO: a better way
-                    RolapMember rolapMember = (RolapMember) member;
-                    if (!isNonEmpty && rolapMember instanceof RolapCubeMember) {
-                        rolapMember =
-                            ((RolapCubeMember)member).getRolapMember();
-                    }
-                    putInMapList(
-                        result,
-                        rolapMember.getLevel(),
-                        rolapMember);
+                    addMemberToMap(result, member, evaluator);
                 }
             }
         }
         return result;
     }
+
+    private static void addMemberToMap(
+        Map<RolapLevel, List<RolapMember>> map,
+        Member member,
+        RolapEvaluator evaluator)
+    {
+        if (member instanceof RolapResult.CompoundSlicerRolapMember) {
+            for (Member expanded : FunUtil.expandMember(member, evaluator)){
+                addMemberToMap(map, expanded, evaluator);
+            }
+        } else if (member instanceof RolapMember) {
+            // avoiding rolapCubeMember will prevent fact table joins
+            // TODO: a better way
+            RolapMember rolapMember = (RolapMember) member;
+            if (!evaluator.isNonEmpty() && rolapMember instanceof RolapCubeMember) {
+                rolapMember =
+                    ((RolapCubeMember) member).getRolapMember();
+            }
+            putInMapList(map, rolapMember.getLevel(), rolapMember);
+        }
+    }
+
     private static <K, V> void putInMapList(Map<K, List<V>> map, K key, V value)
     {
         List<V> list = map.get(key);
