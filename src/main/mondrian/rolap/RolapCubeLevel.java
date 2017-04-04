@@ -234,7 +234,7 @@ public class RolapCubeLevel extends RolapLevel {
         } else {
             column = getStarKeyColumn();
         }
-        if (baseCube != null) {
+        if (baseCube != null && column != null) {
             baseStarKeyColumns.put(baseCube, column);
         }
         return column;

@@ -74,6 +74,19 @@ public class RolapNativeOrder extends RolapNativeSet {
          * expression references a measure.
          */
         protected boolean isJoinRequired() {
+            if (getEvaluator().isNonEmpty()) {
+                return true;
+            }
+
+            List<RolapCube> baseCubes = getEvaluator().getBaseCubes();
+            RolapCube baseCube = baseCubes != null && baseCubes.size() == 1
+                ? baseCubes.get(0)
+                : (RolapCube) getEvaluator().getMeasureCube();
+            if (!SqlConstraintUtils.getRoleConstraintMembers(getEvaluator(), baseCube).isEmpty()) {
+                // there are some role restrictions defined
+                return true;
+            }
+
             // Use a visitor and check all member expressions.
             // If any of them is a measure, we will have to
             // force the join to the fact table. If it is something

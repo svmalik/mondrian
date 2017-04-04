@@ -2136,6 +2136,34 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #2: 89.47\n");
     }
 
+    public void testNativeOrderWithRole() {
+        if (!propSaver.properties.EnableNativeOrder.get()) {
+            return;
+        }
+        TestContext testContext = TestContext.instance().create(
+            null, null, null, null, null,
+            "<Role name=\"VCRole\">\n"
+            + "  <SchemaGrant access=\"none\">\n"
+            + "    <CubeGrant cube=\"Warehouse and Sales\" access=\"all\">\n"
+            + "      <HierarchyGrant hierarchy=\"[Customers]\" access=\"custom\" rollupPolicy=\"partial\">\n"
+            + "        <MemberGrant member=\"[Customers].[USA].[CA]\" access=\"all\"/>\n"
+            + "        <MemberGrant member=\"[Customers].[USA].[CA].[Los Angeles]\" access=\"none\"/>\n"
+            + "      </HierarchyGrant>\n"
+            + "    </CubeGrant>\n"
+            + "  </SchemaGrant>\n"
+            + "</Role>").withRole("VCRole");
+        String mdx =
+            "SELECT Order([Customers].[Country].Members, [Customers].CurrentMember.Name, BDESC) ON 0 "
+            + "FROM [Warehouse and Sales]";
+        testContext.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Customers].[USA]}\n"
+            + "Row #0: 154,854.85\n");
+    }
+
     public void testNativeNonEmptyWithBasicCalcMeasure() {
         final String mdx =
             "WITH MEMBER [Measures].[Calc] AS '[Measures].[Store Sales]'\n"
