@@ -9,6 +9,7 @@
 */
 package mondrian.rolap;
 
+import mondrian.calc.TupleList;
 import mondrian.mdx.MemberExpr;
 import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
@@ -197,6 +198,23 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             return null;
         }
 
+        if (measure != null) {
+            TupleList slicerTuples = evaluator.getOptimizedSlicerTuples(measure.getCube());
+            if (slicerTuples != null && slicerTuples.getArity() > 1
+                && slicerTuples.size() * slicerTuples.getArity() >
+                    MondrianProperties.instance().NativeFunctionsDisjointSlicerMaxSize.get()
+                && (SqlConstraintUtils.isDisjointTuple(slicerTuples)
+                    || evaluator.isMultiLevelSlicerTuple())
+                && evaluator.getSlicerPredicateInfo() != null
+                && !evaluator.getSlicerPredicateInfo().isTupleBased())
+            {
+                // Non-native should perform better in this case
+                // as it can use tuple based slicer.
+                // TODO: optimize SqlConstraintUtils.addContextConstraint to use tuple based slicer
+                return null;
+            }
+        }
+
         if (hasTwoArgs && extraArgs == null) {
             // second arg failed, check if it's just because of a measure set
             if (!nativeMeasures.isEmpty()) {
@@ -372,6 +390,9 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
                 }
                 return true;
             }
+        } else if (exp instanceof NamedSetExpr) {
+            return isMeasureSet(
+                ((NamedSetExpr) exp).getNamedSet().getExp());
         }
         return isMeasure(exp);
     }

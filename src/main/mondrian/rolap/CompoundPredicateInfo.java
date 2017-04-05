@@ -52,6 +52,7 @@ public class CompoundPredicateInfo {
     private final String predicateString;
     private final RolapMeasure measure;
     private boolean satisfiable = true;
+    private boolean isTupleBased = false;
 
     public CompoundPredicateInfo(
         List<List<Member>> tupleList, RolapMeasure measure, Evaluator evaluator)
@@ -77,6 +78,10 @@ public class CompoundPredicateInfo {
 
     public boolean isSatisfiable() {
         return satisfiable;
+    }
+
+    public boolean isTupleBased() {
+        return isTupleBased;
     }
 
     public RolapCube getCube() {
@@ -307,6 +312,7 @@ public class CompoundPredicateInfo {
             {
                 continue;
             }
+            isTupleBased = true;
             // e.g {[USA].[CA], [Canada].[BC]}
             StarPredicate compoundGroupPredicate = null;
             List<StarPredicate> groupPredicates = new ArrayList<>(group.size());

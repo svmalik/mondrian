@@ -864,6 +864,17 @@ level.members and member descendants will be computed in SQL.</p>
         <Default>true</Default>
     </PropertyDefinition>
     <PropertyDefinition>
+        <Name>NativeFunctionsDisjointSlicerMaxSize</Name>
+        <Path>mondrian.native.disjointSlicerMaxSize</Path>
+        <Category>SQL generation</Category>
+        <Description>
+            <p>Max size of a disjoint slicer supported by native functions.
+                Large disjoint slicer may generate a too complex SQL query.</p>
+        </Description>
+        <Type>int</Type>
+        <Default>1000</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
         <Name>EnableNativeCount</Name>
         <Path>mondrian.native.count.enable</Path>
         <Category>SQL generation</Category>
