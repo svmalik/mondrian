@@ -454,9 +454,18 @@ public abstract class AbstractQuerySpec implements QuerySpec {
                 List<StarPredicate> regPreds = new ArrayList<StarPredicate>();
                 for (StarPredicate child : pred.getChildren()) {
                     List<RolapStar.Column> columnList = child.getConstrainedColumnList();
-                    if (columnList.size() != 1) {
+                    boolean hasError = columnList.isEmpty();
+                    if (!hasError && columnList.size() > 1) {
+                        for (RolapStar.Column col : columnList) {
+                            if (col.getTable().getSubQueryAlias() != null) {
+                                hasError = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (hasError) {
                         throw new UnsupportedOperationException(
-                        "Invalid number of subqueries found for this predicate");
+                            "Invalid number of subqueries found for this predicate");
                     }
                     if (columnList.get(0).getTable().getSubQueryAlias() != null) {
                         // add to subquery
