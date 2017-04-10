@@ -4,7 +4,7 @@
 // http://www.eclipse.org/legal/epl-v10.html.
 // You must accept the terms of that agreement to use this software.
 //
-// Copyright (C) 2006-2015 Pentaho and others
+// Copyright (C) 2006-2017 Pentaho and others
 // All Rights Reserved.
  */
 package mondrian.olap;
@@ -178,10 +178,11 @@ public final class IdBatchResolver {
             }
             Exp exp = (Exp)resolvedIdentifiers.get(parent);
             if (exp == null) {
-                exp = lookupExp(resolvedIdentifiers, parent);
+                exp = lookupExp(parent);
             }
             Member parentMember = getMemberFromExp(exp);
             if (supportedMember(parentMember)) {
+                resolvedIdentifiers.put(parent, (QueryPart)exp);
                 if (getLastSegment(parent) instanceof Id.NameSegment) {
                     batchResolveChildren(
                         parent, parentMember, identifiers, resolvedIdentifiers);
@@ -191,6 +192,7 @@ public final class IdBatchResolver {
                 }
             }
             if (exp instanceof LevelExpr) {
+                resolvedIdentifiers.put(parent, (QueryPart)exp);
                 Level level = ((LevelExpr)exp).getLevel();
                 batchResolveChildrenByKey(
                     parent, null, level, identifiers, resolvedIdentifiers);
@@ -221,12 +223,10 @@ public final class IdBatchResolver {
         }
     }
 
-    private Exp lookupExp(
-        Map<QueryPart, QueryPart> resolvedIdentifiers, Id parent)
+    private Exp lookupExp(Id parent)
     {
         try {
             Exp exp = Util.lookup(query, parent.getSegments(), false);
-            resolvedIdentifiers.put(parent, (QueryPart)exp);
             return exp;
         } catch (Exception exception) {
             LOGGER.info(
