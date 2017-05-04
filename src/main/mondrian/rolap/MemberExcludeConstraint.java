@@ -88,7 +88,7 @@ class MemberExcludeConstraint implements TupleConstraint {
                 query, baseCube, aggStar, excludes, true, false, true, nonempty);
         }
         if (csc != null) {
-            for (CrossJoinArg cja : csc.args) {
+            for (CrossJoinArg cja : csc.getArgs()) {
                 if (cja.getLevel().equals(level)) {
                     cja.addConstraint(query, baseCube, aggStar);
                 }

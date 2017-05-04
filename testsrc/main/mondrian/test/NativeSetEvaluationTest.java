@@ -2164,6 +2164,63 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #0: 154,854.85\n");
     }
 
+    public void testNativeOrderByMemberNameInVirtualCube() {
+        if (!propSaver.properties.EnableNativeOrder.get()) {
+            return;
+        }
+        String dimension =
+            "<Dimension name=\"Warehouse2\">\n"
+            + "    <Hierarchy hasAll=\"true\" primaryKey=\"warehouse_id\">\n"
+            + "      <Table name=\"warehouse\"/>\n"
+            + "      <Level name=\"Country\" column=\"warehouse_country\" uniqueMembers=\"true\"/>\n"
+            + "      <Level name=\"State Province\" column=\"warehouse_state_province\" uniqueMembers=\"true\"/>\n"
+            + "      <Level name=\"Warehouse Name\" column=\"warehouse_name\" uniqueMembers=\"true\"/>\n"
+            + "    </Hierarchy>\n"
+            + "  </Dimension>\n";
+        String cube =
+            "<Cube name=\"Warehouse2\">\n"
+            + "  <Table name=\"inventory_fact_1997\"/>\n"
+            + "  <DimensionUsage name=\"Product\" source=\"Product\" foreignKey=\"product_id\"/>\n"
+            + "  <DimensionUsage name=\"Warehouse2\" source=\"Warehouse2\" foreignKey=\"warehouse_id\"/>\n"
+            + "  <Measure name=\"Warehouse Cost\" column=\"warehouse_cost\" aggregator=\"sum\"/>\n"
+            + "</Cube>";
+        String virtualCube =
+            "<VirtualCube name=\"Warehouse2 and Sales\">\n"
+            + "  <VirtualCubeDimension name=\"Product\"/>\n"
+            + "  <VirtualCubeDimension cubeName=\"Sales\" name=\"Customers\"/>\n"
+            + "  <VirtualCubeDimension cubeName=\"Warehouse2\" name=\"Warehouse2\"/>\n"
+            + "  <VirtualCubeMeasure cubeName=\"Sales\" name=\"[Measures].[Sales Count]\"/>\n"
+            + "  <VirtualCubeMeasure cubeName=\"Warehouse2\" name=\"[Measures].[Warehouse Cost]\"/>\n"
+            + "</VirtualCube>";
+        TestContext testContext =
+            TestContext.instance().create(
+                dimension, cube, virtualCube, null, null, null);
+        String mdx =
+            "WITH\n"
+            + "SET [FullSet] AS {[Warehouse2].[Warehouse2].[State Province].&[CA].Children}\n"
+            + "SET [OrderSet] AS Order([FullSet], [Warehouse2].CurrentMember.Name, BAsc)\n"
+            + "SET [SubsetSet] AS Subset([OrderSet], 0, 25)\n"
+            + "SELECT\n"
+            + "{[Measures].[Warehouse Cost]} ON COLUMNS,\n"
+            + "{[SubsetSet]} ON ROWS\n"
+            + "FROM [Warehouse2 and Sales]";
+        testContext.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Warehouse Cost]}\n"
+            + "Axis #2:\n"
+            + "{[Warehouse2].[USA].[CA].[Artesia Warehousing, Inc.]}\n"
+            + "{[Warehouse2].[USA].[CA].[Big  Quality Warehouse]}\n"
+            + "{[Warehouse2].[USA].[CA].[Food Service Storage, Inc.]}\n"
+            + "{[Warehouse2].[USA].[CA].[Jorgensen Service Storage]}\n"
+            + "Row #0: 10,118.71\n"
+            + "Row #1: 4,481.649\n"
+            + "Row #2: 855.218\n"
+            + "Row #3: 10,333.51\n");
+    }
+
     public void testNativeNonEmptyWithBasicCalcMeasure() {
         final String mdx =
             "WITH MEMBER [Measures].[Calc] AS '[Measures].[Store Sales]'\n"
