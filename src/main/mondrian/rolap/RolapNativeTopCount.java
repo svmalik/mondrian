@@ -120,7 +120,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
                         true);
                 }
             }
-            if (isJoinRequired()) {
+            if (isJoinRequired() || parentConstraint != null) {
                 super.addConstraint(sqlQuery, baseCube, aggStar);
             } else if (args.length == 1) {
                 args[0].addConstraint(sqlQuery, baseCube, null);

@@ -751,6 +751,21 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #2: 256.0\n");
     }
 
+    public void testNativeTopCountWithNestingInEmptyContext() {
+        final String mdx =
+            "WITH\n"
+            + "  SET TC AS TopCount(Filter([Store].[Store Name].Members, 1 > 1), 3)\n"
+            + "  SELECT [Measures].[Unit Sales] on 0, TC ON 1 \n"
+            + "  FROM [Sales]";
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n");
+    }
+
     /**
      * Aggregate with default measure and TopCount without measure argument.
      */
