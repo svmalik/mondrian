@@ -1707,6 +1707,9 @@ public class FunUtil extends Util {
         Member startMember,
         Member endMember)
     {
+        if (startMember == null && endMember == null) {
+            return Collections.emptyList();
+        }
         final Level level = startMember != null
             ? startMember.getLevel()
             : endMember.getLevel();
