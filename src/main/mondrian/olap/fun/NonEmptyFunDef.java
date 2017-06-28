@@ -118,7 +118,6 @@ public class NonEmptyFunDef extends FunDefBase {
                         final boolean tryNonNative =
                             MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubesAndNonNative.get();
                         Exp[] args = call.getArgs();
-                        boolean isPartiallyNative = false;
                         if (args.length == 2 && args[1] instanceof ResolvedFunCall) {
                             ResolvedFunCall arg2Call = FunUtil.extractResolvedFunCall(args[1]);
                             if (arg2Call != null) {
@@ -134,7 +133,6 @@ public class NonEmptyFunDef extends FunDefBase {
                                         evaluator.restore(save);
                                         if (nativeEvaluator != null) {
                                             nonEmptyTuples.add((TupleList) nativeEvaluator.execute(ResultStyle.LIST));
-                                            isPartiallyNative = true;
                                         } else {
                                             if (!tryNonNative) {
                                                 nonEmptyTuples = null;
@@ -154,13 +152,16 @@ public class NonEmptyFunDef extends FunDefBase {
                                     if (nonEmptyTuples != null && !nonEmptyTuples.isEmpty()) {
                                         TupleList result = null;
                                         Set<List<Member>> added = new HashSet<List<Member>>();
+                                        boolean needsSorting = false;
                                         for (TupleList tuples : nonEmptyTuples) {
                                             if (result == null) {
                                                 result = TupleCollections.createList(tuples.getArity());
+                                            } else if (!needsSorting && result.size() != tuples.size()) {
+                                                needsSorting = true;
                                             }
                                             FunUtil.addUnique(result, tuples, added);
                                         }
-                                        return isPartiallyNative
+                                        return needsSorting
                                             ? restoreNaturalOrder(result, args[0], evaluator, expCompiler)
                                             : result;
                                     }
