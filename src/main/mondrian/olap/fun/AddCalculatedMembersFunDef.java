@@ -80,15 +80,22 @@ class AddCalculatedMembersFunDef extends FunDefBase {
 
         // For each level, add the calculated members from both
         // the schema and the query
-        List<Member> workingList = new ArrayList<Member>(memberList);
+        List<Member> workingList = null;
         final SchemaReader schemaReader =
                 evaluator.getQuery().getSchemaReader(true);
         for (Level level : levels) {
             List<Member> calcMemberList =
                 schemaReader.getCalculatedMembers(level);
-            workingList.addAll(calcMemberList);
+            if (workingList == null && !calcMemberList.isEmpty()) {
+                workingList = new ArrayList<>(memberList);
+            }
+            for (Member calc : calcMemberList) {
+                if (!workingList.contains(calc)) {
+                    workingList.add(calc);
+                }
+            }
         }
-        return workingList;
+        return workingList == null ? memberList : workingList;
     }
 
     private static class ResolverImpl extends MultiResolver {

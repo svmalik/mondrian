@@ -2292,6 +2292,32 @@ public class FunctionTest extends FoodMartTestCase {
             "AddCalculatedMembers({([Store].[USA].[CA], [Gender].[F])})",
             "Only single dimension members allowed in set for "
             + "AddCalculatedMembers");
+
+        //----------------------------------------------------
+        // AddCalculatedMembers and AllMembers:
+        // members in result set should be unique
+        //----------------------------------------------------
+        assertQueryReturns(
+            "WITH MEMBER [Store].[USA].[CA plus OR] AS 'AGGREGATE({[Store].[USA].[CA], [Store].[USA].[OR]})' "
+            + "SELECT {} ON COLUMNS,"
+            + "AddCalculatedMembers([Store].[Store State].AllMembers) ON ROWS "
+            + "FROM Sales "
+            + "WHERE ([1997].[Q1])",
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "Axis #1:\n"
+            + "Axis #2:\n"
+            + "{[Store].[Canada].[BC]}\n"
+            + "{[Store].[Mexico].[DF]}\n"
+            + "{[Store].[Mexico].[Guerrero]}\n"
+            + "{[Store].[Mexico].[Jalisco]}\n"
+            + "{[Store].[Mexico].[Veracruz]}\n"
+            + "{[Store].[Mexico].[Yucatan]}\n"
+            + "{[Store].[Mexico].[Zacatecas]}\n"
+            + "{[Store].[USA].[CA]}\n"
+            + "{[Store].[USA].[OR]}\n"
+            + "{[Store].[USA].[WA]}\n"
+            + "{[Store].[USA].[CA plus OR]}\n");
     }
 
     public void testStripCalculatedMembers() {
