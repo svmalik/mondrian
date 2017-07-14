@@ -448,7 +448,7 @@ public class CompoundPredicateInfo {
             RolapCubeLevel level = member.getLevel();
             if (!level.isAll()) {
                 RolapStar.Column column = member.getLevel().getBaseStarKeyColumn(baseCube);
-                if (isFirstLevel && level.isUnique()) {
+                if (isFirstLevel && (level.isUnique() || level.getParentLevel().isAll())) {
                     Set<StarColumnPredicate> predicates =
                         singleLevelPredicates.containsKey(column)
                             ? singleLevelPredicates.get(column)
@@ -459,7 +459,7 @@ public class CompoundPredicateInfo {
                 } else {
                     memberPredicates.add(
                         new ValueColumnPredicate(column, member.getKey()));
-                    if (level.isUnique()) {
+                    if (level.isUnique() || level.getParentLevel().isAll()) {
                         AndPredicate predicate = new AndPredicate(memberPredicates);
                         boolean exists = false;
                         List<StarPredicate> multiPredicates =
