@@ -54,44 +54,29 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
         super(dummyFunDef);
     }
 
-    private Member getMember(Exp exp) {
-        if (exp instanceof MemberExpr) {
-            Member m = ((MemberExpr)exp).getMember();
-            if (m.isMeasure() && !m.isCalculated()) {
-                return m;
-            }
-        }
-        // Since the expression is not a base measure, we won't
-        // attempt to determine the aggregator and will simply sum.
-        LOGGER.warn(
-            "Unable to determine aggregator for non-base measures "
-            + "in 2nd parameter of Aggregate(), summing: " + exp.toString());
-        return null;
-    }
-
     public Calc compileCall(ResolvedFunCall call, ExpCompiler compiler) {
         final ListCalc listCalc = compiler.compileList(call.getArg(0));
         final Calc calc =
             call.getArgCount() > 1
                 ? compiler.compileScalar(call.getArg(1), true)
                 : new ValueCalc(call);
-        final Member member =
-            call.getArgCount() > 1 ? getMember(call.getArg(1)) : null;
-        return new AggregateCalc(call, listCalc, calc, member);
+        final Exp memberExp =
+            call.getArgCount() > 1 ? call.getArg(1) : null;
+        return new AggregateCalc(call, listCalc, calc, memberExp);
     }
 
     public static class AggregateCalc extends GenericCalc {
         private final ListCalc listCalc;
         private final Calc calc;
-        private final Member member;
+        private final Exp memberExp;
 
         public AggregateCalc(
-            Exp exp, ListCalc listCalc, Calc calc, Member member)
+            Exp exp, ListCalc listCalc, Calc calc, Exp memberExp)
         {
             super(exp, new Calc[]{listCalc, calc});
             this.listCalc = listCalc;
             this.calc = calc;
-            this.member = member;
+            this.memberExp = memberExp;
         }
 
         public AggregateCalc(Exp exp, ListCalc listCalc, Calc calc) {
@@ -102,8 +87,32 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
             evaluator.getTiming().markStart(TIMING_NAME);
             final int savepoint = evaluator.savepoint();
             try {
-                if (member != null) {
-                    evaluator.setContext(member);
+                Member member = null;
+                Calc memberCalc = this.calc;
+                if (memberExp != null) {
+                    ExpCompiler compiler = null;
+                    if (memberExp instanceof MemberExpr) {
+                        member = ((MemberExpr) memberExp).getMember();
+                    } else if (memberExp instanceof ResolvedFunCall
+                            && ((ResolvedFunCall) memberExp).getFunDef() instanceof StrToMemberFunDef) {
+                        compiler = evaluator.getQuery().createCompiler();
+                        MemberCalc calc = compiler.compileMember(memberExp);
+                        member = calc.evaluateMember(evaluator);
+                    }
+
+                    if (member != null && member.isMeasure() && !member.isCalculated()) {
+                        evaluator.setContext(member);
+                        if (compiler != null) {
+                            memberCalc = compiler.compileScalar(new MemberExpr(member), true);
+                        }
+                    } else {
+                        member = null;
+                        // Since the expression is not a base measure, we won't
+                        // attempt to determine the aggregator and will simply sum.
+                        LOGGER.warn(
+                            "Unable to determine aggregator for non-base measures "
+                            + "in 2nd parameter of Aggregate(), summing: " + memberExp.toString());
+                    }
                 }
 
                 if(exp instanceof ResolvedFunCall) {
@@ -142,7 +151,7 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                         }
                     }
                 }
-                return aggregate(calc, evaluator, list, pushdownAggregation);
+                return aggregate(memberCalc, evaluator, list, pushdownAggregation);
             } finally {
                 evaluator.restore(savepoint);
                 evaluator.getTiming().markEnd(TIMING_NAME);

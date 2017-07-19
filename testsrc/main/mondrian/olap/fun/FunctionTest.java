@@ -3499,6 +3499,43 @@ public class FunctionTest extends FoodMartTestCase {
             + "Row #2: 8,173.22\n");
     }
 
+    public void testAggregateWithStrToMember() {
+        propSaver.set(propSaver.properties.IgnoreInvalidMembersDuringQuery, true);
+        TestContext testContext = TestContext.instance()
+            .createSubstitutingCube(
+                "Sales",
+                null,
+                "  <Measure name=\"Store Sales (test)\" aggregator=\"sum\">\n"
+                + "    <MeasureExpression>\n"
+                + "      <SQL>1</SQL>\n"
+                + "    </MeasureExpression>\n"
+                + "  </Measure>\n"
+                + "  <Measure name=\"Sales Count (test)\" aggregator=\"distinct-count\">\n"
+                + "    <MeasureExpression>\n"
+                + "      <SQL>2</SQL>\n"
+                + "    </MeasureExpression>\n"
+                + "  </Measure>\n");
+        String mdx =
+            "WITH MEMBER [Store].[Test] AS Aggregate([Store].Members"
+            + ", StrToMember(\"[Measures].[\" + [Measures].CurrentMember.Name + \" (test)]\"))\n"
+            + "SELECT {[Measures].[Store Sales], [Measures].[Sales Count], [Measures].[Unit Sales]} ON 0,\n"
+            + "[Store].[Test] ON 1\n"
+            + "FROM [Sales]";
+        testContext.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Store Sales]}\n"
+            + "{[Measures].[Sales Count]}\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Store].[Test]}\n"
+            + "Row #0: 434,185.00\n"
+            + "Row #0: 1\n"
+            + "Row #0: #ERR: mondrian.olap.fun.MondrianEvaluationException: Could not find an aggregator in the current evaluation context\n");
+    }
+
     /**
      * Tests behavior where CurrentMember occurs in calculated members and
      * that member is a set.
