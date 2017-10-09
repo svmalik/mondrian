@@ -215,6 +215,7 @@ public class Main extends TestSuite {
                 addTest(suite, CodeComplianceTest.class);
                 return suite;
             }
+            addTest(suite, SqlMemberSourceTest.class);
             addTest(suite, SqlConstraintUtilsTest.class);
             addTest(suite, IifFunDefTest.class);
             addTest(suite, PropertiesFunctionTest.class);

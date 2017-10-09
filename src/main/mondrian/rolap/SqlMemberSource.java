@@ -256,6 +256,7 @@ class SqlMemberSource
                     if (i > 0) {
                         sb.append(", ");
                     }
+                    i++;
                     sb.append(
                         sqlQuery.getDialect()
                             .generateCountExpression(colDef));
