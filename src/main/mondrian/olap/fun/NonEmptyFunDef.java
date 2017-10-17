@@ -459,7 +459,7 @@ public class NonEmptyFunDef extends FunDefBase {
         TupleList tupleList, Exp mainArgs, Evaluator evaluator, ExpCompiler compiler)
     {
         if (tupleList == null || tupleList.isEmpty() || tupleList.getArity() != 1
-            || !hasMembersFun(FunUtil.extractResolvedFunCall(mainArgs)))
+            || !areMembersOrdered(FunUtil.extractResolvedFunCall(mainArgs)))
         {
             return tupleList;
         }
@@ -473,9 +473,9 @@ public class NonEmptyFunDef extends FunDefBase {
         return (TupleList) orderCalc.evaluate(evaluator);
     }
 
-    private boolean hasMembersFun(ResolvedFunCall call) {
+    private boolean areMembersOrdered(ResolvedFunCall call) {
         return call != null
-            && Arrays.asList("members", "allmembers", "children")
+            && Arrays.asList("members", "allmembers", "children", "order")
                 .contains(call.getFunName().toLowerCase());
     }
 }

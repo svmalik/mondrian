@@ -2920,6 +2920,73 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #11: 5,481.64\n");
     }
 
+    public void testNativeNonEmptyDifferentCubesCorrectOrder2() {
+        if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()
+            || !MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubes.get())
+        {
+            return;
+        }
+        String mdx =
+            "WITH "
+            + "SET [Ordered] AS Order({[Time].[1997].[Q1].[1],[Time].[1997].[Q1].[3],[Time].[1997].[Q1].[2]}, \"\")\n"
+            + "SET [NonEmptySet] AS"
+            + "  NonEmpty({[Ordered]},{[Measures].[Warehouse Sales], [Measures].[Store Sales]})\n"
+            + "SELECT\n"
+            + "  {[Measures].[Warehouse Sales], [Measures].[Store Sales]} ON 0\n"
+            + "  , [NonEmptySet] ON 1\n"
+            + "FROM [Warehouse and Sales]\n"
+            + "WHERE [Store].[Store].[Store Name].[Store 6]";
+        if (!isUseAgg()) {
+            propSaver.set(MondrianProperties.instance().GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `store`.`store_name` as `c0`,\n"
+                + "    `time_by_day`.`the_year` as `c1`,\n"
+                + "    `time_by_day`.`quarter` as `c2`,\n"
+                + "    `time_by_day`.`month_of_year` as `c3`,\n"
+                + "    sum(`sales_fact_1997`.`store_sales`) as `m0`\n"
+                + "from\n"
+                + "    `store` as `store`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+                + "and\n"
+                + "    `store`.`store_name` = 'Store 6'\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `time_by_day`.`quarter` = 'Q1'\n"
+                + "and\n"
+                + "    `time_by_day`.`month_of_year` in (1, 2, 3)\n"
+                + "group by\n"
+                + "    `store`.`store_name`,\n"
+                + "    `time_by_day`.`the_year`,\n"
+                + "    `time_by_day`.`quarter`,\n"
+                + "    `time_by_day`.`month_of_year`";
+            assertQuerySql(mdx, mysqlPattern(mysql));
+        }
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Store].[USA].[CA].[Beverly Hills].[Store 6]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Warehouse Sales]}\n"
+            + "{[Measures].[Store Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Time].[1997].[Q1].[1]}\n"
+            + "{[Time].[1997].[Q1].[2]}\n"
+            + "{[Time].[1997].[Q1].[3]}\n"
+            + "Row #0: \n"
+            + "Row #0: 2,629.09\n"
+            + "Row #1: \n"
+            + "Row #1: 2,836.37\n"
+            + "Row #2: \n"
+            + "Row #2: 2,738.43\n");
+    }
+
     public void testNativeNonEmptyDifferentCubesWithCrossJoin() {
         if (!MondrianProperties.instance().EnableNativeNonEmptyFunction.get()
             || !MondrianProperties.instance().EnableNativeNonEmptyFunctionDifferentCubes.get())
