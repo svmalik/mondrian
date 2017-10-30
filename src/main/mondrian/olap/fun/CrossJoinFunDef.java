@@ -18,6 +18,7 @@ import mondrian.olap.type.*;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.RolapEvaluator;
 import mondrian.rolap.SqlConstraintUtils;
+import mondrian.server.Execution;
 import mondrian.server.Locus;
 import mondrian.util.CancellationChecker;
 import mondrian.util.CartesianProductList;
@@ -232,7 +233,11 @@ public class CrossJoinFunDef extends FunDefBase {
                             TupleCollections.emptyList(1).tupleCursor();
                         final Member[] members = new Member[arity];
 
+                        long currentIteration = 0;
+                        CancellationChecker cancellationChecker =
+                            new CancellationChecker(Locus.peek().execution);
                         public boolean forward() {
+                            cancellationChecker.check(currentIteration++);
                             if (i2.forward()) {
                                 return true;
                             }

@@ -33,7 +33,11 @@ public class CancellationChecker {
     public CancellationChecker() {
     }
 
-    public void check(int iteration)
+    public void check(int iteration) {
+        check((long) iteration);
+    }
+
+    public void check(long iteration)
     {
         if (interval > 0 && iteration % interval == 0)
         {
