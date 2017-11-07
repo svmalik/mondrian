@@ -240,7 +240,7 @@ public class DescendantsFunDef extends FunDefBase {
         final SchemaReader schemaReader,
         final int depthLimit)
     {
-        if (!schemaReader.isDrillable(member)) {
+        if (member.isCalculatedInQuery() || !schemaReader.isDrillable(member)) {
             if (depthLimit >= 0) {
                 result.add(member);
             }

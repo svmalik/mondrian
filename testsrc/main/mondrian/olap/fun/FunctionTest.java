@@ -5437,6 +5437,32 @@ public class FunctionTest extends FoodMartTestCase {
             "");
     }
 
+    public void testDescendantsCalcInQuery() {
+        assertQueryReturns(
+            "WITH SET [(members)] AS {[Time].[1997].[Q2], [Time].[1997].[Q4]}\n"
+            + "MEMBER [Time].[(filters)] AS Aggregate([(members)])\n"
+            + "MEMBER [Measures].[Threshold] AS "
+            + "MIN(CrossJoin(Descendants([Time].CurrentMember,, LEAVES), [Measures].[Sales Count]))\n"
+            + "SELECT {[Measures].[Sales Count], [Measures].[Threshold]} ON 0,\n"
+            + "{[Time].[1997].[Q2], [Time].[1997].[Q4], [Time].[(filters)]} ON 1\n"
+            + "FROM [Sales]",
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Sales Count]}\n"
+            + "{[Measures].[Threshold]}\n"
+            + "Axis #2:\n"
+            + "{[Time].[1997].[Q2]}\n"
+            + "{[Time].[1997].[Q4]}\n"
+            + "{[Time].[(filters)]}\n"
+            + "Row #0: 20,368\n"
+            + "Row #0: 6,590\n"
+            + "Row #1: 23,428\n"
+            + "Row #1: 6,479\n"
+            + "Row #2: 43,796\n"
+            + "Row #2: \n");
+    }
+
     public void testRange() {
         assertAxisReturns(
             "[Time].[1997].[Q1].[2] : [Time].[1997].[Q2].[5]",
