@@ -2126,9 +2126,10 @@ public class XmlaHandler {
                     "HierarchyInfo", "name", getHierarchyName(hierarchy));
                 for (final Property prop : props) {
                     if (prop instanceof IMondrianOlap4jProperty) {
-                        writeProperty(writer, hierarchy, prop);
+                        writeProperty(writer, hierarchy, (IMondrianOlap4jProperty) prop);
                     } else {
-                        writeElement(writer, hierarchy, prop);
+                        String name = getFullUniqueName(fullUniqueNames, hierarchy, hierarchy);
+                        writeElement(writer, name, prop);
                     }
                 }
                 writer.endElement();
@@ -2138,30 +2139,29 @@ public class XmlaHandler {
 
         private void writeProperty(
             SaxWriter writer, Hierarchy hierarchy,
-            final Property prop)
+            final IMondrianOlap4jProperty prop)
         {
-            IMondrianOlap4jProperty currentProperty =
-                (IMondrianOlap4jProperty) prop;
             String thisHierarchyName = hierarchy.getName();
-            String thatHierarchiName = currentProperty.getLevel()
+            String thatHierarchiName = prop.getLevel()
                 .getHierarchy().getName();
             if (thisHierarchyName.equals(thatHierarchiName)) {
-                writeElement(writer, hierarchy, prop);
+                writeElement(writer, prop.getLevel().getUniqueName(), prop);
             }
         }
 
         private void writeElement(
-            SaxWriter writer, Hierarchy hierarchy,
+            SaxWriter writer, String parentName,
             final Property prop)
         {
             final String encodedProp = encoder
                 .encode(prop.getName());
             final Object[] attributes = getAttributes(
-                prop, hierarchy);
+                prop, parentName);
             writer.element(encodedProp, attributes);
         }
 
-        private Object[] getAttributes(Property prop, Hierarchy hierarchy) {
+        private Object[] getAttributes(
+            Property prop, String parentName) {
             Property longProp = longProps.get(prop.getName());
             if (longProp == null) {
                 longProp = prop;
@@ -2169,7 +2169,7 @@ public class XmlaHandler {
             List<Object> values = new ArrayList<Object>();
             values.add("name");
             values.add(
-                getFullUniqueName(fullUniqueNames, hierarchy, hierarchy)
+                parentName
                 + "."
                 + Util.quoteMdxIdentifier(longProp.getName()));
             if (longProp == prop) {

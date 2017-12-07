@@ -392,14 +392,14 @@ where [Measures].[Unit Sales]
                                     <LNum name="[Store].[LEVEL_NUMBER]"/>
                                     <DisplayInfo name="[Store].[DISPLAY_INFO]"/>
                                     <PARENT_UNIQUE_NAME name="[Store].[PARENT_UNIQUE_NAME]" type="xsd:string"/>
-                                    <Store_x0020_Type name="[Store].[Store Type]" type="xsd:string"/>
-                                    <Store_x0020_Manager name="[Store].[Store Manager]" type="xsd:string"/>
-                                    <Store_x0020_Sqft name="[Store].[Store Sqft]" type="xsd:unsignedInt"/>
-                                    <Grocery_x0020_Sqft name="[Store].[Grocery Sqft]" type="xsd:unsignedInt"/>
-                                    <Frozen_x0020_Sqft name="[Store].[Frozen Sqft]" type="xsd:unsignedInt"/>
-                                    <Meat_x0020_Sqft name="[Store].[Meat Sqft]" type="xsd:unsignedInt"/>
-                                    <Has_x0020_coffee_x0020_bar name="[Store].[Has coffee bar]" type="xsd:boolean"/>
-                                    <Street_x0020_address name="[Store].[Street address]" type="xsd:string"/>
+                                    <Store_x0020_Type name="[Store].[Store Name].[Store Type]" type="xsd:string"/>
+                                    <Store_x0020_Manager name="[Store].[Store Name].[Store Manager]" type="xsd:string"/>
+                                    <Store_x0020_Sqft name="[Store].[Store Name].[Store Sqft]" type="xsd:unsignedInt"/>
+                                    <Grocery_x0020_Sqft name="[Store].[Store Name].[Grocery Sqft]" type="xsd:unsignedInt"/>
+                                    <Frozen_x0020_Sqft name="[Store].[Store Name].[Frozen Sqft]" type="xsd:unsignedInt"/>
+                                    <Meat_x0020_Sqft name="[Store].[Store Name].[Meat Sqft]" type="xsd:unsignedInt"/>
+                                    <Has_x0020_coffee_x0020_bar name="[Store].[Store Name].[Has coffee bar]" type="xsd:boolean"/>
+                                    <Street_x0020_address name="[Store].[Store Name].[Street address]" type="xsd:string"/>
                                 </HierarchyInfo>
                             </AxisInfo>
                             <AxisInfo name="SlicerAxis">
@@ -2104,14 +2104,14 @@ WITH  SET [XL_Row_Dim_0] AS 'VisualTotals(Distinct(Hierarchize(
                                     <LNum name="[Store].[LEVEL_NUMBER]"/>
                                     <DisplayInfo name="[Store].[DISPLAY_INFO]"/>
                                     <PARENT_UNIQUE_NAME name="[Store].[PARENT_UNIQUE_NAME]" type="xsd:string"/>
-                                    <Store_x0020_Type name="[Store].[Store Type]" type="xsd:string"/>
-                                    <Store_x0020_Manager name="[Store].[Store Manager]" type="xsd:string"/>
-                                    <Store_x0020_Sqft name="[Store].[Store Sqft]" type="xsd:unsignedInt"/>
-                                    <Grocery_x0020_Sqft name="[Store].[Grocery Sqft]" type="xsd:unsignedInt"/>
-                                    <Frozen_x0020_Sqft name="[Store].[Frozen Sqft]" type="xsd:unsignedInt"/>
-                                    <Meat_x0020_Sqft name="[Store].[Meat Sqft]" type="xsd:unsignedInt"/>
-                                    <Has_x0020_coffee_x0020_bar name="[Store].[Has coffee bar]" type="xsd:boolean"/>
-                                    <Street_x0020_address name="[Store].[Street address]" type="xsd:string"/>
+                                    <Store_x0020_Type name="[Store].[Store Name].[Store Type]" type="xsd:string"/>
+                                    <Store_x0020_Manager name="[Store].[Store Name].[Store Manager]" type="xsd:string"/>
+                                    <Store_x0020_Sqft name="[Store].[Store Name].[Store Sqft]" type="xsd:unsignedInt"/>
+                                    <Grocery_x0020_Sqft name="[Store].[Store Name].[Grocery Sqft]" type="xsd:unsignedInt"/>
+                                    <Frozen_x0020_Sqft name="[Store].[Store Name].[Frozen Sqft]" type="xsd:unsignedInt"/>
+                                    <Meat_x0020_Sqft name="[Store].[Store Name].[Meat Sqft]" type="xsd:unsignedInt"/>
+                                    <Has_x0020_coffee_x0020_bar name="[Store].[Store Name].[Has coffee bar]" type="xsd:boolean"/>
+                                    <Street_x0020_address name="[Store].[Store Name].[Street address]" type="xsd:string"/>
                                 </HierarchyInfo>
                             </AxisInfo>
                             <AxisInfo name="SlicerAxis">

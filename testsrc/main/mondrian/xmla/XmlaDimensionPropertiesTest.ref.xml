@@ -204,7 +204,7 @@
                                     <LName name="[Store].[LEVEL_UNIQUE_NAME]"/>
                                     <LNum name="[Store].[LEVEL_NUMBER]"/>
                                     <DisplayInfo name="[Store].[DISPLAY_INFO]"/>
-                                    <Store_x0020_Manager name="[Store].[Store Manager]" type="xsd:string"/>
+                                    <Store_x0020_Manager name="[Store].[Store Name].[Store Manager]" type="xsd:string"/>
                                 </HierarchyInfo>
                             </AxisInfo>
                             <AxisInfo name="SlicerAxis"/>
@@ -497,7 +497,7 @@
                                     <LName name="[Store].[LEVEL_UNIQUE_NAME]"/>
                                     <LNum name="[Store].[LEVEL_NUMBER]"/>
                                     <DisplayInfo name="[Store].[DISPLAY_INFO]"/>
-                                    <Store_x0020_Manager name="[Store].[Store Manager]" type="xsd:string"/>
+                                    <Store_x0020_Manager name="[Store].[Store Name].[Store Manager]" type="xsd:string"/>
                                 </HierarchyInfo>
                             </AxisInfo>
                             <AxisInfo name="SlicerAxis"/>
