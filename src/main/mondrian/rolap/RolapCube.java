@@ -505,12 +505,14 @@ public class RolapCube extends CubeBase {
             }
             List<Member> cubeMeasures = cube.getMeasures();
             boolean found = false;
+            boolean isDefaultMeasureFound = false;
             for (Member cubeMeasure : cubeMeasures) {
                 if (cubeMeasure.getUniqueName().equals(xmlMeasure.name)) {
                     if (cubeMeasure.getName().equalsIgnoreCase(
                             xmlVirtualCube.defaultMeasure))
                     {
-                        defaultMeasure = cubeMeasure;
+                      defaultMeasure = cubeMeasure;
+                      isDefaultMeasureFound = true;
                     }
                     found = true;
                     if (cubeMeasure instanceof RolapCalculatedMember) {
@@ -563,6 +565,11 @@ public class RolapCube extends CubeBase {
                             Property.CAPTION.name,
                             cubeMeasure.getCaption());
                         origMeasureList.add(virtualCubeMeasure);
+                        //Set the actual virtual cube measure
+                        //to the default measure
+                        if (isDefaultMeasureFound) {
+                          defaultMeasure = virtualCubeMeasure;
+                        }
                     }
                     break;
                 }
