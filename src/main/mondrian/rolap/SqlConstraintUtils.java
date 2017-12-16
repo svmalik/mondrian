@@ -457,7 +457,7 @@ public class SqlConstraintUtils {
                 ((RolapEvaluator) evaluator).getSlicerMembers(),
                 evaluator).getMembers();
         for (Member member : slicerMembers) {
-            if (member.isAll()) {
+            if (member.isAll() || member.isNull()) {
                 continue;
             }
             Level before = levels
