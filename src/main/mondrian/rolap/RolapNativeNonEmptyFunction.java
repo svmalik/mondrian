@@ -90,12 +90,21 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             returnArgs = mainArgs.get(0);
         }
 
+        boolean isHighCardinality = false;
+        final int minThreshold = MondrianProperties.instance().NativizeMinThreshold.get();
         for (CrossJoinArg cjArg : returnArgs) {
             if (cjArg.getLevel().getDimension().isHanger()) {
                 alertNonNative(evaluator, fun, args[0]);
                 return null;
             }
+
+            int levelCardinality = evaluator.getSchemaReader()
+                .getLevelCardinality(cjArg.getLevel(), true, true);
+            if (levelCardinality > minThreshold) {
+                isHighCardinality = true;
+            }
         }
+
         // we want the second arg to be added just as a crossjoin constraint
         boolean hasTwoArgs = args.length == 2;
         if (hasTwoArgs && eval == null) {
@@ -198,7 +207,7 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
             return null;
         }
 
-        if (measure != null) {
+        if (measure != null && !isHighCardinality) {
             TupleList slicerTuples = evaluator.getOptimizedSlicerTuples(measure.getCube());
             if (slicerTuples != null && slicerTuples.getArity() > 1
                 && slicerTuples.size() * slicerTuples.getArity() >
