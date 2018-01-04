@@ -20,6 +20,9 @@ import mondrian.test.loader.CsvDBTestCase;
 
 public class AggMeasureFactCountTest extends CsvDBTestCase {
 
+    private static final String DIRECTORY =
+        "testsrc/main/mondrian/rolap/aggmatcher";
+
     private static final String SCHEMA = ""
             + "<Schema name=\"FoodMart\">\n"
             + "<Dimension name=\"Time\" type=\"TimeDimension\">\n"
@@ -82,6 +85,11 @@ public class AggMeasureFactCountTest extends CsvDBTestCase {
             + "select [Time].[Quarter].Members on columns, \n"
             + "{[Measures].[Store Sales], [Measures].[Store Cost], [Measures].[Unit Sales]} on rows "
             + "from [Sales]";
+
+    @Override
+    protected String getDirectoryName() {
+        return DIRECTORY;
+    }
 
     @Override
     protected String getFileName() {
