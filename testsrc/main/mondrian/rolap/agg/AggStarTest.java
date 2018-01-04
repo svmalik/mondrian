@@ -33,7 +33,7 @@ public class AggStarTest extends PropertyRestoringTestCase {
     table = Mockito.mock(JdbcSchema.Table.class);
     messageRecorder = Mockito.mock(MessageRecorder.class);
 
-    Mockito.when(table.getColumnUsages(Mockito.any())).thenCallRealMethod();
+    Mockito.when(table.getColumnUsages(Mockito.any(JdbcSchema.UsageType.class))).thenCallRealMethod();
     Mockito.when(table.getName()).thenReturn("TestAggTable");
     Mockito.when(table.getTotalColumnSize()).thenReturn(1);
     Mockito.when(table.getNumberOfRows()).thenReturn(BIG_NUMBER);
