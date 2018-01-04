@@ -22,45 +22,52 @@
     public void testCheckCancelOrTimeoutWithIntExecution() {
       int currentIteration = 10;
       MondrianProperties.instance().CheckCancelOrTimeoutInterval.set(1);
-      CancellationChecker.checkCancelOrTimeout(currentIteration, excMock);
+      checkCancelOrTimeout(currentIteration);
       verify(excMock).checkCancelOrTimeout();
     }
 
     public void testCheckCancelOrTimeoutWithLongExecution() {
       long currentIteration = 10L;
       MondrianProperties.instance().CheckCancelOrTimeoutInterval.set(1);
-      CancellationChecker.checkCancelOrTimeout(currentIteration, excMock);
+      checkCancelOrTimeout(currentIteration);
       verify(excMock).checkCancelOrTimeout();
     }
 
     public void testCheckCancelOrTimeoutLongMoreThanIntExecution() {
       long currentIteration = 2147483648L;
       MondrianProperties.instance().CheckCancelOrTimeoutInterval.set(1);
-      CancellationChecker.checkCancelOrTimeout(currentIteration, excMock);
+      checkCancelOrTimeout(currentIteration);
       verify(excMock).checkCancelOrTimeout();
     }
 
     public void testCheckCancelOrTimeoutMaxLongExecution() {
       long currentIteration = 9223372036854775807L;
       MondrianProperties.instance().CheckCancelOrTimeoutInterval.set(1);
-      CancellationChecker.checkCancelOrTimeout(currentIteration, excMock);
+      checkCancelOrTimeout(currentIteration);
       verify(excMock).checkCancelOrTimeout();
     }
 
     public void testCheckCancelOrTimeoutNoExecution_IntervalZero() {
       int currentIteration = 10;
       MondrianProperties.instance().CheckCancelOrTimeoutInterval.set(0);
-      CancellationChecker.checkCancelOrTimeout(currentIteration, excMock);
+      checkCancelOrTimeout(currentIteration);
       verify(excMock, never()).checkCancelOrTimeout();
     }
 
     public void testCheckCancelOrTimeoutNoExecutionEvenIntervalOddIteration() {
       int currentIteration = 3;
       MondrianProperties.instance().CheckCancelOrTimeoutInterval.set(10);
-      CancellationChecker.checkCancelOrTimeout(currentIteration, excMock);
+      checkCancelOrTimeout(currentIteration);
       verify(excMock, never()).checkCancelOrTimeout();
     }
 
+    private void checkCancelOrTimeout(int currentIteration) {
+      new CancellationChecker(excMock).check(currentIteration);
+    }
+
+    private void checkCancelOrTimeout(long currentIteration) {
+      new CancellationChecker(excMock).check(currentIteration);
+    }
   }
 
 // End CancellationCheckerTest.java

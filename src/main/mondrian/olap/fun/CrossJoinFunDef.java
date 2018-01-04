@@ -237,11 +237,11 @@ public class CrossJoinFunDef extends FunDefBase {
                         CancellationChecker cancellationChecker =
                             new CancellationChecker(Locus.peek().execution);
                         public boolean forward() {
-                            cancellationChecker.check(currentIteration++);
                             if (i2.forward()) {
                                 return true;
                             }
                             while (i1.forward()) {
+                                cancellationChecker.check(currentIteration++);
                                 i2 = it2.tupleCursor();
                                 if (i2.forward()) {
                                     return true;
