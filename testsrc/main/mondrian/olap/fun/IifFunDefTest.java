@@ -21,6 +21,9 @@ import mondrian.olap.Exp;
 import mondrian.olap.FunDef;
 import mondrian.olap.fun.SetFunDef.SetListCalc;
 import mondrian.olap.type.SetType;
+import mondrian.olap.type.Type;
+
+import java.util.List;
 
 public class IifFunDefTest extends TestCase {
 
@@ -39,7 +42,7 @@ public class IifFunDefTest extends TestCase {
     when( trueCaseParamMock.getType() ).thenReturn( setTypeMock );
     setListCalc = new SetListCalc( trueCaseParamMock, new Exp[] { args[1] }, compilerMock, ResultStyle.LIST_MUTABLELIST );
     call = new ResolvedFunCall( funDefMock, args, setTypeMock );
-    when( compilerMock.compileAs( any(), any(), any() ) ).thenReturn( setListCalc );
+    when( compilerMock.compileAs( any(Exp.class), any(Type.class), any(List.class) ) ).thenReturn( setListCalc );
   }
 
   public void testGetResultType() {
