@@ -31,7 +31,7 @@ public class MySqlDialectTest extends TestCase {
   protected void setUp() throws Exception {
     when( metaData.getDatabaseProductName() ).thenReturn( Dialect.DatabaseProduct.MYSQL.name() );
     when( metaData.getDatabaseProductVersion() ).thenReturn( "5.0" );
-    when( statmentMock.execute( any() ) ).thenReturn( false );
+    when( statmentMock.execute( any(String.class) ) ).thenReturn( false );
     when( connection.getMetaData() ).thenReturn( metaData );
     when( connection.createStatement() ).thenReturn( statmentMock );
     dialect = new MySqlDialect( connection );
