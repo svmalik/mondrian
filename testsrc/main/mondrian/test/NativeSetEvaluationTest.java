@@ -88,14 +88,14 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                 + "    ISNULL(`c2`) ASC, `c2` ASC,\n"
                 + "    ISNULL(`c3`) ASC, `c3` ASC,\n"
                 + "    ISNULL(`c4`) ASC, `c4` ASC,\n"
-                + "    ISNULL(`c5`) ASC, `c5` ASC"
+                + "    ISNULL(`c5`) ASC, `c5` ASC limit 2"
                 : "    sum(`sales_fact_1997`.`store_sales`) DESC,\n"
                 + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
                 + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
                 + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC,\n"
                 + "    ISNULL(`product_class`.`product_subcategory`) ASC, `product_class`.`product_subcategory` ASC,\n"
                 + "    ISNULL(`product`.`brand_name`) ASC, `product`.`brand_name` ASC,\n"
-                + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC");
+                + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC limit 2");
 
         static final String mysqlAgg =
             "select\n"
@@ -136,14 +136,14 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                 + "    ISNULL(`c2`) ASC, `c2` ASC,\n"
                 + "    ISNULL(`c3`) ASC, `c3` ASC,\n"
                 + "    ISNULL(`c4`) ASC, `c4` ASC,\n"
-                + "    ISNULL(`c5`) ASC, `c5` ASC"
+                + "    ISNULL(`c5`) ASC, `c5` ASC limit 2"
                 : "    sum(`agg_pl_01_sales_fact_1997`.`store_sales_sum`) DESC,\n"
                 + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
                 + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
                 + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC,\n"
                 + "    ISNULL(`product_class`.`product_subcategory`) ASC, `product_class`.`product_subcategory` ASC,\n"
                 + "    ISNULL(`product`.`brand_name`) ASC, `product`.`brand_name` ASC,\n"
-                + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC");
+                + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC limit 2");
         static final String result =
             "Axis #0:\n"
             + "{[Time].[Weekly].[x]}\n"
@@ -415,7 +415,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                   ? "    `c3` DESC,\n"
                   + "    ISNULL(`c0`) ASC, `c0` ASC,\n"
                   + "    ISNULL(`c1`) ASC, `c1` ASC,\n"
-                  + "    ISNULL(`c2`) ASC, `c2` ASC"
+                  + "    ISNULL(`c2`) ASC, `c2` ASC limit 3"
                   : "    sum(`"
                   + (useAggregates
                   ? "agg_c_14_sales_fact_1997"
@@ -423,7 +423,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                   + "`.`unit_sales`) DESC,\n"
                   + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
                   + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
-                  + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC");
+                  + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC limit 3");
 
         SqlPattern mysqlPattern =
             new SqlPattern(
@@ -517,7 +517,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                   ? "    `c3` DESC,\n"
                   + "    ISNULL(`c0`) ASC, `c0` ASC,\n"
                   + "    ISNULL(`c1`) ASC, `c1` ASC,\n"
-                  + "    ISNULL(`c2`) ASC, `c2` ASC"
+                  + "    ISNULL(`c2`) ASC, `c2` ASC limit 3"
                   : "    sum(`"
                   + (useAggregates
                   ? "agg_c_14_sales_fact_1997"
@@ -525,7 +525,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                   + "`.`unit_sales`) DESC,\n"
                   + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
                   + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
-                  + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC");
+                  + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC limit 3");
 
         SqlPattern mysqlPattern =
             new SqlPattern(
@@ -618,7 +618,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                   ? "    `c3` DESC,\n"
                   + "    ISNULL(`c0`) ASC, `c0` ASC,\n"
                   + "    ISNULL(`c1`) ASC, `c1` ASC,\n"
-                  + "    ISNULL(`c2`) ASC, `c2` ASC"
+                  + "    ISNULL(`c2`) ASC, `c2` ASC limit 3"
                   : "    sum(`"
                   + (useAggregates
                   ? "agg_c_14_sales_fact_1997"
@@ -626,7 +626,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                   + "`.`unit_sales`) DESC,\n"
                   + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
                   + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
-                  + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC");
+                  + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC limit 3");
 
         if (MondrianProperties.instance().EnableNativeTopCount.get()) {
             SqlPattern mysqlPattern =
@@ -1067,10 +1067,10 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + (TestContext.instance().getDialect().requiresOrderByAlias()
                 ? "    `c2` DESC,\n"
                 + "    ISNULL(`c0`) ASC, `c0` ASC,\n"
-                + "    ISNULL(`c1`) ASC, `c1` ASC"
+                + "    ISNULL(`c1`) ASC, `c1` ASC limit 2"
                 : "    sum(`agg_pl_01_sales_fact_1997`.`store_sales_sum`) DESC,\n"
                 + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
-                + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC");
+                + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC limit 2");
 
         SqlPattern mysqlPattern =
             new SqlPattern(
@@ -1304,12 +1304,12 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                 + "    ISNULL(`c0`) ASC, `c0` ASC,\n"
                 + "    ISNULL(`c1`) ASC, `c1` ASC,\n"
                 + "    ISNULL(`c2`) ASC, `c2` ASC,\n"
-                + "    ISNULL(`c4`) ASC, `c4` ASC"
+                + "    ISNULL(`c4`) ASC, `c4` ASC limit 5"
                 : "    sum(`sales_fact_1997`.`unit_sales`) DESC,\n"
                 + "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
                 + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC,\n"
                 + "    ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC,\n"
-                + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC");
+                + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC limit 5");
         SqlPattern mysqlPattern =
             new SqlPattern(
                 DatabaseProduct.MYSQL,
@@ -1395,12 +1395,12 @@ public class NativeSetEvaluationTest extends BatchTestCase {
                 + "    ISNULL(`c0`) ASC, `c0` ASC,\n"
                 + "    ISNULL(`c1`) ASC, `c1` ASC,\n"
                 + "    ISNULL(`c2`) ASC, `c2` ASC,\n"
-                + "    ISNULL(`c4`) ASC, `c4` ASC"
+                + "    ISNULL(`c4`) ASC, `c4` ASC limit 5"
                 : "    sum(`sales_fact_1997`.`unit_sales`) DESC,\n"
                 + "    ISNULL(`customer`.`country`) ASC, `customer`.`country` ASC,\n"
                 + "    ISNULL(`customer`.`state_province`) ASC, `customer`.`state_province` ASC,\n"
                 + "    ISNULL(`customer`.`city`) ASC, `customer`.`city` ASC,\n"
-                + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC");
+                + "    ISNULL(CONCAT(`customer`.`fname`, ' ', `customer`.`lname`)) ASC, CONCAT(`customer`.`fname`, ' ', `customer`.`lname`) ASC limit 5");
         SqlPattern mysqlPattern =
             new SqlPattern(
                 DatabaseProduct.MYSQL,

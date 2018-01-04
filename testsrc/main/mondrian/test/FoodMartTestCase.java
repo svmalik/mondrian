@@ -425,6 +425,7 @@ public class FoodMartTestCase extends PropertyRestoringTestCase {
         propSaver.set(propSaver.properties.EnableNativeExists, true);
         propSaver.set(propSaver.properties.EnableNativeFilter, true);
         propSaver.set(propSaver.properties.EnableNativeNonEmpty, true);
+        propSaver.set(propSaver.properties.EnableNativeNonEmptyFunction, true);
         propSaver.set(propSaver.properties.EnableNativeOrder, true);
         propSaver.set(propSaver.properties.EnableNativeSubset, true);
         propSaver.set(propSaver.properties.EnableNativeSum, true);
@@ -439,6 +440,7 @@ public class FoodMartTestCase extends PropertyRestoringTestCase {
         propSaver.set(propSaver.properties.EnableNativeExists, false);
         propSaver.set(propSaver.properties.EnableNativeFilter, false);
         propSaver.set(propSaver.properties.EnableNativeNonEmpty, false);
+        propSaver.set(propSaver.properties.EnableNativeNonEmptyFunction, false);
         propSaver.set(propSaver.properties.EnableNativeOrder, false);
         propSaver.set(propSaver.properties.EnableNativeSubset, false);
         propSaver.set(propSaver.properties.EnableNativeSum, false);
