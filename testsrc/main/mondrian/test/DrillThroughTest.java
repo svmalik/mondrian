@@ -455,7 +455,7 @@ public class DrillThroughTest extends FoodMartTestCase {
                 + " `customer`.`city` ASC, "
                 + nameExpStr
                 + " ASC,"
-                + " `customer`.`customer_id` ASC,"
+                + " `sales_fact_1997`.`customer_id` ASC,"
                 + " `customer`.`education` ASC,"
                 + " `customer`.`gender` ASC,"
                 + " `customer`.`marital_status` ASC,"
@@ -585,7 +585,7 @@ public class DrillThroughTest extends FoodMartTestCase {
                 + " `customer`.`state_province` ASC,"
                 + " `customer`.`city` ASC,"
                 + " " + nameExpStr + " ASC,"
-                + " `customer`.`customer_id` ASC,"
+                + " `sales_fact_1997`.`customer_id` ASC,"
                 + " `customer`.`education` ASC,"
                 + " `customer`.gender` ASC,"
                 + " `customer`.`marital_status` ASC,"
@@ -721,7 +721,7 @@ public class DrillThroughTest extends FoodMartTestCase {
                 + " `customer`.`city` ASC, "
                 + nameExpStr
                 + " ASC,"
-                + " `customer`.`customer_id` ASC,"
+                + " `sales_fact_1997`.`customer_id` ASC,"
                 + " `customer`.`education` ASC,"
                 + " `customer`.`gender` ASC,"
                 + " `customer`.`marital_status` ASC,"
@@ -831,14 +831,12 @@ public class DrillThroughTest extends FoodMartTestCase {
             + " `sales_fact_1997` =as= `sales_fact_1997` "
             + "where `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`"
             + " and `time_by_day`.`the_year` = 1997"
-            + " and `sales_fact_1997`.`store_id` = `store_ragged`.`store_id`"
-            + " and `store_ragged`.`store_id` = 19"
-            + " and `sales_fact_1997`.`store_id` = `store`.`store_id`"
-            + " and `store`.`store_id` = 2 "
+            + " and `sales_fact_1997`.`store_id` = 19"
+            + " and `sales_fact_1997`.`store_id` = 2 "
             + "order by "
             + (TestContext.instance().getDialect().requiresOrderByAlias()
                 ? "`Year` ASC, `Store Id` ASC, `Store Id_0` ASC"
-                : "`time_by_day`.`the_year` ASC, `store_ragged`.`store_id` ASC, `store`.`store_id` ASC");
+                : "`time_by_day`.`the_year` ASC, `sales_fact_1997`.`store_id` ASC");
 
         getTestContext().assertSqlEquals(expectedSql, sql, 0);
     }
@@ -944,7 +942,7 @@ public class DrillThroughTest extends FoodMartTestCase {
             + " `product_class`.`product_subcategory` as `Product Subcategory`,"
             + " `product`.`brand_name` as `Brand Name`,"
             + " `product`.`product_name` as `Product Name`,"
-            + " `store_ragged`.`store_id` as `Store Id`,"
+            + " `sales_fact_1997`.`store_id` as `Store Id`,"
             + " `promotion`.`media_type` as `Media Type`,"
             + " `promotion`.`promotion_name` as `Promotion Name`,"
             + " `customer`.`country` as `Country`,"
@@ -1020,14 +1018,14 @@ public class DrillThroughTest extends FoodMartTestCase {
                 + " `product_class`.`product_subcategory` ASC,"
                 + " `product`.`brand_name` ASC,"
                 + " `product`.`product_name` ASC,"
-                + " `store_ragged`.`store_id` ASC,"
+                + " `sales_fact_1997`.`store_id` ASC,"
                 + " `promotion`.`media_type` ASC,"
                 + " `promotion`.`promotion_name` ASC,"
                 + " `customer`.`country` ASC,"
                 + " `customer`.`state_province` ASC,"
                 + " `customer`.`city` ASC,"
                 + " " + nameExpStr + " ASC,"
-                + " `customer`.`customer_id` ASC,"
+                + " `sales_fact_1997`.`customer_id` ASC,"
                 + " `customer`.`education` ASC,"
                 + " `customer`.`gender` ASC,"
                 + " `customer`.`marital_status` ASC,"
@@ -1770,37 +1768,25 @@ public class DrillThroughTest extends FoodMartTestCase {
             rs = testContext.executeStatement(
                 DRILLTHROUGH_QUERY_WITH_CUSTOMER_FULL_NAME);
             assertEquals(
-                5, rs.getMetaData().getColumnCount());
+                3, rs.getMetaData().getColumnCount());
             assertEquals(
                 "Customer Level Name", rs.getMetaData().getColumnLabel(1));
             assertEquals(
-                "Customer Level Name (Key)",
+                "Product Level Name",
                 rs.getMetaData().getColumnLabel(2));
             assertEquals(
-                "Product Level Name",
-                rs.getMetaData().getColumnLabel(3));
-            assertEquals(
-                "Product Level Name (Key)",
-                rs.getMetaData().getColumnLabel(4));
-            assertEquals(
-                "Store Sales", rs.getMetaData().getColumnLabel(5));
+                "Store Sales", rs.getMetaData().getColumnLabel(3));
 
             while (rs.next()) {
                 assertEquals(
                     "Each Customer full name in results should be Jeanne Derry",
                     "Jeanne Derry", rs.getObject(1));
-                assertEquals(
-                    "Each customer key should be 3",
-                    3, rs.getObject(2));
                 assertNotNull(
                     "Should be a non-null value for product name",
-                    rs.getObject(3));
-                assertNotNull(
-                    "Should be a non-null value for product key",
-                        rs.getObject(4));
+                    rs.getObject(2));
                 assertNotNull(
                     "Should be a non-null value for store sales",
-                        rs.getObject(5));
+                        rs.getObject(3));
             }
             rs.last();
             assertEquals(
@@ -1823,24 +1809,14 @@ public class DrillThroughTest extends FoodMartTestCase {
             rs = testContext.executeStatement(
                 DRILLTHROUGH_QUERY_WITH_CUSTOMER_ID);
             assertEquals(
-                3, rs.getMetaData().getColumnCount());
+                1, rs.getMetaData().getColumnCount());
             assertEquals(
-                "Customer Level Name", rs.getMetaData().getColumnLabel(1));
-            assertEquals(
-                "Product Level Name", rs.getMetaData().getColumnLabel(2));
-            assertEquals(
-                "Store Sales", rs.getMetaData().getColumnLabel(3));
+                "Store Sales", rs.getMetaData().getColumnLabel(1));
 
             while (rs.next()) {
-                assertEquals(
-                    "Each customer key should be 3",
-                        3, rs.getObject(1));
-                assertNotNull(
-                    "Should be a non-null value for product key",
-                        rs.getObject(2));
                 assertNotNull(
                     "Should be a non-null value for store sales",
-                        rs.getObject(3));
+                        rs.getObject(1));
             }
             rs.last();
             assertEquals(

@@ -655,14 +655,9 @@ public class RolapNativeSql {
                         RolapStar.Column column =
                             ((RolapCubeLevel)rolapLevel).getBaseStarKeyColumn(baseCube);
                         if (column != null) {
-                            RolapStar.Column optimized = column.optimize();
-                            if (optimized.getTable().getParentTable() == null
-                                && sqlQuery.hasFrom(optimized.getTable().getRelation(), null))
-                            {
-                                column = optimized;
-                            }
-                            rolapLevel.getHierarchy().addToFrom(sqlQuery, column.getTable(), getStoredMeasure() != null);
-                            sourceExp = column.generateExprString(sqlQuery);
+                            RolapStar.Column optimized = SqlConstraintUtils.tryOptimizeColumn(column, sqlQuery);
+                            rolapLevel.getHierarchy().addToFrom(sqlQuery, optimized.getTable(), getStoredMeasure() != null);
+                            sourceExp = optimized.generateExprString(sqlQuery);
                         }
                     }
                 }

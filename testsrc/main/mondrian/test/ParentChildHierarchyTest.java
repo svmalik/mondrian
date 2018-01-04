@@ -843,11 +843,10 @@ public class ParentChildHierarchyTest extends FoodMartTestCase {
             + " `salary` =as= `salary` "
             + "where `salary`.`pay_date` = `time_by_day`.`the_date`"
             + " and `time_by_day`.`the_year` = 1997"
-            + " and `salary`.`employee_id` = `employee`.`employee_id`"
-            + " and `employee`.`employee_id` = 1 "
+            + " and `salary`.`employee_id` = 1 "
             + (TestContext.instance().getDialect().requiresOrderByAlias()
                 ? "order by `Year` ASC, `Employee Id (Key) ASC"
-                : "order by `time_by_day`.`the_year` ASC, `employee`.`employee_id` ASC"),
+                : "order by `time_by_day`.`the_year` ASC, `salary`.`employee_id` ASC"),
             12);
 
         // Drill-through for row #2, [Employees].[All].[Sheri Nowmer].
@@ -865,11 +864,10 @@ public class ParentChildHierarchyTest extends FoodMartTestCase {
             + " `salary` =as= `salary` "
             + "where `salary`.`pay_date` = `time_by_day`.`the_date`"
             + " and `time_by_day`.`the_year` = 1997"
-            + " and `salary`.`employee_id` = `employee`.`employee_id`"
-            + " and `employee`.`employee_id` = 2 "
+            + " and `salary`.`employee_id` = 2 "
                 + (TestContext.instance().getDialect().requiresOrderByAlias()
                 ? "order by `Year` ASC, `Employee Id (Key) ASC"
-                : "order by `time_by_day`.`the_year` ASC, `employee`.`employee_id` ASC"),
+                : "order by `time_by_day`.`the_year` ASC, `salary`.`employee_id` ASC"),
             12);
     }
 
@@ -946,9 +944,9 @@ public class ParentChildHierarchyTest extends FoodMartTestCase {
                 + " `store`.`store_type` ASC,"
                 + " `employee`.`management_role` ASC,"
                 + " `employee`.`position_title` ASC,"
-                + " `department`.`department_id` ASC,"
+                + " `salary`.`department_id` ASC,"
                 + " `employee`.`full_name` ASC,"
-                + " `employee`.`employee_id` ASC"),
+                + " `salary`.`employee_id` ASC"),
             12);
     }
 

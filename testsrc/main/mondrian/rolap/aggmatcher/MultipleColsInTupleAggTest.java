@@ -220,8 +220,8 @@ public class MultipleColsInTupleAggTest extends AggTableTestCase {
                       + "    ISNULL(`c7`) ASC, `c7` ASC"
                       : "    ISNULL(`cat`.`ord`) ASC, `cat`.`ord` ASC,\n"
                       + "    ISNULL(`product_cat`.`ord`) ASC, `product_cat`.`ord` ASC,\n"
-                      + "    ISNULL(`test_lp_xx2_fact`.`prodname`) ASC, "
-                      + "`test_lp_xx2_fact`.`prodname` ASC"), null)});
+                      + "    ISNULL(`product_csv`.`name1`) ASC, `product_csv`.`name1` ASC")
+                  , null)});
         }
         Axis axis = getTestContext().withCube("Fact").executeAxis(
             "Filter([Product].[Product Name].members, "

@@ -616,19 +616,8 @@ public class SqlConstraintUtils {
             table.addToFrom(sqlQuery, false, true);
             expr = aggColumn.generateExprString(sqlQuery);
         } else {
-            RolapStar.Column optimized = column.optimize();
+            RolapStar.Column optimized = tryOptimizeColumn(column, sqlQuery);
             RolapStar.Table table = optimized.getTable();
-            if (table.getJoinCondition() == null
-                && !sqlQuery.hasFrom(table.getRelation(), null))
-            {
-                // the optimization is reverted if a star table doesn't
-                // have a join condition which means it is a fact table;
-                // otherwise, it would lead to cartesian product.
-                optimized = column;
-                table = column.getTable();
-            } else {
-                column.setOptimized(true);
-            }
             table.addToFrom(sqlQuery, false, true);
             expr = optimized.generateExprString(sqlQuery);
         }
@@ -2415,7 +2404,7 @@ public class SqlConstraintUtils {
                     q = aggColumn.generateExprString(sqlQuery);
                 } else {
                     // optimize column
-                    RolapStar.Column optimized = column.optimize();
+                    RolapStar.Column optimized = tryOptimizeColumn(column, sqlQuery);
                     RolapStar.Table targetTable = optimized.getTable();
                     hierarchy.addToFrom(sqlQuery, targetTable, nonempty);
                     q = optimized.generateExprString(sqlQuery);
@@ -2545,6 +2534,34 @@ public class SqlConstraintUtils {
             }
         }
         return false;
+    }
+
+    public static boolean containsValidMeasure(Collection<Member> measures) {
+        for (Member measure : measures) {
+            if (measure.isCalculated()
+                && SqlConstraintUtils.containsValidMeasure(
+                    measure.getExpression()))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static Column tryOptimizeColumn(Column column, SqlQuery query) {
+        RolapStar.Column optimized = column.optimize();
+        RolapStar.Table table = optimized.getTable();
+        if (table.getJoinCondition() == null
+            && !query.hasFrom(table.getRelation(), null))
+        {
+            // the optimization is reverted if a star table doesn't
+            // have a join condition which means it is a fact table;
+            // otherwise, it would lead to cartesian product.
+            optimized = column;
+        } else {
+            column.setOptimized(true);
+        }
+        return optimized;
     }
 
     private static boolean measuresConflictWithMembers(
