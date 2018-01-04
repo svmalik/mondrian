@@ -60,7 +60,7 @@ public class HighCardSqlTupleReader extends SqlTupleReader {
         final List<List<RolapMember>> newPartialResult,
         final List<TargetBase> targetGroup)
     {
-        String message = "Populating member cache with members for " + targets;
+        String message = "Populating member cache with members for " + targetGroup;
         SqlStatement stmt = null;
         boolean execQuery = (partialResult == null);
         boolean success = false;

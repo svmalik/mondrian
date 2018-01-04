@@ -1318,9 +1318,10 @@ public class SqlTupleReader implements TupleReader {
 
         if (virtualCube) {
             // Make fact table appear in fixed sequence
-
+            final Evaluator evaluator = constraint.getEvaluator();
             final Collection<RolapCube> baseCubes =
-                getBaseCubeCollection(constraint.getEvaluator());
+                getBaseCubeCollection(evaluator,
+                    !SqlConstraintUtils.containsValidMeasure(evaluator.getQuery().getMeasuresMembers()));
             Collection<RolapCube> fullyJoiningBaseCubes =
                 getFullyJoiningBaseCubes(baseCubes, targetGroup);
             if (fullyJoiningBaseCubes.size() == 0) {
@@ -1334,7 +1335,7 @@ public class SqlTupleReader implements TupleReader {
             List<SqlStatement.Type> types = null;
 
             final int savepoint =
-                getEvaluator(constraint).savepoint();
+                evaluator.savepoint();
 
             SqlQuery unionQuery = SqlQuery.newQuery(dataSource, "");
 
@@ -1382,7 +1383,7 @@ public class SqlTupleReader implements TupleReader {
 
                     // Force the constraint evaluator's measure
                     // to the one in the base cube.
-                    getEvaluator(constraint)
+                    evaluator
                         .setContext(measureInCurrentbaseCube);
 
                     selectString.append(prependString);
@@ -1426,7 +1427,7 @@ public class SqlTupleReader implements TupleReader {
                 }
             } finally {
                 // Restore the original measure member
-                getEvaluator(constraint).restore(savepoint);
+                evaluator.restore(savepoint);
             }
 
             if (fullyJoiningBaseCubes.size() == 1) {
@@ -1543,13 +1544,8 @@ public class SqlTupleReader implements TupleReader {
         measures.addAll(
             constraint.getEvaluator().getQuery().getMeasuresMembers());
 
-        for (Member measure : measures) {
-            if (measure.isCalculated()
-                && SqlConstraintUtils.containsValidMeasure(
-                    measure.getExpression()))
-            {
-                return true;
-            }
+        if (SqlConstraintUtils.containsValidMeasure(measures)) {
+            return true;
         }
         Set<Member> membersInMeasures =
             SqlConstraintUtils.getMembersNestedInMeasures(measures);
@@ -1561,11 +1557,15 @@ public class SqlTupleReader implements TupleReader {
      * Retrieves all base cubes associated with the cube specified by query.
      * (not just those applicable to the current query)
      */
-    Collection<RolapCube> getBaseCubeCollection(final Evaluator evaluator) {
+    Collection<RolapCube> getBaseCubeCollection(final Evaluator evaluator, boolean fromEvaluator) {
       if (!((RolapCube) evaluator.getCube()).isVirtual()) {
           return Collections.singletonList((RolapCube) evaluator.getCube());
       }
       Set<RolapCube> cubes = new TreeSet<>(new RolapCube.CubeComparator());
+      if (fromEvaluator) {
+          cubes.addAll(evaluator.getBaseCubes());
+          return cubes;
+      }
       for (Member member : getMeasures(evaluator)) {
           if (member instanceof RolapStoredMeasure) {
               cubes.add(((RolapStoredMeasure) member).getCube());
@@ -1582,6 +1582,10 @@ public class SqlTupleReader implements TupleReader {
 
     private List<Member> getMeasures(Evaluator evaluator) {
         return ((RolapCube)evaluator.getCube()).getMeasures();
+    }
+
+    Collection<RolapCube> getBaseCubeCollection(final Evaluator evaluator) {
+        return getBaseCubeCollection(evaluator, false);
     }
 
     SqlQuery sqlQueryForEmptyTuple(DataSource dataSource,
@@ -1610,7 +1614,7 @@ public class SqlTupleReader implements TupleReader {
         boolean keyOnly)
     {
         String s =
-            "while generating query to retrieve members of level(s) " + targets;
+            "while generating query to retrieve members of level(s) " + targetGroup;
 
         // Allow query to use optimization hints from the table definition
         SqlQuery sqlQuery = SqlQuery.newQuery(dataSource, s);
