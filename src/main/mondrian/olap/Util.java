@@ -4432,7 +4432,7 @@ public class Util extends XOMUtil {
                 if (!map.containsKey(hierarchy)) {
                     map.put(
                             hierarchy,
-                            new HashSet<>());
+                            new HashSet<Member>());
                 }
                 map.get(hierarchy).add(member);
             }

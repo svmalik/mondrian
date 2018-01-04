@@ -15,6 +15,7 @@ import mondrian.olap.*;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.RolapEvaluator;
 import mondrian.rolap.RolapHierarchy;
+import mondrian.rolap.RolapResult;
 
 import java.util.Map;
 import java.util.Set;
@@ -114,11 +115,8 @@ public class HierarchyCurrentMemberFunDef extends FunDefBase {
         Evaluator evaluator)
     {
         if (evaluator instanceof RolapEvaluator) {
-            RolapEvaluator rev = (RolapEvaluator) evaluator;
-            Map<Hierarchy, Set<Member>> map =
-                    Util.getMembersToHierarchyMap(rev.getSlicerMembers());
-            Set<Member> members = map.get(hierarchy);
-            if (members != null && members.size() > 1) {
+            Member context = evaluator.getContext(hierarchy);
+            if (context instanceof RolapResult.CompoundSlicerRolapMember) {
                 throw MondrianResource.instance()
                     .CurrentMemberWithCompoundSlicer.ex(
                         hierarchy.getUniqueName());
