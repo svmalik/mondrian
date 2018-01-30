@@ -103,6 +103,25 @@ public class RolapNativeCount extends RolapNativeSet {
                 return null;
             }
 
+            CrossJoinArg[] cjArgs = allArgs.get(0);
+            if (isPreferInterpreter(cjArgs, true)) {
+                return null;
+            }
+
+            int countNonNativeInputArg = 0;
+            for (CrossJoinArg arg : cjArgs) {
+                if (arg instanceof MemberListCrossJoinArg) {
+                    MemberListCrossJoinArg cjArg =
+                        (MemberListCrossJoinArg)arg;
+                    if (cjArg.hasAllMember() || cjArg.isEmptyCrossJoinArg()) {
+                        ++countNonNativeInputArg;
+                    }
+                }
+            }
+            if (countNonNativeInputArg == cjArgs.length) {
+                return null;
+            }
+
             // We need to determine if the "All" member should be counted,
             // and inform the count constraint.
 
@@ -154,7 +173,6 @@ public class RolapNativeCount extends RolapNativeSet {
                 return null;
             }
 
-            CrossJoinArg[] cjArgs = allArgs.get(0);
             List<Member> resetMembers = new ArrayList<Member>();
             if (!mustJoin.get()) {
                 //check restricted hierarchies

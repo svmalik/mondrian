@@ -3610,6 +3610,23 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #0: 3\n");
     }
 
+    public void testNativeCountGoesNonNative() {
+        if (!MondrianProperties.instance().EnableNativeCount.get()) {
+            return;
+        }
+        String mdx =
+            "with member [Measures].[Cust Count] as 'Count([Customers].[All Customers])'\n"
+            + "select {[Measures].[Cust Count]} on 0 from [Sales]";
+        checkNotNative(
+            1,
+            mdx,
+            "Axis #0:\n"
+                + "{}\n"
+                + "Axis #1:\n"
+                + "{[Measures].[Cust Count]}\n"
+                + "Row #0: 1\n");
+    }
+
     /**
      * Found an issue with Native Filter NonEmpty behavior... Need to log a JIRA
      */
