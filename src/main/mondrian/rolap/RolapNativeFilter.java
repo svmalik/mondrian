@@ -120,6 +120,12 @@ public class RolapNativeFilter extends RolapNativeSet {
             SqlQuery testQuery = SqlQuery.newQuery(ds, "testQuery");
             SqlTupleReader sqlTupleReader = new SqlTupleReader(this);
             RolapCube cube = (RolapCube) evaluator.getCube();
+            if (cube.isVirtual()
+                && evaluator.getBaseCubes() != null
+                && evaluator.getBaseCubes().size() == 1)
+            {
+                cube = evaluator.getBaseCubes().get(0);
+            }
             this.addConstraint
                     (testQuery, cube, sqlTupleReader.chooseAggStar
                             (this, evaluator, cube));

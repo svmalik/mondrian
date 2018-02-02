@@ -229,13 +229,11 @@ public abstract class RolapNativeSet extends RolapNative {
                             level = (RolapLevel) olapLevel;
                         }
                     }
-                    if (level != null) {
+                    if (level != null && getConsolidationHandler() != null) {
                         RolapStar.Column c = ((RolapCubeLevel) level).getBaseStarKeyColumn(baseCube);
                         RolapEvaluator eval = (RolapEvaluator) getEvaluator();
-                        if(getConsolidationHandler() != null) {
-                            arg = getConsolidationHandler().augmentCrossJoinArg(sqlQuery, level, c,
-                                eval, aggStar, arg);
-                        }
+                        arg = getConsolidationHandler().augmentCrossJoinArg(sqlQuery, level, c,
+                            eval, aggStar, arg);
                     }
                     if (level == null || levelIsOnBaseCube(baseCube, level)) {
                         arg.addConstraint(sqlQuery, baseCube, aggStar);

@@ -4609,6 +4609,80 @@ public class NativeSetEvaluationTest extends BatchTestCase {
           + "Row #2: 6,235\n");
     }
 
+    public void testNativeFilterWithVirtualCubeAndRole() {
+        String roleDef =
+            "  <Role name=\"Test\">\n"
+            + "    <SchemaGrant access=\"all\">\n"
+            + "      <CubeGrant cube=\"Warehouse and Sales\" access=\"all\">\n"
+            + "        <HierarchyGrant hierarchy=\"[Customers]\" rollupPolicy=\"partial\" access=\"custom\">\n"
+            + "          <MemberGrant member=\"[Customers].[USA].[CA]\" access=\"all\" />\n"
+            + "          <MemberGrant member=\"[Customers].[USA].[CA].[Los Angeles]\" access=\"none\"/>\n"
+            + "        </HierarchyGrant>\n"
+            + "      </CubeGrant>\n"
+            + "    </SchemaGrant>\n"
+            + "  </Role>";
+        String mdx =
+            "WITH MEMBER [Measures].[TotalCount] AS "
+            + "Count(Filter({[Store].[Store City].Members}, Not IsEmpty([Measures].[Unit Sales])))\n"
+            + "SELECT [Measures].[TotalCount] ON 0\n"
+            + "FROM [Warehouse and Sales]";
+        TestContext context = getTestContext()
+            .create(null, null, null, null, null, roleDef)
+            .withRole("Test");
+
+        if (!isUseAgg() && MondrianProperties.instance().EnableNativeFilter.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysqlQuery =
+                "select\n"
+                + "    COUNT(*)\n"
+                + "from\n"
+                + "    (select\n"
+                + "    `store`.`store_country` as `c0`,\n"
+                + "    `store`.`store_state` as `c1`,\n"
+                + "    `store`.`store_city` as `c2`\n"
+                + "from\n"
+                + "    `store` as `store`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`,\n"
+                + "    `customer` as `customer`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`store_id` = `store`.`store_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`customer_id` = `customer`.`customer_id`\n"
+                + "and\n"
+                + "    `customer`.`country` = 'USA'\n"
+                + "and\n"
+                + "    `customer`.`state_province` = 'CA'\n"
+                + "and\n"
+                + "    `customer`.`city` in ('Altadena', 'Arcadia', 'Bellflower', 'Berkeley', 'Beverly Hills', "
+                + "'Burbank', 'Burlingame', 'Chula Vista', 'Colma', 'Concord', 'Coronado', 'Daly City', 'Downey', "
+                + "'El Cajon', 'Fremont', 'Glendale', 'Grossmont', 'Imperial Beach', 'La Jolla', 'La Mesa', 'Lakewood', "
+                + "'Lemon Grove', 'Lincoln Acres', 'Long Beach', 'Mill Valley', 'National City', 'Newport Beach', "
+                + "'Novato', 'Oakland', 'Palo Alto', 'Pomona', 'Redwood City', 'Richmond', 'San Carlos', 'San Diego', "
+                + "'San Francisco', 'San Gabriel', 'San Jose', 'Santa Cruz', 'Santa Monica', 'Spring Valley', "
+                + "'Torrance', 'West Covina', 'Woodland Hills')\n"
+                + "group by\n"
+                + "    `store`.`store_country`,\n"
+                + "    `store`.`store_state`,\n"
+                + "    `store`.`store_city`\n"
+                + "having\n"
+                + "    NOT((sum(`sales_fact_1997`.`unit_sales`) is null)) ) as `countQuery`";
+            assertQuerySql(context, mdx, mysqlPattern(mysqlQuery));
+        }
+
+        context.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[TotalCount]}\n"
+            + "Row #0: 4\n");
+    }
+
     public void testNativeNonEmptyNesting() {
         if (!MondrianProperties.instance().EnableNativeFilter.get()
             || !MondrianProperties.instance().EnableNativeNonEmptyFunction.get())
