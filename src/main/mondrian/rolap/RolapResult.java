@@ -995,6 +995,14 @@ public class RolapResult extends ResultBase {
         }
         final int savepoint = evaluator.savepoint();
         try {
+            if (axisMembers != null && axisMembers.isSlicer) {
+                ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
+                Validator validator = expCompiler.getValidator();
+                Exp simplified = simplifySlicer(queryAxis.getSet(), validator);
+                if (simplified != null && queryAxis.getSet() != simplified) {
+                    axisCalc = expCompiler.compileIter(simplified);
+                }
+            }
             evaluator.setNonEmpty(queryAxis.isNonEmpty());
             evaluator.setEvalAxes(true);
             final TupleIterable iterable =
@@ -1542,6 +1550,57 @@ public class RolapResult extends ResultBase {
             Position position = axis.getPositions().get(index);
             evaluator.setContext(position);
         }
+    }
+
+    /**
+     * Attempt to simplify slicer and improve the performance for slicers
+     * containing a calculated member with a set aggregation.
+     * This code is trying to unwrap such members to the original set
+     * since aggregation is not required in this case.
+     */
+    private Exp simplifySlicer(Exp slicerExp, Validator validator) {
+        if (slicerExp instanceof ResolvedFunCall) {
+            ResolvedFunCall call = (ResolvedFunCall) slicerExp;
+            FunDef fun = call.getFunDef();
+            if ("Aggregate".equalsIgnoreCase(fun.getName())) {
+                return simplifySlicer(call.getArg(0), validator);
+            } else if ("Cache".equalsIgnoreCase(fun.getName()) && call.getArgCount() == 1) {
+                return simplifySlicer(call.getArg(0), validator);
+            } else if ("Order".equalsIgnoreCase(fun.getName())) {
+                return simplifySlicer(call.getArg(0), validator);
+            } else if (fun instanceof CrossJoinFunDef) {
+                Exp[] args = call.getArgs().clone();
+                boolean createNew = false;
+                for (int i = 0; i < args.length; i++) {
+                    Exp arg = args[i];
+                    Exp newArg = simplifySlicer(arg, validator);
+                    if (newArg != null && newArg != arg) {
+                        createNew = true;
+                        args[i] = newArg instanceof MemberExpr ? SetFunDef.wrapAsSet(newArg) : newArg;
+                    }
+                }
+                if (createNew) {
+                    CrossJoinFunDef cj = (CrossJoinFunDef) validator.getDef(args, fun.getName(), fun.getSyntax());
+                    return new ResolvedFunCall(cj, args, cj.getResultType(validator, args));
+                }
+            } else if (fun instanceof SetFunDef || fun instanceof ParenthesesFunDef) {
+                if (call.getArgCount() == 1) {
+                    Exp newArg = simplifySlicer(call.getArg(0), validator);
+                    return newArg instanceof MemberExpr ? SetFunDef.wrapAsSet(newArg) : newArg;
+                }
+            }
+        } else if (slicerExp instanceof MemberExpr){
+            if (((MemberExpr) slicerExp).getMember().isCalculated()) {
+                Exp memberExp = ((MemberExpr) slicerExp).getMember().getExpression();
+                Exp expanded = simplifySlicer(memberExp, validator);
+                if (expanded != null && expanded != memberExp) {
+                    return expanded;
+                }
+            }
+        } else if (slicerExp instanceof NamedSetExpr) {
+            return simplifySlicer(((NamedSetExpr) slicerExp).getNamedSet().getExp(), validator);
+        }
+        return slicerExp;
     }
 
     /**

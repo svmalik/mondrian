@@ -222,20 +222,20 @@ public class RolapCubeLevel extends RolapLevel {
      * @return the RolapStar.Column related to this RolapCubeLevel
      */
     public RolapStar.Column getBaseStarKeyColumn(RolapCube baseCube) {
-        if (baseCube != null && baseStarKeyColumns.containsKey(baseCube)) {
-            return baseStarKeyColumns.get(baseCube);
-        }
-        RolapStar.Column column = null;
+        RolapStar.Column column;
         if (getCube().isVirtual() && baseCube != null) {
-            RolapCubeLevel lvl = baseCube.findBaseCubeLevel(this);
-            if (lvl != null) {
-                column = lvl.getStarKeyColumn();
+            column = baseStarKeyColumns.get(baseCube);
+            if (column == null) {
+                RolapCubeLevel lvl = baseCube.findBaseCubeLevel(this);
+                if (lvl != null) {
+                    column = lvl.getStarKeyColumn();
+                    if (column != null) {
+                        baseStarKeyColumns.put(baseCube, column);
+                    }
+                }
             }
         } else {
             column = getStarKeyColumn();
-        }
-        if (baseCube != null && column != null) {
-            baseStarKeyColumns.put(baseCube, column);
         }
         return column;
     }

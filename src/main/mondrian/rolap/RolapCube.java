@@ -2710,11 +2710,12 @@ public class RolapCube extends CubeBase {
      * @return base cube level if found
      */
     public RolapCubeLevel findBaseCubeLevel(RolapLevel level) {
-        if (virtualToBaseMap.containsKey(level)) {
-            return virtualToBaseMap.get(level);
+        RolapCubeLevel baseLevel = virtualToBaseMap.get(level);
+        if (baseLevel != null) {
+            return baseLevel;
         }
+
         String levelDimName = level.getDimension().getName();
-        String levelHierName = level.getHierarchy().getName();
 
         // Many to Many Bridge Levels are not part of the regular dimension set
         // and must be resolved independently.
@@ -2745,6 +2746,7 @@ public class RolapCube extends CubeBase {
         boolean isClosure = false;
         String closDimName = null;
         String closHierName = null;
+        String levelHierName = level.getHierarchy().getName();
         if (levelDimName.endsWith("$Closure")) {
             isClosure = true;
             closDimName = levelDimName.substring(0, levelDimName.length() - 8);
@@ -2763,7 +2765,7 @@ public class RolapCube extends CubeBase {
                         || (isClosure && hierarchyName.equals(closHierName)))
                     {
                         if (isClosure) {
-                            final RolapCubeLevel baseLevel =
+                            baseLevel =
                                 ((RolapCubeLevel)
                                     hier.getLevels()[1]).getClosedPeer();
                             virtualToBaseMap.put(level, baseLevel);
@@ -2771,7 +2773,7 @@ public class RolapCube extends CubeBase {
                         }
                         for (Level lvl : hier.getLevels()) {
                             if (lvl.getName().equals(level.getName())) {
-                                final RolapCubeLevel baseLevel =
+                                baseLevel =
                                     (RolapCubeLevel) lvl;
                                 virtualToBaseMap.put(level, baseLevel);
                                 return baseLevel;
