@@ -14,6 +14,7 @@ import mondrian.mdx.*;
 import mondrian.olap.*;
 import mondrian.olap.fun.AggregateFunDef;
 import mondrian.olap.fun.SetFunDef;
+import mondrian.olap.type.MemberType;
 import mondrian.resource.MondrianResource;
 import mondrian.rolap.agg.*;
 import mondrian.server.*;
@@ -409,6 +410,12 @@ public class RolapCell implements Cell {
 
     private void replaceTrivialCalcMember(int i, List<Member> members) {
         Member member = members.get(i);
+        if (member instanceof RolapResult.CompoundSlicerRolapMember) {
+            if (member.getExpression().getType() instanceof MemberType) {
+                member = ((MemberType) member.getExpression().getType()).getMember();
+                members.set(i, member);
+            }
+        }
         if (!member.isCalculated()) {
             return;
         }

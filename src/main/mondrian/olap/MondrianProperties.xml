@@ -954,6 +954,16 @@ If enabled some Order will be computed in SQL.
         <Default>false</Default>
     </PropertyDefinition>
     <PropertyDefinition>
+        <Name>EnableSlicerSimplification</Name>
+        <Path>mondrian.rolap.EnableSlicerSimplification</Path>
+        <Description>
+            <p>If enabled Mondrian will attempt to simplify slicer containing
+            calculated members with Aggregate, etc. for better performance.</p>
+        </Description>
+        <Type>boolean</Type>
+        <Default>true</Default>
+    </PropertyDefinition>
+    <PropertyDefinition>
         <Name>AlertNativeEvaluationUnsupported</Name>
         <Path>mondrian.native.unsupported.alert</Path>
         <Category>SQL generation</Category>

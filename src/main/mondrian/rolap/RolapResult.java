@@ -63,6 +63,9 @@ public class RolapResult extends ResultBase {
     private final Map<Integer, List<List<Member>>> positionsCurrent =
         new HashMap<Integer, List<List<Member>>>();
 
+    private boolean simplifySlicer;
+    private boolean isSlicerModified = false;
+
     /**
      * Creates a RolapResult.
      *
@@ -247,6 +250,8 @@ public class RolapResult extends ResultBase {
             /////////////////////////////////////////////////////////////////
             // Determine Slicer
             //
+            simplifySlicer =
+                MondrianProperties.instance().EnableSlicerSimplification.get();
             axisMembers.setSlicer(true);
             loadMembers(
                 emptyNonAllMembers,
@@ -303,7 +308,24 @@ public class RolapResult extends ResultBase {
                 // the slicerAxis may be overwritten during slicer execution
                 // if there is a compound slicer.  Save it so that it can be
                 // reverted before completing result construction.
-                savedSlicerAxis = this.slicerAxis;
+                if (simplifySlicer && isSlicerModified) {
+                    // if the slicer calc is modified, create
+                    // the original one for the result construction
+                    simplifySlicer = false;
+                    TupleIterable tupleIterableOrig =
+                        evalExecute(
+                            nonAllMembers,
+                            nonAllMembers.size() - 1,
+                            savedEvaluator,
+                            query.getSlicerAxis(),
+                            query.slicerCalc);
+                    TupleList tupleListOrig =
+                        TupleCollections.materialize(tupleIterableOrig, true);
+                    savedSlicerAxis = new RolapAxis(tupleListOrig);
+                    simplifySlicer = true;
+                } else {
+                    savedSlicerAxis = this.slicerAxis;
+                }
 
                 // Use the context created by the slicer for the other
                 // axes.  For example, "select filter([Customers], [Store
@@ -995,12 +1017,13 @@ public class RolapResult extends ResultBase {
         }
         final int savepoint = evaluator.savepoint();
         try {
-            if (axisMembers != null && axisMembers.isSlicer) {
+            if (simplifySlicer && queryAxis.getAxisOrdinal().isFilter()) {
                 ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
                 Validator validator = expCompiler.getValidator();
-                Exp simplified = simplifySlicer(queryAxis.getSet(), validator);
+                Exp simplified = simplifySlicer(queryAxis.getSet(), expCompiler, validator);
                 if (simplified != null && queryAxis.getSet() != simplified) {
                     axisCalc = expCompiler.compileIter(simplified);
+                    isSlicerModified = true;
                 }
             }
             evaluator.setNonEmpty(queryAxis.isNonEmpty());
@@ -1558,25 +1581,25 @@ public class RolapResult extends ResultBase {
      * This code is trying to unwrap such members to the original set
      * since aggregation is not required in this case.
      */
-    private Exp simplifySlicer(Exp slicerExp, Validator validator) {
+    private Exp simplifySlicer(Exp slicerExp, ExpCompiler compiler, Validator validator) {
         if (slicerExp instanceof ResolvedFunCall) {
             ResolvedFunCall call = (ResolvedFunCall) slicerExp;
             FunDef fun = call.getFunDef();
             if ("Aggregate".equalsIgnoreCase(fun.getName())) {
-                return simplifySlicer(call.getArg(0), validator);
+                return simplifySlicer(call.getArg(0), compiler, validator);
             } else if ("Cache".equalsIgnoreCase(fun.getName()) && call.getArgCount() == 1) {
-                return simplifySlicer(call.getArg(0), validator);
+                return simplifySlicer(call.getArg(0), compiler, validator);
             } else if ("Order".equalsIgnoreCase(fun.getName())) {
-                return simplifySlicer(call.getArg(0), validator);
+                return simplifySlicer(call.getArg(0), compiler, validator);
             } else if (fun instanceof CrossJoinFunDef) {
                 Exp[] args = call.getArgs().clone();
                 boolean createNew = false;
                 for (int i = 0; i < args.length; i++) {
                     Exp arg = args[i];
-                    Exp newArg = simplifySlicer(arg, validator);
+                    Exp newArg = simplifySlicer(arg, compiler, validator);
                     if (newArg != null && newArg != arg) {
                         createNew = true;
-                        args[i] = newArg instanceof MemberExpr ? SetFunDef.wrapAsSet(newArg) : newArg;
+                        args[i] = getSet(newArg);
                     }
                 }
                 if (createNew) {
@@ -1585,22 +1608,47 @@ public class RolapResult extends ResultBase {
                 }
             } else if (fun instanceof SetFunDef || fun instanceof ParenthesesFunDef) {
                 if (call.getArgCount() == 1) {
-                    Exp newArg = simplifySlicer(call.getArg(0), validator);
-                    return newArg instanceof MemberExpr ? SetFunDef.wrapAsSet(newArg) : newArg;
+                    final Exp newArg = simplifySlicer(call.getArg(0), compiler, validator);
+                    return getSet(newArg);
+                }
+            } else if (MondrianProperties.instance().ExpandNonNative.get()
+                        && "Except".equalsIgnoreCase(fun.getName()))
+            {
+                try {
+                    final ListCalc listCalc = compiler.compileList(call);
+                    final TupleList tupleList = listCalc.evaluateList(evaluator);
+                    if (tupleList.getArity() == 1) {
+                        Util.checkCJResultLimit(tupleList.size());
+                        List<RolapMember> list0 = Util.cast(tupleList.slice(0));
+                        if (!list0.isEmpty()) {
+                            final Exp[] members = new Exp[list0.size()];
+                            for (int i = 0; i < list0.size(); i++) {
+                                members[i] = new MemberExpr(list0.get(i));
+                            }
+                            return SetFunDef.wrapAsSet(members);
+                        }
+                    }
+                } catch (Exception e) {
+                    return slicerExp;
                 }
             }
         } else if (slicerExp instanceof MemberExpr){
             if (((MemberExpr) slicerExp).getMember().isCalculated()) {
                 Exp memberExp = ((MemberExpr) slicerExp).getMember().getExpression();
-                Exp expanded = simplifySlicer(memberExp, validator);
+                Exp expanded = simplifySlicer(memberExp, compiler, validator);
                 if (expanded != null && expanded != memberExp) {
                     return expanded;
                 }
             }
         } else if (slicerExp instanceof NamedSetExpr) {
-            return simplifySlicer(((NamedSetExpr) slicerExp).getNamedSet().getExp(), validator);
+            final Exp setExp = ((NamedSetExpr) slicerExp).getNamedSet().getExp();
+            return simplifySlicer(setExp, compiler, validator);
         }
         return slicerExp;
+    }
+
+    private Exp getSet(Exp exp) {
+        return exp.getType() instanceof SetType ? exp : SetFunDef.wrapAsSet(exp);
     }
 
     /**

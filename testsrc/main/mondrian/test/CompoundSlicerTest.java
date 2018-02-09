@@ -568,6 +568,7 @@ public class CompoundSlicerTest extends FoodMartTestCase {
 
         // The correct behavior of the aggregate function is to double-count.
         // SSAS 2005 and Mondrian give the same behavior.
+        // Re-verified in SSAS 2017 and fixed the result.
         assertQueryReturns(
             "with member [Product].[Foo] as\n"
             + "  Aggregate({\n"
@@ -586,9 +587,9 @@ public class CompoundSlicerTest extends FoodMartTestCase {
             + "{[Gender].[All Gender]}\n"
             + "{[Gender].[F]}\n"
             + "{[Gender].[M]}\n"
-            + "Row #0: 39,165\n"
-            + "Row #1: 19,532\n"
-            + "Row #2: 19,633\n");
+            + "Row #0: 37,482\n"
+            + "Row #1: 18,715\n"
+            + "Row #2: 18,767\n");
     }
 
     /**
@@ -1380,7 +1381,7 @@ public class CompoundSlicerTest extends FoodMartTestCase {
         verifySameNativeAndNot(
             query,
             "Compound aggregated member should return same results with native filter on/off",
-            getTestContext());
+            getTestContext().withFreshConnection());
     }
 
     public void testCompoundAggCalcMemberInSlicer2() {
@@ -1392,7 +1393,7 @@ public class CompoundSlicerTest extends FoodMartTestCase {
         verifySameNativeAndNot(
             query,
             "Compound aggregated member should return same results with native filter on/off",
-            getTestContext());
+            getTestContext().withFreshConnection());
     }
 
     public void testNativeFilterWithNullMember() {

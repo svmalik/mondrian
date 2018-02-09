@@ -929,6 +929,7 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         // with enumerated sets.
         // See http://jira.pentaho.com/browse/MONDRIAN-2337
         propSaver.set(propSaver.properties.LevelPreCacheThreshold, 0);
+        propSaver.set(propSaver.properties.EnableSlicerSimplification, false);
         if (!MondrianProperties.instance().EnableNativeTopCount.get()) {
             return;
         }
@@ -7561,6 +7562,46 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Axis #1:\n"
             + "{[Gender].[F]}\n"
             + "Axis #2:\n";
+        assertQueryReturns(mdx, result);
+    }
+
+    public void testCompoundSlicerWithExcept() {
+        //propSaver.set(propSaver.properties.SsasCompatibleNaming, true);
+        String mdx =
+            "WITH SET [s] AS NonEmpty([Gender].[Gender].Members, [Measures].[Sales Count])\n"
+            + "SELECT [Measures].[Unit Sales] ON 0,\n"
+            + "[s] ON 1\n"
+            + "FROM [Sales]\n"
+            //+ "FROM [Warehouse and Sales]\n"
+            + "WHERE Except({[Education Level].[Education Level].Members}, {[Education Level].[Graduate Degree]})";
+        if (MondrianProperties.instance().EnableNativeExcept.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                    + "    `customer`.`gender` as `c0`\n"
+                    + "from\n"
+                    + "    `customer` as `customer`\n"
+                    + "where\n"
+                    + "    ((not (`customer`.`gender` = 'M') or (`customer`.`gender` is null)))\n"
+                    + "group by\n"
+                    + "    `customer`.`gender`\n"
+                    + "order by\n"
+                    + "    ISNULL(`customer`.`gender`) ASC, `customer`.`gender` ASC";
+            //assertQuerySql(mdx, mysqlPattern(mysql));
+        }
+        String result =
+            "Axis #0:\n"
+            + "{[Education Level].[Bachelors Degree]}\n"
+            + "{[Education Level].[High School Degree]}\n"
+            + "{[Education Level].[Partial College]}\n"
+            + "{[Education Level].[Partial High School]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Gender].[F]}\n"
+            + "{[Gender].[M]}\n"
+            + "Row #0: 123,249\n"
+            + "Row #1: 127,954\n";
         assertQueryReturns(mdx, result);
     }
 
