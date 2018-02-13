@@ -16,7 +16,6 @@ import mondrian.mdx.*;
 import mondrian.olap.*;
 import mondrian.olap.fun.FunDefBase;
 import mondrian.resource.MondrianResource;
-import mondrian.rolap.CalculatedCellUtil.CellCalc;
 import mondrian.rolap.aggmatcher.ExplicitRules;
 import mondrian.rolap.cache.SoftSmartCache;
 import mondrian.rolap.format.FormatterCreateContext;
@@ -110,7 +109,7 @@ public class RolapCube extends CubeBase {
     private List<RolapCube> baseCubes;
 
     // contains the cell calculations for this cube.
-    public List<CellCalc> cellCalcs = new ArrayList<CellCalc>();
+    public CalculatedCellUtil.CellCalcs cellCalcs = new CalculatedCellUtil.CellCalcs();
 
     Set<String> baseCubeDimNames = null;
 

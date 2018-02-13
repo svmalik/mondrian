@@ -406,6 +406,7 @@ public class CrossJoinFunDef extends FunDefBase {
                     final CartesianProductList cartesianProductList =
                         new CartesianProductList<List<Member>>(
                             lists);
+                    final int size = cartesianProductList.size();
 
                     @Override
                     public List<Member> get(int index) {
@@ -415,7 +416,7 @@ public class CrossJoinFunDef extends FunDefBase {
 
                     @Override
                     public int size() {
-                        return cartesianProductList.size();
+                        return size;
                     }
                 });
         }

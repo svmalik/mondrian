@@ -13,8 +13,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import mondrian.calc.Calc;
 import mondrian.mdx.LevelExpr;
@@ -24,6 +26,7 @@ import mondrian.mdx.UnresolvedFunCall;
 import mondrian.olap.Exp;
 import mondrian.olap.Formula;
 import mondrian.olap.FunTable;
+import mondrian.olap.Hierarchy;
 import mondrian.olap.Level;
 import mondrian.olap.Member;
 import mondrian.olap.MondrianDef;
@@ -79,13 +82,28 @@ public class CalculatedCellUtil {
     /**
      * This method is called by RolapEvaluator to determine which cell calculations apply to the current context. 
      * 
-     * @param The evaluator
+     * @param eval The evaluator
      * 
      * @return a list of cell calculations to apply.
      */
     public static CellCalcReturn applyCellCalculations(RolapEvaluator eval) {
         CellCalcReturn ret = null;
         if (eval.getCube().cellCalcs != null) {
+            if (!eval.getCube().cellCalcs.hasLevels) {
+                boolean hasMember = false;
+                for (Map.Entry<Integer, Set<Member>> members : eval.getCube().cellCalcs.members.entrySet()) {
+                    Member contextMember = eval.getMembers()[members.getKey()];
+                    if (!(contextMember instanceof RolapResult.CompoundSlicerRolapMember)
+                        && members.getValue().contains(contextMember))
+                    {
+                        hasMember = true;
+                        break;
+                    }
+                }
+                if (!hasMember) {
+                    return ret;
+                }
+            }
             for (CellCalc calc : eval.getCube().cellCalcs) {
               if (!eval.root.activeCellCalcs.contains(calc) && insideSubcube(eval, calc)) {
                   // track that we are inside this subcube, otherwise
@@ -178,15 +196,15 @@ public class CalculatedCellUtil {
       }
 
     };
-    
+
     /**
      * This function is called by cubes and virtual cubes during initialization
      *
-     * @param The cube initializing
-     * @param The calculated cells defined in the schema for this cube
-     * @param a list to populate with processed cell calculations
+     * @param cube The cube initializing
+     * @param calculatedCells The calculated cells defined in the schema for this cube
+     * @param cellCalcs A list to populate with processed cell calculations
      */
-    public static void processCalculatedCells(RolapCube cube, MondrianDef.CalculatedCell[] calculatedCells, List<CellCalc> cellCalcs) {
+    public static void processCalculatedCells(RolapCube cube, MondrianDef.CalculatedCell[] calculatedCells, CellCalcs cellCalcs) {
         if (calculatedCells == null) return;
         for (int i = 0; i < calculatedCells.length; i++) {
             final String subcubeString = calculatedCells[i].subcube.cdata;
@@ -237,7 +255,7 @@ public class CalculatedCellUtil {
                     cellCalc.inside = new InsideCellCalc[((UnresolvedFunCall)cellCalc.cubeExp).getArgCount()];
                     for (int j = 0; j < ((UnresolvedFunCall)cellCalc.cubeExp).getArgCount(); j++) {
                         cellCalc.cubeExps[j] = valid.validate( ((UnresolvedFunCall)cellCalc.cubeExp).getArg(j), false );
-                        cellCalc.inside[j] = genInside(cellCalc.cubeExps[j]);
+                        cellCalc.inside[j] = genInside(cellCalc.cubeExps[j], cellCalcs);
                     }
                 } else {
                     throw new UnsupportedOperationException();
@@ -251,30 +269,35 @@ public class CalculatedCellUtil {
         }
     }
 
-    private static InsideCellCalc genInside(Exp exp) {
+    private static InsideCellCalc genInside(Exp exp, CellCalcs cellCalcs) {
         if (exp instanceof MemberExpr) {
             MemberInside mi = new MemberInside();
             mi.member = (RolapMember)((MemberExpr)exp).getMember();
             mi.ordinal = mi.member.getHierarchy().getOrdinalInCube();
+            cellCalcs.addMember(mi.ordinal, mi.member);
             return mi;
         } else if (exp instanceof ResolvedFunCall && ((ResolvedFunCall)exp).getFunDef() instanceof LevelMembersFunDef) {
             LevelInside li = new LevelInside();
             li.lvl = (RolapCubeLevel)((LevelExpr)((ResolvedFunCall)exp).getArg(0)).getLevel();
             li.ordinal = li.lvl.getHierarchy().getOrdinalInCube();
+            cellCalcs.hasLevels = true;
             return li;
         } else if (exp instanceof ResolvedFunCall && ((ResolvedFunCall)exp).getFunDef() instanceof DescendantsFunDef) {
             if (((ResolvedFunCall)exp).getArgCount() == 1 && ((ResolvedFunCall)exp).getArg(0) instanceof MemberExpr) {
                 DescendantsMemberInside dmi = new DescendantsMemberInside();
                 dmi.member = (RolapMember)((MemberExpr)((ResolvedFunCall)exp).getArg(0)).getMember();
                 dmi.ordinal = dmi.member.getHierarchy().getOrdinalInCube();
+                cellCalcs.addMember(dmi.ordinal, dmi.member);
                 return dmi;
             } else if (((ResolvedFunCall)exp).getArg(0) instanceof MemberExpr) {
                 DescendantsMemberLevelInside dmli = new DescendantsMemberLevelInside();
                 // first grab the member object
                 dmli.member = (RolapMember)((MemberExpr)((ResolvedFunCall)exp).getArg( 0 )).getMember();
                 dmli.ordinal = dmli.member.getHierarchy().getOrdinalInCube();
+                cellCalcs.addMember(dmli.ordinal, dmli.member);
                 if (((ResolvedFunCall)exp).getArg(1) instanceof LevelExpr) {
                     dmli.level = (RolapCubeLevel)((LevelExpr)((ResolvedFunCall)exp).getArg( 1 )).getLevel();
+                    cellCalcs.hasLevels = true;
                 } else {
                     // TODO: Support Numeric Expressions (Level Depth)
                     throw new UnsupportedOperationException();
@@ -477,5 +500,29 @@ public class CalculatedCellUtil {
         public Object getPropertyValue(String name) {
             return cellProperties.get(name);
         }
+    }
+
+    public static class CellCalcs extends ArrayList<CellCalc> {
+        private Map<Integer, Set<Member>> members = new HashMap<>();
+        boolean hasLevels = false;
+
+        void addMember(Integer hierarchyId, Member member) {
+            Set<Member> memberSet;
+            if (!members.containsKey(hierarchyId)) {
+                memberSet = new HashSet<>();
+
+            } else {
+                memberSet = members.get(hierarchyId);
+            }
+            memberSet.add(member);
+            members.put(hierarchyId, memberSet);
+        }
+
+        /*Set<Member> getMembers(Integer hierarchyId) {
+            if (members.containsKey(hierarchyId)) {
+                return members.get(hierarchyId);
+            }
+            return null;
+        }*/
     }
 }
