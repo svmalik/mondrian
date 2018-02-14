@@ -156,7 +156,7 @@ public class NonEmptyFunDef extends FunDefBase {
                                         for (TupleList tuples : nonEmptyTuples) {
                                             if (result == null) {
                                                 result = TupleCollections.createList(tuples.getArity());
-                                            } else if (!needsSorting && result.size() != tuples.size()) {
+                                            } else if (!needsSorting && !areEqual(result, tuples)) {
                                                 needsSorting = true;
                                             }
                                             FunUtil.addUnique(result, tuples, added);
@@ -190,6 +190,20 @@ public class NonEmptyFunDef extends FunDefBase {
                 return
                     evaluator.getSchemaReader().getNativeSetEvaluator(
                         call.getFunDef(), call.getArgs(), evaluator, calc);
+            }
+
+            private boolean areEqual(TupleList t1, TupleList t2) {
+                if (t1.size() != t2.size() || t1.getArity() != t2.getArity()) {
+                    return false;
+                }
+                for (int i = 0; i < t1.size(); i++) {
+                    for (int j = 0; j < t1.getArity(); j++) {
+                        if (!t1.get(i).get(j).equals(t2.get(i).get(j))) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
             }
         };
     }
