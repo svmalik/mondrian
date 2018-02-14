@@ -16,7 +16,6 @@ import mondrian.olap.*;
 import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -209,7 +208,7 @@ public class RolapNativeTopCount extends RolapNativeSet {
             // array is the CrossJoin dimensions.  The second array, if any,
             // contains additional constraints on the dimensions. If either the list
             // or the first array is null, then native cross join is not feasible.
-            if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+            if (failedCjArg(allArgs)) {
                 alertNonNativeTopCount(
                     "Set in 1st argument does not support native eval.");
                 return null;

@@ -1101,8 +1101,26 @@ public abstract class RolapNativeSet extends RolapNative {
      * @param args list of CrossJoinArg arrays
      * @return whether arguments are valid
      */
-    protected static boolean failedCjArg(List<CrossJoinArg[]> args) {
+    static boolean failedCjArg(List<CrossJoinArg[]> args) {
         return args == null || args.isEmpty() || args.get(0) == null;
+    }
+
+    static boolean failedCjArg(CrossJoinArg[] cjArgs, boolean checkCalc) {
+        int countNonNativeInputArg = 0;
+        for (CrossJoinArg arg : cjArgs) {
+            if (arg instanceof MemberListCrossJoinArg) {
+                MemberListCrossJoinArg cjArg =
+                    (MemberListCrossJoinArg)arg;
+                if (cjArg.hasAllMember() || cjArg.isEmptyCrossJoinArg()) {
+                    ++countNonNativeInputArg;
+                }
+                if (checkCalc && cjArg.hasCalcMembers()) {
+                    countNonNativeInputArg = cjArgs.length;
+                    break;
+                }
+            }
+        }
+        return countNonNativeInputArg == cjArgs.length;
     }
 
     protected static void alertNonNative(

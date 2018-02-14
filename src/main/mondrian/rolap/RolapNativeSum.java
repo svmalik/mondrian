@@ -204,7 +204,7 @@ public class RolapNativeSum extends RolapNativeSet {
 
             List<CrossJoinArg[]> allArgs =
                 crossJoinArgFactory().checkCrossJoinArg(evaluator, call, false, false);
-            if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+            if (failedCjArg(allArgs)) {
                 return null;
             }
 

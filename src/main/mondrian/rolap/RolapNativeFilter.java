@@ -13,7 +13,6 @@ package mondrian.rolap;
 
 import mondrian.mdx.MdxVisitorImpl;
 import mondrian.mdx.MemberExpr;
-import mondrian.mdx.ResolvedFunCall;
 import mondrian.olap.*;
 import mondrian.rolap.aggmatcher.AggStar;
 import mondrian.rolap.sql.*;
@@ -202,11 +201,14 @@ public class RolapNativeFilter extends RolapNativeSet {
             // contains additional constraints on the dimensions. If either the
             // list or the first array is null, then native cross join is not
             // feasible.
-            if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+            if (failedCjArg(allArgs)) {
                 return null;
             }
 
             cjArgs = allArgs.get(0);
+            if (failedCjArg(cjArgs, true)) {
+                return null;
+            }
             if (isPreferInterpreter(cjArgs, false)) {
                 return null;
             }

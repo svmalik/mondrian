@@ -137,7 +137,7 @@ public class RolapNativeCrossJoin extends RolapNativeSet {
         // array is the CrossJoin dimensions.  The second array, if any,
         // contains additional constraints on the dimensions. If either the list
         // or the first array is null, then native cross join is not feasible.
-        if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+        if (failedCjArg(allArgs)) {
             // Something in the arguments to the crossjoin prevented
             // native evaluation; may need to alert
             alertCrossJoinNonNative(
@@ -155,23 +155,7 @@ public class RolapNativeCrossJoin extends RolapNativeSet {
         //
         // If NECJ only has AllMembers, or if there is at least one CalcMember,
         // then sql evaluation is not possible.
-        int countNonNativeInputArg = 0;
-
-        for (CrossJoinArg arg : cjArgs) {
-            if (arg instanceof MemberListCrossJoinArg) {
-                MemberListCrossJoinArg cjArg =
-                    (MemberListCrossJoinArg)arg;
-                if (cjArg.hasAllMember() || cjArg.isEmptyCrossJoinArg()) {
-                    ++countNonNativeInputArg;
-                }
-                if (cjArg.hasCalcMembers()) {
-                    countNonNativeInputArg = cjArgs.length;
-                    break;
-                }
-            }
-        }
-
-        if (countNonNativeInputArg == cjArgs.length) {
+        if (failedCjArg(cjArgs, true)) {
             // If all inputs contain "All" members; or
             // if all inputs are MemberListCrossJoinArg with empty member list
             // content, then native evaluation is not feasible.

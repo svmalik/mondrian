@@ -99,34 +99,21 @@ public class RolapNativeCount extends RolapNativeSet {
         if (eval == null) {
             List<CrossJoinArg[]> allArgs =
                 crossJoinArgFactory().checkCrossJoinArg(evaluator, call, false, false);
-            if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+            if (failedCjArg(allArgs)) {
                 return null;
             }
 
             CrossJoinArg[] cjArgs = allArgs.get(0);
-            if (isPreferInterpreter(cjArgs, true)) {
+            if (failedCjArg(cjArgs, false)) {
                 return null;
             }
-
-            int countNonNativeInputArg = 0;
-            for (CrossJoinArg arg : cjArgs) {
-                if (arg instanceof MemberListCrossJoinArg) {
-                    MemberListCrossJoinArg cjArg =
-                        (MemberListCrossJoinArg)arg;
-                    if (cjArg.hasAllMember() || cjArg.isEmptyCrossJoinArg()) {
-                        ++countNonNativeInputArg;
-                    }
-                }
-            }
-            if (countNonNativeInputArg == cjArgs.length) {
+            if (isPreferInterpreter(cjArgs, true)) {
                 return null;
             }
 
             // We need to determine if the "All" member should be counted,
             // and inform the count constraint.
-
             int addlCount = 0;
-
             if (call.getFunDef().getName().equals("AllMembers")) {
                 if (call.getArg(0) instanceof HierarchyExpr) {
                     Hierarchy h = ((HierarchyExpr)call.getArg(0)).getHierarchy();

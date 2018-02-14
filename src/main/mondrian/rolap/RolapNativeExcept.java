@@ -80,7 +80,7 @@ public class RolapNativeExcept extends RolapNativeSet {
         // array is the CrossJoin dimensions.  The second array, if any,
         // contains additional constraints on the dimensions. If either the list
         // or the first array is null, then native cross join is not feasible.
-        if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+        if (failedCjArg(allArgs)) {
             return null;
         }
 
@@ -95,7 +95,7 @@ public class RolapNativeExcept extends RolapNativeSet {
                 crossJoinArgFactory().checkCrossJoinArg(evaluator, args[1]);
         }
 
-        if (exceptArgs == null || exceptArgs.isEmpty() || exceptArgs.get(0) == null) {
+        if (failedCjArg(exceptArgs)) {
             return null;
         }
 

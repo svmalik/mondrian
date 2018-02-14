@@ -2722,6 +2722,23 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "FROM [Warehouse and Sales]\n"
             + "WHERE NonEmpty(CrossJoin({[Product].[Food].[Dairy]}, {[Warehouse].[USA]}))";
         checkNotNative(8, mdx);
+
+        // the first arg has only All member and cannot be executed natively
+        mdx =
+            "WITH SET [s1] AS {[Product].[All Products]}\n"
+            + "SET [s2] AS NonEmpty([s1], [Measures].[Sales Count])\n"
+            + "SELECT { [Measures].[Units Shipped] } ON COLUMNS,\n"
+            + "[s2] ON ROWS\n"
+            + "FROM [Warehouse and Sales]";
+        String result =
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Units Shipped]}\n"
+            + "Axis #2:\n"
+            + "{[Product].[All Products]}\n"
+            + "Row #0: 207726.0\n";
+        checkNotNative(1, mdx, result);
     }
 
     public void testNativeNonEmptyWithUnrelatedCubeMeasure() {

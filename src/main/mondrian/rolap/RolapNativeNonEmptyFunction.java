@@ -87,7 +87,11 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
                 alertNonNative(evaluator, fun, args[0]);
                 return null;
             }
+
             returnArgs = mainArgs.get(0);
+            if (failedCjArg(returnArgs, false)) {
+                return null;
+            }
         }
 
         boolean isHighCardinality = false;

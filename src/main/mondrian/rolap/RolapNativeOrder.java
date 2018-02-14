@@ -243,7 +243,7 @@ public class RolapNativeOrder extends RolapNativeSet {
             // array is the CrossJoin dimensions.  The second array, if any,
             // contains additional constraints on the dimensions. If either the list
             // or the first array is null, then native cross join is not feasible.
-            if (allArgs == null || allArgs.isEmpty() || allArgs.get(0) == null) {
+            if (failedCjArg(allArgs)) {
                 return null;
             }
 
