@@ -1017,14 +1017,20 @@ public class RolapResult extends ResultBase {
         }
         final int savepoint = evaluator.savepoint();
         try {
-            if (simplifySlicer && queryAxis.getAxisOrdinal().isFilter()) {
-                ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
-                Validator validator = expCompiler.getValidator();
-                Exp simplified = simplifySlicer(queryAxis.getSet(), expCompiler, validator);
-                if (simplified != null && queryAxis.getSet() != simplified) {
-                    axisCalc = expCompiler.compileIter(simplified);
-                    isSlicerModified = true;
+            try {
+                if (simplifySlicer && queryAxis.getAxisOrdinal().isFilter()) {
+                    ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
+                    Validator validator = expCompiler.getValidator();
+                    Exp simplified = simplifySlicer(queryAxis.getSet(), expCompiler, validator);
+                    if (simplified != null && queryAxis.getSet() != simplified) {
+                        axisCalc = expCompiler.compileIter(simplified);
+                        isSlicerModified = true;
+                    }
                 }
+            } catch (Exception e){
+                // we don't want to break the execution if
+                // the optimization fails for some reason
+                LOGGER.warn("Mondrian: exception in executeAxis.", e);
             }
             evaluator.setNonEmpty(queryAxis.isNonEmpty());
             evaluator.setEvalAxes(true);
