@@ -192,14 +192,18 @@ public class TestCalculatedMembers extends BatchTestCase {
         Assert.assertEquals("339,610.90", s);
     }
 
-    private Cube getSalesCube(String cubeName) {
-        Cube[] cubes = getConnection().getSchema().getSchemaReader().getCubes();
+    private Cube getSalesCube(TestContext testContext, String cubeName) {
+        Cube[] cubes = testContext.getConnection().getSchema().getSchemaReader().getCubes();
         for (Cube cube : cubes) {
             if (cube.getName().equals(cubeName)) {
                 return cube;
             }
         }
         return null;
+    }
+
+    private Cube getSalesCube(String cubeName) {
+        return getSalesCube(getTestContext(), cubeName);
     }
 
     public void testCalculatedMemberInCubeAndQuery() {
@@ -1835,6 +1839,32 @@ public class TestCalculatedMembers extends BatchTestCase {
             + " from [Sales]",
             "The '[X]' calculated member cannot be created because its parent is "
             + "at the lowest level in the [Gender] hierarchy.");
+    }
+
+    public void testCalculatedMemberInSlicer() {
+        propSaver.set(propSaver.properties.SsasCompatibleNaming, true);
+        TestContext testContext = getTestContext().withFreshConnection();
+        Cube salesCube = getSalesCube(testContext, "Sales");
+        salesCube.createCalculatedMember(
+            "<CalculatedMember name='Current' hierarchy='[Time].[Weekly]'"
+            + " parent='[Time].[Weekly].[All Weeklys]'"
+            + " formula='[Time].[1998]'/>");
+
+        String mdx =
+            "WITH MEMBER [Measures].[test] AS\n"
+            + "CASE WHEN [Time].[Weekly].CurrentMember IS [Time].[Weekly].[All Weeklys].[Current] THEN 'CY'\n"
+            + "ELSE [Time].[Weekly].CurrentMember.Name END\n"
+            + "SELECT [Measures].[test] ON 0\n"
+            + "FROM [Sales]\n"
+            + "WHERE ([Time].[Weekly].[All Weeklys].[Current])";
+
+        testContext.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Time].[Weekly].[All Weeklys].[Current]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[test]}\n"
+            + "Row #0: CY\n");
     }
 }
 

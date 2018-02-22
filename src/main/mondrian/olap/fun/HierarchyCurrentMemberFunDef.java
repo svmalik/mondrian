@@ -97,7 +97,7 @@ public class HierarchyCurrentMemberFunDef extends FunDefBase {
 
         public Member evaluateMember(Evaluator evaluator) {
             validateSlicerMembers(hierarchy, evaluator);
-            return evaluator.getContext(hierarchy);
+            return getContext(hierarchy, evaluator);
         }
 
         public boolean dependsOn(Hierarchy hierarchy) {
@@ -115,13 +115,24 @@ public class HierarchyCurrentMemberFunDef extends FunDefBase {
         Evaluator evaluator)
     {
         if (evaluator instanceof RolapEvaluator) {
-            Member context = evaluator.getContext(hierarchy);
+            Member context = getContext(hierarchy, evaluator);
             if (context instanceof RolapResult.CompoundSlicerRolapMember) {
                 throw MondrianResource.instance()
                     .CurrentMemberWithCompoundSlicer.ex(
                         hierarchy.getUniqueName());
             }
         }
+    }
+
+    private static Member getContext(Hierarchy hierarchy, Evaluator evaluator) {
+        Member context = null;
+        if (evaluator instanceof RolapEvaluator) {
+            context = ((RolapEvaluator) evaluator).getOriginalContext(hierarchy);
+        }
+        if (context == null) {
+            context = evaluator.getContext(hierarchy);
+        }
+        return context;
     }
 }
 

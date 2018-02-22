@@ -9,20 +9,31 @@
 
 package mondrian.olap.fun;
 
-import mondrian.calc.*;
+import mondrian.calc.Calc;
+import mondrian.calc.ExpCompiler;
+import mondrian.calc.HierarchyCalc;
+import mondrian.calc.ListCalc;
+import mondrian.calc.TupleCollections;
+import mondrian.calc.TupleList;
 import mondrian.calc.impl.AbstractListCalc;
 import mondrian.mdx.MemberExpr;
-import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
-import mondrian.olap.*;
+import mondrian.olap.Evaluator;
+import mondrian.olap.Exp;
+import mondrian.olap.Hierarchy;
+import mondrian.olap.Member;
+import mondrian.olap.MondrianProperties;
+import mondrian.olap.Util;
 import mondrian.rolap.RolapEvaluator;
 import mondrian.rolap.RolapHierarchy;
-import mondrian.rolap.RolapMember;
 import mondrian.rolap.RolapResult;
-import mondrian.rolap.sql.CrossJoinArg;
-import mondrian.rolap.sql.MemberListCrossJoinArg;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Definition of the <code>&lt;Hierarchy&gt;.CurrentMembers</code> MDX
@@ -61,13 +72,7 @@ public class HierarchyCurrentMembersFunDef extends FunDefBase {
                     return getTupleList(evaluator, ((MemberExpr) exp).getMember(), checkedMembers);
                 } else if (currentMember.getExpression() instanceof ResolvedFunCall) {
                     ResolvedFunCall call = (ResolvedFunCall) currentMember.getExpression();
-                    while (("{}".equals(call.getFunName())
-                            || "()".equals(call.getFunName())
-                            || "Cache".equalsIgnoreCase(call.getFunName()))
-                            && call.getArgCount() == 1
-                            && call.getArg(0) instanceof ResolvedFunCall) {
-                        call = (ResolvedFunCall) call.getArg(0);
-                    }
+                    call = FunUtil.extractResolvedFunCall(call);
                     if ("Aggregate".equalsIgnoreCase(call.getFunName())) {
                         members = expandNonNative((RolapEvaluator) evaluator, call.getArg(0));
                     }
@@ -101,6 +106,17 @@ public class HierarchyCurrentMembersFunDef extends FunDefBase {
         return members;
     }
 
+    private static Member getContext(Hierarchy hierarchy, Evaluator evaluator) {
+        Member context = null;
+        if (evaluator instanceof RolapEvaluator) {
+            context = ((RolapEvaluator) evaluator).getOriginalContext(hierarchy);
+        }
+        if (context == null) {
+            context = evaluator.getContext(hierarchy);
+        }
+        return context;
+    }
+
     /**
      * Compiled implementation of the Hierarchy.CurrentMembers function that
      * evaluates the hierarchy expression first.
@@ -119,7 +135,7 @@ public class HierarchyCurrentMembersFunDef extends FunDefBase {
 
         public TupleList evaluateList(Evaluator evaluator) {
             Hierarchy hierarchy = hierarchyCalc.evaluateHierarchy(evaluator);
-            Member currentMember = evaluator.getContext(hierarchy);
+            Member currentMember = getContext(hierarchy, evaluator);
             return getTupleList(evaluator, currentMember, new HashSet<Member>());
         }
 
@@ -148,7 +164,7 @@ public class HierarchyCurrentMembersFunDef extends FunDefBase {
         }
 
         public TupleList evaluateList(Evaluator evaluator) {
-            Member currentMember = evaluator.getContext(hierarchy);
+            Member currentMember = getContext(hierarchy, evaluator);
             return getTupleList(evaluator, currentMember, new HashSet<Member>());
         }
 

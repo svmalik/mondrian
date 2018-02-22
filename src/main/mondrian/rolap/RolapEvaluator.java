@@ -76,6 +76,7 @@ public class RolapEvaluator implements Evaluator {
     private static final Object nullResult = new Object();
 
     private final RolapMember[] currentMembers;
+    private final RolapMember[] originalContext;
     private final RolapEvaluator parent;
     protected CellReader cellReader;
     private final int ancestorCommandCount;
@@ -192,6 +193,7 @@ public class RolapEvaluator implements Evaluator {
         evalAxes = parent.evalAxes;
         cellReader = parent.cellReader;
         currentMembers = parent.currentMembers.clone();
+        originalContext = new RolapMember[currentMembers.length];
         calculations = parent.calculations.clone();
         calculationCount = parent.calculationCount;
         slicerMembers = new ArrayList<Member>(parent.slicerMembers);
@@ -252,6 +254,7 @@ public class RolapEvaluator implements Evaluator {
         evalAxes = false;
         cellReader = null;
         currentMembers = root.defaultMembers.clone();
+        originalContext = new RolapMember[currentMembers.length];
         calculations = new RolapCalculation[currentMembers.length];
         calculationCount = 0;
         slicerMembers = new ArrayList<Member>();
@@ -713,6 +716,15 @@ public class RolapEvaluator implements Evaluator {
             addCalculation(m, false);
         }
         nonAllMembers = null;
+
+        RolapMember original = originalContext[ordinal];
+        if (original != null) {
+            ensureCommandCapacity(commandCount + 2);
+            commands[commandCount++] = original;
+            commands[commandCount++] = Command.SET_ORIGINAL_CONTEXT;
+            originalContext[ordinal] = null;
+        }
+
         return previous;
     }
 
@@ -750,6 +762,15 @@ public class RolapEvaluator implements Evaluator {
         if (m.isEvaluated()) {
             addCalculation(m, false);
         }
+
+        RolapMember original = originalContext[ordinal];
+        if (original != null) {
+            ensureCommandCapacity(commandCount + 2);
+            commands[commandCount++] = original;
+            commands[commandCount++] = Command.SET_ORIGINAL_CONTEXT;
+            originalContext[ordinal] = null;
+        }
+
         nonAllMembers = null;
     }
 
@@ -1506,6 +1527,14 @@ public class RolapEvaluator implements Evaluator {
                 evaluator.setContext(member, false);
             }
         },
+        SET_ORIGINAL_CONTEXT(1) {
+            @Override
+            void execute(RolapEvaluator evaluator) {
+                final RolapMember member =
+                    (RolapMember) evaluator.commands[--evaluator.commandCount];
+                evaluator.setOriginalContext(member);
+            }
+        },
         SET_NATIVE_ENABLED(1) {
             @Override
             void execute(RolapEvaluator evaluator) {
@@ -1604,6 +1633,15 @@ public class RolapEvaluator implements Evaluator {
           }
       }
       return exps;
+    }
+
+    public RolapMember getOriginalContext(Hierarchy hierarchy) {
+        return originalContext[((RolapHierarchy) hierarchy).getOrdinalInCube()];
+    }
+
+    public void setOriginalContext(Member context) {
+        RolapMemberBase m = (RolapMemberBase) context;
+        originalContext[m.getHierarchy().getOrdinalInCube()] = m;
     }
 }
 

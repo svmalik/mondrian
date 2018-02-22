@@ -323,6 +323,14 @@ public class RolapResult extends ResultBase {
                         TupleCollections.materialize(tupleIterableOrig, true);
                     savedSlicerAxis = new RolapAxis(tupleListOrig);
                     simplifySlicer = true;
+
+                    if (tupleListOrig.size() > 1) {
+                        Member placeholder = setPlaceholderSlicerAxis(
+                            (RolapMember)tupleListOrig.get(0).get(0), query.slicerCalc, true);
+                        evaluator.setOriginalContext(placeholder);
+                    } else if (tupleListOrig.size() == 1) {
+                        evaluator.setOriginalContext(tupleListOrig.get(0).get(0));
+                    }
                 } else {
                     savedSlicerAxis = this.slicerAxis;
                 }
@@ -1614,8 +1622,11 @@ public class RolapResult extends ResultBase {
                 }
             } else if (fun instanceof SetFunDef || fun instanceof ParenthesesFunDef) {
                 if (call.getArgCount() == 1) {
-                    final Exp newArg = simplifySlicer(call.getArg(0), compiler, validator);
-                    return getSet(newArg);
+                    Exp arg0 = call.getArg(0);
+                    final Exp newArg = simplifySlicer(arg0, compiler, validator);
+                    if (newArg != null && arg0 != newArg) {
+                        return getSet(newArg);
+                    }
                 }
             } else if (MondrianProperties.instance().ExpandNonNative.get()
                         && "Except".equalsIgnoreCase(fun.getName()))
@@ -1639,11 +1650,15 @@ public class RolapResult extends ResultBase {
                 }
             }
         } else if (slicerExp instanceof MemberExpr){
-            if (((MemberExpr) slicerExp).getMember().isCalculated()) {
-                Exp memberExp = ((MemberExpr) slicerExp).getMember().getExpression();
+            Member m = ((MemberExpr) slicerExp).getMember();
+            if (!m.isMeasure() && m.isCalculated()) {
+                Exp memberExp = m.getExpression();
                 Exp expanded = simplifySlicer(memberExp, compiler, validator);
-                if (expanded != null && expanded != memberExp) {
-                    return expanded;
+                if (expanded == null) {
+                    expanded = memberExp;
+                }
+                if (!(expanded.getType() instanceof ScalarType)) {
+                    return getSet(expanded);
                 }
             }
         } else if (slicerExp instanceof NamedSetExpr) {
