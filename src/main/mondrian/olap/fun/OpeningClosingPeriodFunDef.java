@@ -96,10 +96,13 @@ class OpeningClosingPeriodFunDef extends FunDefBase {
             levelCalc = null;
             break;
         case 1:
-            defaultTimeHierarchy =
-                ((RolapCube) compiler.getEvaluator().getCube())
-                    .getTimeHierarchy(getName());
             levelCalc = compiler.compileLevel(call.getArg(0));
+            defaultTimeHierarchy =
+                levelCalc.getType().getDimension().getDimensionType()
+                        == DimensionType.TimeDimension
+                    ? (RolapHierarchy) levelCalc.getType().getHierarchy()
+                    : ((RolapCube) compiler.getEvaluator().getCube())
+                        .getTimeHierarchy(getName());
             memberCalc =
                 new HierarchyCurrentMemberFunDef.FixedCalcImpl(
                     new DummyExp(

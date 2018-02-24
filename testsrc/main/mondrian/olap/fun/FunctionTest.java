@@ -1681,6 +1681,11 @@ public class FunctionTest extends FoodMartTestCase {
         Assert.assertNull(member);
     }
 
+    public void testClosingPeriodNonDefaultTimeHierarchy() {
+        assertAxisReturns(
+            "ClosingPeriod([Time.Weekly].[Year])",
+            "[Time].[Weekly].[1998]");
+    }
 
     public void testCousin1() {
         Member member = executeSingletonAxis("Cousin([1997].[Q4],[1998])");
@@ -12503,13 +12508,13 @@ Intel platforms):
             "'OpeningPeriod', no time dimension");
         assertQueryThrows(
             "select OpeningPeriod([Store Type]) on columns from [Store]",
-            "'OpeningPeriod', no time dimension");
+            "AssertionError");
         assertQueryThrows(
             "select ClosingPeriod() on columns from [Store]",
             "'ClosingPeriod', no time dimension");
         assertQueryThrows(
             "select ClosingPeriod([Store Type]) on columns from [Store]",
-            "'ClosingPeriod', no time dimension");
+            "AssertionError");
         assertQueryThrows(
             "select ParallelPeriod() on columns from [Store]",
             "'ParallelPeriod', no time dimension");
