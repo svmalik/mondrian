@@ -1866,6 +1866,36 @@ public class TestCalculatedMembers extends BatchTestCase {
             + "{[Measures].[test]}\n"
             + "Row #0: CY\n");
     }
+
+    public void testCalculatedMemberInCompoundSlicer() {
+        propSaver.set(propSaver.properties.SsasCompatibleNaming, true);
+        TestContext testContext = getTestContext().withFreshConnection();
+        Cube salesCube = getSalesCube(testContext, "Sales");
+        salesCube.createCalculatedMember(
+            "<CalculatedMember name='Current' hierarchy='[Time].[Weekly]'"
+            + " parent='[Time].[Weekly].[All Weeklys]'"
+            + " formula='[Time].[1998]'/>");
+
+        String mdx =
+            "WITH MEMBER [Measures].[test] AS\n"
+            + "CASE WHEN [Time].[Weekly].CurrentMember IS [Time].[Weekly].[All Weeklys].[Current] THEN 'CY'\n"
+            + "ELSE [Time].[Weekly].CurrentMember.Name END\n"
+            + "SELECT [Measures].[test] ON 0\n"
+            + "FROM [Sales]\n"
+            + "WHERE CrossJoin(CrossJoin({[Store].[USA].[CA], [Store].[USA].[OR]}, "
+            + "{[Product].[Food], [Product].[Non-Consumable]}), {[Time].[Weekly].[All Weeklys].[Current]})";
+
+        testContext.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Store].[USA].[CA], [Product].[Food], [Time].[Weekly].[All Weeklys].[Current]}\n"
+            + "{[Store].[USA].[CA], [Product].[Non-Consumable], [Time].[Weekly].[All Weeklys].[Current]}\n"
+            + "{[Store].[USA].[OR], [Product].[Food], [Time].[Weekly].[All Weeklys].[Current]}\n"
+            + "{[Store].[USA].[OR], [Product].[Non-Consumable], [Time].[Weekly].[All Weeklys].[Current]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[test]}\n"
+            + "Row #0: CY\n");
+    }
 }
 
 // End TestCalculatedMembers.java

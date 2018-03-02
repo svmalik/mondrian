@@ -325,6 +325,18 @@ public class RolapResult extends ResultBase {
                     simplifySlicer = true;
 
                     if (tupleListOrig.size() > 1) {
+                        tupleListOrig =
+                            removeUnaryMembersFromTupleList(
+                                tupleListOrig, evaluator, true);
+                        if (tupleListOrig.get(0).size() > 1) {
+                            for (int i = 1; i < tupleListOrig.get(0).size(); i++) {
+                                Member placeholder = setPlaceholderSlicerAxis(
+                                    (RolapMember)tupleListOrig.get(0).get(i),
+                                    query.slicerCalc,
+                                    false);
+                                evaluator.setOriginalContext(placeholder);
+                            }
+                        }
                         Member placeholder = setPlaceholderSlicerAxis(
                             (RolapMember)tupleListOrig.get(0).get(0), query.slicerCalc, true);
                         evaluator.setOriginalContext(placeholder);
@@ -344,7 +356,7 @@ public class RolapResult extends ResultBase {
                 if (tupleList.size() > 1) {
                     tupleList =
                         removeUnaryMembersFromTupleList(
-                            tupleList, evaluator);
+                            tupleList, evaluator, false);
 
                     if (!evaluator.getDialect().supportsUnlimitedValueList()) {
                         // TODO: This function is not working for a two member level disjoint tuple
@@ -670,7 +682,7 @@ public class RolapResult extends ResultBase {
      * @return a new list of tuples reduced in size.
      */
     private TupleList removeUnaryMembersFromTupleList(
-        TupleList tupleList, RolapEvaluator evaluator)
+        TupleList tupleList, RolapEvaluator evaluator, boolean setOriginalContext)
     {
         // we can remove any unary coordinates from the compound slicer, and
         // account for them in the slicer evaluator.
@@ -696,7 +708,11 @@ public class RolapResult extends ResultBase {
         int toRemove = 0;
         for (int i = 0; i < unary.length; i++) {
             if (unary[i]) {
-                evaluator.setContext(first.get(i));
+                if (setOriginalContext) {
+                    evaluator.setOriginalContext(first.get(i));
+                } else {
+                    evaluator.setContext(first.get(i));
+                }
                 toRemove++;
             }
         }
