@@ -15,7 +15,6 @@ package mondrian.rolap;
 import mondrian.olap.*;
 import mondrian.olap.fun.VisualTotalsFunDef.VisualTotalMember;
 import mondrian.resource.MondrianResource;
-import mondrian.rolap.RolapNativeSet.SetEvaluator;
 import mondrian.rolap.RolapStar.Column;
 import mondrian.rolap.agg.*;
 
@@ -249,11 +248,11 @@ public abstract class RolapAggregationManager {
         if (aggregationList.equals(evaluator.getSlicerTuples())) {
             // slicer predicate is built once in the evaluator to
             // avoid unnecessary duplicate effort
-            predicateInfo = evaluator.getSlicerPredicateInfo();
-            if (!measure.getCube().equals(predicateInfo.getCube())) {
+            predicateInfo = evaluator.getSlicerPredicateInfo(measure.getCube());
+            if (predicateInfo == null) {
                 predicateInfo = new CompoundPredicateInfo(
                     aggregationList, measure, evaluator);
-                evaluator.slicerPredicateInfo = predicateInfo;
+                evaluator.setSlicerPredicateInfo(predicateInfo);
             }
         } else {
             predicateInfo =  new CompoundPredicateInfo(

@@ -218,8 +218,8 @@ public class RolapNativeNonEmptyFunction extends RolapNativeSet {
                     MondrianProperties.instance().NativeFunctionsDisjointSlicerMaxSize.get()
                 && (SqlConstraintUtils.isDisjointTuple(slicerTuples)
                     || evaluator.isMultiLevelSlicerTuple())
-                && evaluator.getSlicerPredicateInfo() != null
-                && !evaluator.getSlicerPredicateInfo().isTupleBased())
+                && evaluator.getSlicerPredicateInfo(measure.getCube()) != null
+                && !evaluator.getSlicerPredicateInfo(measure.getCube()).isTupleBased())
             {
                 // Non-native should perform better in this case
                 // as it can use tuple based slicer.

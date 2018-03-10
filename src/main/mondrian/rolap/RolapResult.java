@@ -1043,11 +1043,8 @@ public class RolapResult extends ResultBase {
         try {
             try {
                 if (simplifySlicer && queryAxis.getAxisOrdinal().isFilter()) {
-                    ExpCompiler expCompiler = evaluator.getQuery().createCompiler();
-                    Validator validator = expCompiler.getValidator();
-                    Exp simplified = simplifySlicer(queryAxis.getSet(), expCompiler, validator);
-                    if (simplified != null && queryAxis.getSet() != simplified) {
-                        axisCalc = expCompiler.compileIter(simplified);
+                    Calc simplifiedSlicerCalc = simplifySlicerCalc(queryAxis);
+                    if (simplifiedSlicerCalc != null) {
                         isSlicerModified = true;
                     }
                 }
@@ -1605,28 +1602,54 @@ public class RolapResult extends ResultBase {
         }
     }
 
+    private Calc simplifySlicerCalc(QueryAxis queryAxis) {
+        Calc slicerCalc = null;
+        ExpCompiler expCompiler = null;
+        boolean recompile = false;
+        Exp simplified = queryAxis.getSimplifiedSet();
+        if (simplified != null) {
+            recompile = true;
+        } else {
+            expCompiler = evaluator.getQuery().createCompiler();
+            Validator validator = expCompiler.getValidator();
+            simplified = simplifySlicer(queryAxis.getSet(), validator);
+            if (simplified != null && queryAxis.getSet() != simplified) {
+                queryAxis.setSimplifiedSet(simplified);
+                recompile = true;
+            }
+        }
+
+        if (recompile) {
+            if (expCompiler == null) {
+                expCompiler = evaluator.getQuery().createCompiler();
+            }
+            slicerCalc = expCompiler.compileIter(simplified);
+        }
+        return slicerCalc;
+    }
+
     /**
      * Attempt to simplify slicer and improve the performance for slicers
      * containing a calculated member with a set aggregation.
      * This code is trying to unwrap such members to the original set
      * since aggregation is not required in this case.
      */
-    private Exp simplifySlicer(Exp slicerExp, ExpCompiler compiler, Validator validator) {
+    private Exp simplifySlicer(Exp slicerExp, Validator validator) {
         if (slicerExp instanceof ResolvedFunCall) {
             ResolvedFunCall call = (ResolvedFunCall) slicerExp;
             FunDef fun = call.getFunDef();
             if ("Aggregate".equalsIgnoreCase(fun.getName())) {
-                return simplifySlicer(call.getArg(0), compiler, validator);
+                return simplifySlicer(call.getArg(0), validator);
             } else if ("Cache".equalsIgnoreCase(fun.getName()) && call.getArgCount() == 1) {
-                return simplifySlicer(call.getArg(0), compiler, validator);
+                return simplifySlicer(call.getArg(0), validator);
             } else if ("Order".equalsIgnoreCase(fun.getName())) {
-                return simplifySlicer(call.getArg(0), compiler, validator);
+                return simplifySlicer(call.getArg(0), validator);
             } else if (fun instanceof CrossJoinFunDef) {
                 Exp[] args = call.getArgs().clone();
                 boolean createNew = false;
                 for (int i = 0; i < args.length; i++) {
                     Exp arg = args[i];
-                    Exp newArg = simplifySlicer(arg, compiler, validator);
+                    Exp newArg = simplifySlicer(arg, validator);
                     if (newArg != null && newArg != arg) {
                         createNew = true;
                         args[i] = getSet(newArg);
@@ -1639,27 +1662,20 @@ public class RolapResult extends ResultBase {
             } else if (fun instanceof SetFunDef || fun instanceof ParenthesesFunDef) {
                 if (call.getArgCount() == 1) {
                     Exp arg0 = call.getArg(0);
-                    final Exp newArg = simplifySlicer(arg0, compiler, validator);
+                    final Exp newArg = simplifySlicer(arg0, validator);
                     if (newArg != null && arg0 != newArg) {
                         return getSet(newArg);
                     }
                 }
-            } else if (MondrianProperties.instance().ExpandNonNative.get()
-                        && "Except".equalsIgnoreCase(fun.getName()))
-            {
+            } else if ("Except".equalsIgnoreCase(fun.getName())) {
                 try {
-                    final ListCalc listCalc = compiler.compileList(call);
-                    final TupleList tupleList = listCalc.evaluateList(evaluator);
-                    if (tupleList.getArity() == 1) {
-                        Util.checkCJResultLimit(tupleList.size());
-                        List<RolapMember> list0 = Util.cast(tupleList.slice(0));
-                        if (!list0.isEmpty()) {
-                            final Exp[] members = new Exp[list0.size()];
-                            for (int i = 0; i < list0.size(); i++) {
-                                members[i] = new MemberExpr(list0.get(i));
-                            }
-                            return SetFunDef.wrapAsSet(members);
+                    List<RolapMember> list0 = RolapUtil.expandNonNative(evaluator, call);
+                    if (list0 != null && !list0.isEmpty()) {
+                        final Exp[] members = new Exp[list0.size()];
+                        for (int i = 0; i < list0.size(); i++) {
+                            members[i] = new MemberExpr(list0.get(i));
                         }
+                        return SetFunDef.wrapAsSet(members);
                     }
                 } catch (Exception e) {
                     return slicerExp;
@@ -1669,7 +1685,7 @@ public class RolapResult extends ResultBase {
             Member m = ((MemberExpr) slicerExp).getMember();
             if (!m.isMeasure() && m.isCalculated()) {
                 Exp memberExp = m.getExpression();
-                Exp expanded = simplifySlicer(memberExp, compiler, validator);
+                Exp expanded = simplifySlicer(memberExp, validator);
                 if (expanded == null) {
                     expanded = memberExp;
                 }
@@ -1679,7 +1695,7 @@ public class RolapResult extends ResultBase {
             }
         } else if (slicerExp instanceof NamedSetExpr) {
             final Exp setExp = ((NamedSetExpr) slicerExp).getNamedSet().getExp();
-            return simplifySlicer(setExp, compiler, validator);
+            return simplifySlicer(setExp, validator);
         }
         return slicerExp;
     }

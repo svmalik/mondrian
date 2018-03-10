@@ -31,6 +31,7 @@ public class QueryAxis extends QueryPart {
     private boolean ordered;
     private Exp exp;
     private final AxisOrdinal axisOrdinal;
+    private Exp simplifiedExp;
 
     /**
      * Whether to show subtotals on this axis.
@@ -200,6 +201,21 @@ public class QueryAxis extends QueryPart {
      */
     public Exp getSet() {
         return exp;
+    }
+
+    /**
+     * Sets simplified version of the axis expression.
+     * See {@link #getSimplifiedSet()}.
+     */
+    public void setSimplifiedSet(Exp set) {
+        this.simplifiedExp = set;
+    }
+
+    /**
+     * Returns simplified version of the axis expression.
+     */
+    public Exp getSimplifiedSet() {
+        return simplifiedExp;
     }
 
     /**

@@ -98,7 +98,7 @@ public class RolapEvaluator implements Evaluator {
      */
     protected final List<List<List<Member>>> aggregationLists;
 
-    protected CompoundPredicateInfo slicerPredicateInfo;
+    private Map<RolapCube, CompoundPredicateInfo> slicerPredicateInfo;
 
     private final List<Member> slicerMembers;
 
@@ -152,8 +152,14 @@ public class RolapEvaluator implements Evaluator {
         return root.activeNativeExpansions;
     }
 
-    public CompoundPredicateInfo getSlicerPredicateInfo() {
-        return slicerPredicateInfo;
+    public CompoundPredicateInfo getSlicerPredicateInfo(RolapCube cube) {
+        return slicerPredicateInfo == null || slicerPredicateInfo.isEmpty()
+            ? null
+            : slicerPredicateInfo.get(cube);
+    }
+
+    void setSlicerPredicateInfo(CompoundPredicateInfo predicateInfo) {
+        slicerPredicateInfo.put(predicateInfo.getCube(), predicateInfo);
     }
 
     /**
@@ -215,11 +221,6 @@ public class RolapEvaluator implements Evaluator {
             aggregationLists =
                 new ArrayList<List<List<Member>>>(parent.aggregationLists);
         }
-        //compoundPredicates.addAll(parent.compoundPredicates);
-
-        if (parent.slicerPredicateInfo != null) {
-            this.slicerPredicateInfo = parent.slicerPredicateInfo;
-        }
 
         if (aggregationList != null) {
             if (aggregationLists == null) {
@@ -258,6 +259,7 @@ public class RolapEvaluator implements Evaluator {
         calculations = new RolapCalculation[currentMembers.length];
         calculationCount = 0;
         slicerMembers = new ArrayList<Member>();
+        slicerPredicateInfo = new HashMap<>();
         aggregationLists = null;
 
         commands = new Object[10];
@@ -582,8 +584,9 @@ public class RolapEvaluator implements Evaluator {
             disjointSlicerTuple = SqlConstraintUtils.isDisjointTuple(tuples);
             multiLevelSlicerTuple =
               SqlConstraintUtils.hasMultipleLevelSlicer(this);
-            slicerPredicateInfo = new CompoundPredicateInfo(
+            CompoundPredicateInfo predicateInfo = new CompoundPredicateInfo(
                 tuples, (RolapMeasure)currentMembers[0], this);
+            slicerPredicateInfo.put(predicateInfo.getCube(), predicateInfo);
         } else {
             disjointSlicerTuple = false;
             multiLevelSlicerTuple = false;

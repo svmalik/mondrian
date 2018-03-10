@@ -353,6 +353,7 @@ public class Main extends TestSuite {
             addTest(suite, CancellationTest.class);
             addTest(suite, ManyToManyTest.class);
             addTest(suite, CalculatedCellTest.class);
+            addTest(suite, RolapEvaluatorTest.class);
 
             if (MondrianProperties.instance().EnableNativeCrossJoin.get()) {
                 addTest(suite, BatchedFillTest.class, "suite");

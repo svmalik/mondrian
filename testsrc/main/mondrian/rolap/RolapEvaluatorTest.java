@@ -20,26 +20,36 @@ public class RolapEvaluatorTest extends FoodMartTestCase {
             + "* { Store.[USA].[CA], Store.[USA].[WA]}");
         RolapEvaluator evalulator = (RolapEvaluator) result.getRootEvaluator();
         final CompoundPredicateInfo slicerPredicateInfo =
-            evalulator.getSlicerPredicateInfo();
+            evalulator.getSlicerPredicateInfo(evalulator.getMeasureCube());
         assertEquals(
-            "(((`store`.`store_state`, `time_by_day`.`the_year`, `time_by_day`.`quarter`) in "
-            + "(('CA', 1997, 'Q1'), ('WA', 1997, 'Q1'), ('CA', 1997, 'Q2'), ('WA', 1997, 'Q2'))))",
+            "(`store`.`store_state` in ('CA', 'WA') and "
+            + "(((`time_by_day`.`the_year`, `time_by_day`.`quarter`) in ((1997, 'Q1'), (1997, 'Q2')))))",
             slicerPredicateInfo.getPredicateString());
         assertTrue(slicerPredicateInfo.isSatisfiable());
     }
 
     public void testSlicerPredicateUnsatisfiable() {
         assertQueryReturns(
-            "select measures.[Customer Count] on 0 from [warehouse and sales] "
+            "select measures.[Sales Count] on 0 from [warehouse and sales] "
             + "WHERE {[Time].[1997].Q1, [Time].[1997].Q2} "
-            + "*{[Warehouse].[USA].[CA], Warehouse.[USA].[WA]}", "");
+            + "*{[Warehouse].[USA].[CA], Warehouse.[USA].[WA]}",
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1], [Warehouse].[USA].[CA]}\n"
+            + "{[Time].[1997].[Q1], [Warehouse].[USA].[WA]}\n"
+            + "{[Time].[1997].[Q2], [Warehouse].[USA].[CA]}\n"
+            + "{[Time].[1997].[Q2], [Warehouse].[USA].[WA]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Sales Count]}\n"
+            + "Row #0: \n");
         RolapResult result = (RolapResult) executeQuery(
             "select  from [warehouse and sales] "
             + "WHERE {[Time].[1997].Q1, [Time].[1997].Q2} "
             + "* Head([Warehouse].[Country].members, 2)");
         RolapEvaluator evalulator = (RolapEvaluator) result.getRootEvaluator();
-        assertFalse(evalulator.getSlicerPredicateInfo().isSatisfiable());
-        assertNull(evalulator.getSlicerPredicateInfo().getPredicate());
+        RolapCube cube = evalulator.getMeasureCube();
+        assertFalse(evalulator.getSlicerPredicateInfo(cube).isSatisfiable());
+        assertNull(evalulator.getSlicerPredicateInfo(cube).getPredicate());
+        getTestContext().flushSchemaCache();
     }
 }
 
