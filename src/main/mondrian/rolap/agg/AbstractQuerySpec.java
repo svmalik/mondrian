@@ -394,21 +394,14 @@ public abstract class AbstractQuerySpec implements QuerySpec {
         Map<String, SqlQuery> subqueryMap = new HashMap<String, SqlQuery>();
         List<StarPredicate> predicateList = getPredicateList();
 
-        // Note, this option is only necessary during
-        // disjoint tuple use cases, there may be other M2M
-        // members at play that are use the regular distinct query approach
-        // TODO: Address hybrid scenario!
-        if (predicateList.size() > 0) {
-            // only do this if there are ORs in the predicate list and more 
-            // than one member in the tuple.
-            for (StarPredicate pred : predicateList) {
-                if (hasOrPredicate(pred)) {
-                    sqlQuery.correlatedSubquery = true;
-                }
-            }
-        }
-
         for (StarPredicate predicate : predicateList) {
+            if (hasOrPredicate(predicate)) {
+                // Note, this option is only necessary during
+                // disjoint tuple use cases, there may be other M2M
+                // members at play that are use the regular distinct query approach
+                // TODO: Address hybrid scenario!
+                sqlQuery.correlatedSubquery = true;
+            }
             Set<String> subquerySet = new HashSet<String>();
             for (RolapStar.Column column
                 : predicate.getConstrainedColumnList())
@@ -443,14 +436,18 @@ public abstract class AbstractQuerySpec implements QuerySpec {
                     }
                 } else {
                     table.addToFrom(sqlQuery, false, true);
-                    subquerySet.add(table.getSubQueryAlias());
+                    if (table.getSubQueryAlias() != null) {
+                        subquerySet.add(table.getSubQueryAlias());
+                        table.addToFrom(sqlQuery.getSubQuery(table.getSubQueryAlias()), false, true);
+                    }
                 }
             }
             if (subquerySet.size() > 1) {
                 // in this scenario, we have an And(List), and need to bundle the 
                 // non M2M items in a single group and generate the where clauses of 
                 // the M2M groups separately.
-                AndPredicate pred = (AndPredicate) predicate;
+                ListPredicate pred = (ListPredicate) predicate;
+                boolean isAndPredicate = predicate instanceof AndPredicate;
                 List<StarPredicate> regPreds = new ArrayList<StarPredicate>();
                 for (StarPredicate child : pred.getChildren()) {
                     List<RolapStar.Column> columnList = child.getConstrainedColumnList();
@@ -479,9 +476,9 @@ public abstract class AbstractQuerySpec implements QuerySpec {
                         regPreds.add(child);
                     }
                 }
-                AndPredicate andPred = new AndPredicate(regPreds);
+                ListPredicate listPred = isAndPredicate ? new AndPredicate(regPreds) : new OrPredicate(regPreds);
                 StringBuilder buf = new StringBuilder();
-                andPred.toSql(sqlQuery, buf);
+                listPred.toSql(sqlQuery, buf);
                 final String where = buf.toString();
                 if (!where.equals("true")) {
                     sqlQuery.addWhere(where);
