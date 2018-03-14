@@ -182,7 +182,19 @@ public class RolapConnection extends ConnectionBase {
             }
             internalStatement =
                 schema.getInternalConnection().getInternalStatement();
-            List<Role> roleList = roleLoader.loadRoles(server, schema, connectInfo);
+            List<Role> roleList = null;
+            final Locus locus1 =
+                new Locus(
+                    new Execution(internalStatement, 0),
+                    null,
+                    "Initializing roles");
+            Locus.push(locus1);
+            try {
+                roleList = roleLoader.loadRoles(server, schema, connectInfo);
+            }
+            finally {
+                Locus.pop(locus1);
+            }
             if (roleList != null) {
                 switch (roleList.size()) {
                 case 0:
