@@ -721,6 +721,104 @@ public class NativeSetEvaluationTest extends BatchTestCase {
             + "Row #2: 180\n");
     }
 
+    public void testNativeTopCountWithNesting2() {
+        final String mdx =
+            "WITH\n"
+            + "  SET TC1 AS 'TopCount(NonEmpty([Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].Children, [Measures].[Unit Sales]), 3)'\n"
+            + "  SET TC2 AS TopCount(TC1, 10)\n"
+            + "  SET TC3 AS Subset(TC1, 10)\n"
+            + "  MEMBER [Product].[(Selected)] AS Aggregate(TC2)\n"
+            + "  MEMBER [Product].[(Other)] AS Aggregate(TC3)\n"
+            + "  SELECT [Measures].[Unit Sales] on 0,\n"
+            + "    { [TC2], [Product].[(Other)], [Product].[(Selected)] } ON 1 \n"
+            + "  FROM [Sales] WHERE {[Time].[1997]}\n";
+
+        if (!isUseAgg() && MondrianProperties.instance().EnableNativeTopCount.get()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysqlQuery =
+                "select\n"
+                + "    `product_class`.`product_family` as `c0`,\n"
+                + "    `product_class`.`product_department` as `c1`,\n"
+                + "    `product_class`.`product_category` as `c2`,\n"
+                + "    `product_class`.`product_subcategory` as `c3`,\n"
+                + "    `product`.`brand_name` as `c4`,\n"
+                + "    `product`.`product_name` as `c5`\n"
+                + "from\n"
+                + "    `product_class` as `product_class`,\n"
+                + "    `product` as `product`,\n"
+                + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
+                + "and\n"
+                + "    `product`.`product_class_id` = `product_class`.`product_class_id`\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    (`product`.`brand_name` = 'Hermanos' and `product_class`.`product_subcategory` = 'Fresh Vegetables'"
+                + " and `product_class`.`product_category` = 'Vegetables'"
+                + " and `product_class`.`product_department` = 'Produce' and `product_class`.`product_family` = 'Food')\n"
+                + "and\n"
+                + "    `sales_fact_1997`.`unit_sales` is not null\n"
+                + "group by\n"
+                + "    `product_class`.`product_family`,\n"
+                + "    `product_class`.`product_department`,\n"
+                + "    `product_class`.`product_category`,\n"
+                + "    `product_class`.`product_subcategory`,\n"
+                + "    `product`.`brand_name`,\n"
+                + "    `product`.`product_name`\n"
+                + "order by\n"
+                + "    ISNULL(`product_class`.`product_family`) ASC, `product_class`.`product_family` ASC,\n"
+                + "    ISNULL(`product_class`.`product_department`) ASC, `product_class`.`product_department` ASC,\n"
+                + "    ISNULL(`product_class`.`product_category`) ASC, `product_class`.`product_category` ASC,\n"
+                + "    ISNULL(`product_class`.`product_subcategory`) ASC, `product_class`.`product_subcategory` ASC,\n"
+                + "    ISNULL(`product`.`brand_name`) ASC, `product`.`brand_name` ASC,\n"
+                + "    ISNULL(`product`.`product_name`) ASC, `product`.`product_name` ASC";
+            String mysqlQuery1 = mysqlQuery + " limit 3"; // TopCount(TopCount([], 3), 10)
+            SqlPattern mysqlPattern1 =
+                new SqlPattern(DatabaseProduct.MYSQL, mysqlQuery1, mysqlQuery1.length());
+            String mysqlQuery2 = mysqlQuery + " limit 0"; // Subset(TopCount([], 3), 10)
+            SqlPattern mysqlPattern2 =
+                new SqlPattern(DatabaseProduct.MYSQL, mysqlQuery2, mysqlQuery2.length());
+            assertQuerySql(mdx, new SqlPattern[] { mysqlPattern1, mysqlPattern2 });
+        }
+
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].[Hermanos Asparagus]}\n"
+            + "{[Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].[Hermanos Baby Onion]}\n"
+            + "{[Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].[Hermanos Beets]}\n"
+            + "{[Product].[(Other)]}\n"
+            + "{[Product].[(Selected)]}\n"
+            + "Row #0: 195\n"
+            + "Row #1: 205\n"
+            + "Row #2: 180\n"
+            + "Row #3: \n"
+            + "Row #4: 580\n");
+    }
+
+    public void testNativeTopCountWithNesting3() {
+        final String mdx =
+            "WITH\n"
+                + "  SET TC1 AS 'TopCount(NonEmpty([Product].[Food].[Produce].[Vegetables].[Fresh Vegetables].[Hermanos].Children, [Measures].[Unit Sales]), 3)'\n"
+                + "  SET TC2 AS TopCount(TC1, 2)\n"
+                + "  SET TC3 AS Subset(TC1, 2)\n"
+                + "  MEMBER [Product].[(Selected)] AS Aggregate(TC2)\n"
+                + "  MEMBER [Product].[(Other)] AS Aggregate(TC3)\n"
+                + "  SELECT [Measures].[Unit Sales] on 0,\n"
+                + "    { [TC2], [Product].[(Other)], [Product].[(Selected)] } ON 1 \n"
+                + "  FROM [Sales] WHERE {[Time].[1997]}\n";
+        propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+        verifySameNativeAndNot(mdx, "Native TopCount with Subset mismatch", getTestContext());
+    }
+
     public void testNativeTopCountFailsWhenNestingMultipleCubes() {
         final String mdx =
             "WITH\n"

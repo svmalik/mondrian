@@ -67,17 +67,32 @@ public class RolapNativeSubset extends RolapNativeSet {
             RolapCube baseCube,
             AggStar aggStar)
         {
-            if (start != null) {
-                sqlQuery.setOffset(start);
-            }
-            if (count != null) {
-              sqlQuery.setLimit(count);
-            }
-
             if (isJoinRequired() || parentConstraint != null) {
                 super.addConstraint(sqlQuery, baseCube, aggStar);
             } else if (args.length == 1) {
                 args[0].addConstraint(sqlQuery, baseCube, null, false);
+            }
+
+            boolean isOffsetLimitSet = false;
+            if (start != null) {
+                int origOffset = sqlQuery.getOffset() != null ? sqlQuery.getOffset() : 0;
+                sqlQuery.setOffset(start + origOffset);
+                isOffsetLimitSet = true;
+                if (sqlQuery.getLimit() != null) {
+                    sqlQuery.setLimit(sqlQuery.getLimit() - start);
+                }
+            }
+
+            if (count != null) {
+                if (sqlQuery.getLimit() == null || count < sqlQuery.getLimit()) {
+                    sqlQuery.setLimit(count);
+                    isOffsetLimitSet = true;
+                }
+            }
+
+            if (isOffsetLimitSet && sqlQuery.getLimit() != null && sqlQuery.getLimit() <= 0) {
+                sqlQuery.setLimit(0);
+                sqlQuery.setOffset(null);
             }
         }
 

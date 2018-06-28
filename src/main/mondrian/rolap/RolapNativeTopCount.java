@@ -124,7 +124,10 @@ public class RolapNativeTopCount extends RolapNativeSet {
             } else if (args.length == 1) {
                 args[0].addConstraint(sqlQuery, baseCube, null);
             }
-            sqlQuery.setLimit(topCount);
+
+            if (sqlQuery.getLimit() == null || topCount < sqlQuery.getLimit()) {
+                sqlQuery.setLimit(topCount);
+            }
         }
 
         private boolean deduceNullability(Exp expr) {
