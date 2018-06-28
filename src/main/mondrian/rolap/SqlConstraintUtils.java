@@ -2549,6 +2549,12 @@ public class SqlConstraintUtils {
     }
 
     public static Column tryOptimizeColumn(Column column, SqlQuery query) {
+        if (query.getAlias(column.generateExprString(query)) != null) {
+            // no reason to optimize if the column
+            // has already been added to the query
+            return column;
+        }
+
         RolapStar.Column optimized = column.optimize();
         RolapStar.Table table = optimized.getTable();
         if (table.getJoinCondition() == null
