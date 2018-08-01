@@ -2194,6 +2194,8 @@ public class BuiltinFunTable extends FunTableImpl {
             }
         });
 
+        builder.define(DivideFunDef.Resolver);
+
         // Define VBA functions.
         for (FunDef funDef : JavaFunDef.scan(Vba.class)) {
             builder.define(funDef);

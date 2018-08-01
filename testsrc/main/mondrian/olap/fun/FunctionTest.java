@@ -7024,6 +7024,50 @@ public class FunctionTest extends FoodMartTestCase {
         }
     }
 
+    public void testDivideFunction() {
+        assertQueryReturns(
+            "WITH "
+            + "MEMBER [Measures].[test1] AS Divide([Measures].[Unit Sales], [Measures].[Sales Count]), FORMAT_STRING='0.00'\n"
+            + "MEMBER [Measures].[test2] AS Divide([Measures].[Unit Sales], [Measures].[Sales Count], 0), FORMAT_STRING='0.00'\n"
+            + "MEMBER [Measures].[test3] AS Divide([Measures].[Unit Sales], [Measures].[Sales Count] - [Measures].[Sales Count], 0)\n"
+            + "MEMBER [Measures].[test4] AS Divide([Measures].[Unit Sales], [Measures].[Sales Count] - [Measures].[Sales Count])\n"
+            + "MEMBER [Measures].[test5] AS Divide([Measures].[Unit Sales], [Measures].[Sales Count] - [Measures].[Sales Count], [Measures].[z])\n"
+            + "MEMBER [Measures].[z] AS -1\n"
+            + "SELECT {[Measures].[Unit Sales], [Measures].[Sales Count]"
+            + ", [Measures].[test1], [Measures].[test2], [Measures].[test3], [Measures].[test4], [Measures].[test5]}"
+            + " ON 0 FROM [Sales]",
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "{[Measures].[Sales Count]}\n"
+            + "{[Measures].[test1]}\n"
+            + "{[Measures].[test2]}\n"
+            + "{[Measures].[test3]}\n"
+            + "{[Measures].[test4]}\n"
+            + "{[Measures].[test5]}\n"
+            + "Row #0: 266,773\n"
+            + "Row #0: 86,837\n"
+            + "Row #0: 3.07\n"
+            + "Row #0: 3.07\n"
+            + "Row #0: 0\n"
+            + "Row #0: \n"
+            + "Row #0: -1\n");
+
+        assertExprReturns("Divide(10, 5)", "2");
+        assertExprReturns("Divide(10, 5, 0)", "2");
+        assertExprReturns("Divide(" + NullNumericExpr + ", -2)", "");
+        assertExprReturns("Divide(" + NullNumericExpr + ", " + NullNumericExpr + ")", "");
+        assertExprReturns("Divide(-2, " + NullNumericExpr + ")", "");
+        assertExprReturns("Divide(-2, " + NullNumericExpr + ", 0)", "0");
+        assertExprReturns("Divide(-2, " + NullNumericExpr + ", (1/0))", "Infinity");
+        assertExprReturns("Divide(-3, (2 - 2), (-1/0))", "-Infinity");
+        assertExprReturns("Divide(0, 0)", "");
+        assertExprReturns("Divide(NULL, 1)", "");
+        assertExprReturns("Divide(NULL, NULL)", "");
+        assertExprReturns("Divide(1, NULL)", "");
+    }
+
     public void testDividePrecedence() {
         assertExprReturns("24 / 4 / 2 * 10 - -1", "31");
     }
