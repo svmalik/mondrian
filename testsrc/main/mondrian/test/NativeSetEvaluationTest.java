@@ -2581,6 +2581,76 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         assertQuerySql(mdx, new SqlPattern[]{mysqlPattern});
     }
 
+    public void testNativeNonEmptyWithZeroCountInMeasure() {
+        // this test has dialect specific measure
+        switch (getTestContext().getDialect().getDatabaseProduct()) {
+            case MYSQL:
+            case VERTICA:
+                break;
+            default:
+                return;
+        }
+        String cube =
+            "<Cube name=\"Sales_test\">\n"
+            + "  <Table name=\"sales_fact_1997\"/>\n"
+            + "  <DimensionUsage name=\"Store\" source=\"Store\" foreignKey=\"store_id\"/>\n"
+            + "  <DimensionUsage name=\"Time\" source=\"Time\" foreignKey=\"time_id\"/>\n"
+            + "  <Measure name=\"Unit Sales\" column=\"unit_sales\" aggregator=\"sum\" formatString=\"Standard\"/>\n"
+            + "  <Measure name=\"Customer Count (no store 2)\" aggregator=\"distinct-count\">\n"
+            + "    <MeasureExpression>\n"
+            + "      <SQL dialect=\"mysql\">\n"
+            + "      (case when `sales_fact_1997`.`store_id` = 2 then null else `sales_fact_1997`.`customer_id` end)\n"
+            + "      </SQL>\n"
+            + "      <SQL dialect=\"vertica\">\n"
+            + "      (case when 'sales_fact_1997'.'store_id' = 2 then null else 'sales_fact_1997'.'customer_id' end)\n"
+            + "      </SQL>\n"
+            + "    </MeasureExpression>\n"
+            + "  </Measure>\n"
+            + "</Cube>";
+        final String mdx =
+            "SELECT\n"
+            + "NonEmpty([Store].[Store City].Members, [Measures].[Customer Count (no store 2)]) ON 0\n"
+            + ", [Measures].[Customer Count (no store 2)] ON 1\n"
+            + "FROM [Sales_test]";
+        TestContext context = getTestContext()
+            .create(null, cube, null, null, null, null);
+
+        verifySameNativeAndNot(mdx, "NonEmpty with zero count measure", context);
+
+        // [Store].[USA].[WA].[Bellingham] gets 0 or 0.0 and should be removed as empty
+        context.assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Store].[USA].[CA].[Beverly Hills]}\n"
+            + "{[Store].[USA].[CA].[Los Angeles]}\n"
+            + "{[Store].[USA].[CA].[San Diego]}\n"
+            + "{[Store].[USA].[CA].[San Francisco]}\n"
+            + "{[Store].[USA].[OR].[Portland]}\n"
+            + "{[Store].[USA].[OR].[Salem]}\n"
+            + "{[Store].[USA].[WA].[Bremerton]}\n"
+            + "{[Store].[USA].[WA].[Seattle]}\n"
+            + "{[Store].[USA].[WA].[Spokane]}\n"
+            + "{[Store].[USA].[WA].[Tacoma]}\n"
+            + "{[Store].[USA].[WA].[Walla Walla]}\n"
+            + "{[Store].[USA].[WA].[Yakima]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[Customer Count (no store 2)]}\n"
+            + "Row #0: 1,059\n"
+            + "Row #0: 1,147\n"
+            + "Row #0: 962\n"
+            + "Row #0: 296\n"
+            + "Row #0: 563\n"
+            + "Row #0: 474\n"
+            + "Row #0: 179\n"
+            + "Row #0: 906\n"
+            + "Row #0: 84\n"
+            + "Row #0: 278\n"
+            + "Row #0: 96\n"
+            + "Row #0: 95\n");
+    }
+
     public void testNativeNonEmptyFuncMeasureAndMembers() {
         propSaver.set(propSaver.properties.GenerateFormattedSql, true);
         String mdx = "SELECT { Measures.[Store Sales] } ON COLUMNS,\n"

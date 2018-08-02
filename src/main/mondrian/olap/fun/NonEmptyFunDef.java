@@ -22,6 +22,7 @@ import mondrian.mdx.MdxVisitorImpl;
 import mondrian.mdx.MemberExpr;
 import mondrian.mdx.NamedSetExpr;
 import mondrian.mdx.ResolvedFunCall;
+import mondrian.olap.Aggregator;
 import mondrian.olap.Evaluator;
 import mondrian.olap.Exp;
 import mondrian.olap.FunDef;
@@ -30,11 +31,13 @@ import mondrian.olap.Literal;
 import mondrian.olap.Member;
 import mondrian.olap.MondrianProperties;
 import mondrian.olap.NativeEvaluator;
+import mondrian.olap.Property;
 import mondrian.olap.Syntax;
 import mondrian.olap.Validator;
 import mondrian.olap.type.MemberType;
 import mondrian.olap.type.SetType;
 import mondrian.olap.type.TupleType;
+import mondrian.rolap.RolapAggregator;
 import mondrian.rolap.RolapCalculatedMember;
 import mondrian.rolap.RolapCube;
 import mondrian.rolap.RolapMeasure;
@@ -251,7 +254,7 @@ public class NonEmptyFunDef extends FunDefBase {
                 eval.setContext(currentMembers);
                 Object currval = eval.evaluateCurrent();
                 if (currval != null) {
-                    isNonEmpty = true;
+                    isNonEmpty = isNonEmpty(currval, eval);
                     // if currval comes back as a Double 0.0, that may mean there was a missed hit in cache.
                     // skip the break, so we can build up all cell requests.
                     if (!(currval instanceof Double) || !(((Double)currval).doubleValue() == 0.0)) {
@@ -264,6 +267,28 @@ public class NonEmptyFunDef extends FunDefBase {
             }
         }
         return result;
+    }
+
+    private static boolean isNonEmpty(Object val, Evaluator evaluator) {
+        if (val == null) {
+            return false;
+        }
+
+        if (val instanceof Number) {
+            if ((val instanceof Double && (Double) val == 0.0) ||
+                ((Number) val).intValue() == 0 ||
+                ((Number) val).longValue() == 0)
+            {
+                Aggregator aggregator =
+                    (Aggregator) evaluator.getProperty(
+                        Property.AGGREGATION_TYPE.name, null);
+                return
+                    aggregator != RolapAggregator.DistinctCount &&
+                    aggregator != RolapAggregator.Count;
+            }
+        }
+
+        return true;
     }
 
     private List<ResolvedFunCall> getNewNonEmptyCalls(
