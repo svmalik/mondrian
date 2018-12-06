@@ -53,7 +53,7 @@ class IntersectFunDef extends FunDefBase
             call, new Calc[] {listCalc1, listCalc2})
         {
             public TupleList evaluateList(Evaluator evaluator) {
-                TupleList leftList =
+                final TupleList leftList =
                     listCalc1.evaluateList(evaluator);
                 if (leftList.isEmpty()) {
                     return leftList;
@@ -62,6 +62,13 @@ class IntersectFunDef extends FunDefBase
                     listCalc2.evaluateList(evaluator);
                 if (rightList.isEmpty()) {
                     return rightList;
+                }
+
+                final TupleList result =
+                    TupleCollections.createList(
+                        arity, Math.min(leftList.size(), rightList.size()));
+                if (tryCompileUnaryList(leftList, rightList, result)) {
+                    return result;
                 }
 
                 // Set of members from the right side of the intersect.
@@ -76,9 +83,6 @@ class IntersectFunDef extends FunDefBase
                     rightSet.add(tuple);
                 }
 
-                final TupleList result =
-                    TupleCollections.createList(
-                        arity, Math.min(leftList.size(), rightList.size()));
                 final Set<List<Member>> resultSet =
                     all ? null : new HashSet<List<Member>>();
                 for (List<Member> leftTuple : leftList) {
@@ -115,22 +119,46 @@ class IntersectFunDef extends FunDefBase
             {
                 List<Member> tuple = leftTuple;
                 for (int i = 0; i < rightKey.size(); i++) {
-                    Member member = rightKey.get(i);
                     if (!(tuple.get(i)
-                        instanceof VisualTotalsFunDef.VisualTotalMember)
-                        && member instanceof
-                        VisualTotalsFunDef.VisualTotalMember)
+                        instanceof VisualTotalsFunDef.VisualTotalMember))
                     {
-                        if (tuple == leftTuple) {
-                            // clone on first VisualTotalMember -- to avoid
-                            // alloc/copy in the common case where there are
-                            // no VisualTotalMembers
-                            tuple = new ArrayList<Member>(leftTuple);
+                        Member member = rightKey.get(i);
+                        if (member instanceof
+                            VisualTotalsFunDef.VisualTotalMember) {
+                            if (tuple == leftTuple) {
+                                // clone on first VisualTotalMember -- to avoid
+                                // alloc/copy in the common case where there are
+                                // no VisualTotalMembers
+                                tuple = new ArrayList<Member>(leftTuple);
+                            }
+                            tuple.set(i, member);
                         }
-                        tuple.set(i, member);
                     }
                 }
                 return tuple;
+            }
+
+            private boolean tryCompileUnaryList(
+                TupleList leftList, TupleList rightList, TupleList result)
+            {
+                // this simple case with a single member covers most of our use cases
+                if (leftList.getArity() != 1 || leftList.size() != 1) {
+                    return false;
+                }
+
+                Member leftMember = leftList.get(0, 0);
+                for (int i = 0, size = rightList.size(); i < size; i++) {
+                    Member rightMember = rightList.get(0, i);
+                    if (leftMember == rightMember) {
+                        if (rightMember instanceof VisualTotalsFunDef.VisualTotalMember) {
+                            return false;
+                        }
+
+                        result.add(leftList.get(0));
+                        return true;
+                    }
+                }
+                return false;
             }
         };
     }
