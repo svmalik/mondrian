@@ -106,6 +106,7 @@ public class RolapEvaluator implements Evaluator {
     private TupleList slicerTuples;
     private boolean disjointSlicerTuple;
     private boolean multiLevelSlicerTuple;
+    private boolean slicerSupportsAggregatePushdown;
 
     private boolean nativeEnabled;
     private Member[] nonAllMembers;
@@ -207,6 +208,7 @@ public class RolapEvaluator implements Evaluator {
         slicerPredicateInfo = parent.slicerPredicateInfo;
         disjointSlicerTuple = parent.disjointSlicerTuple;
         multiLevelSlicerTuple = parent.multiLevelSlicerTuple;
+        slicerSupportsAggregatePushdown = parent.slicerSupportsAggregatePushdown;
         expandingMember = parent.expandingMember;
 
         commands = new Object[10];
@@ -260,6 +262,7 @@ public class RolapEvaluator implements Evaluator {
         calculationCount = 0;
         slicerMembers = new ArrayList<Member>();
         slicerPredicateInfo = new HashMap<>();
+        slicerSupportsAggregatePushdown = false;
         aggregationLists = null;
 
         commands = new Object[10];
@@ -580,6 +583,7 @@ public class RolapEvaluator implements Evaluator {
      */
     public final void setSlicerTuples(TupleList tuples) {
         slicerTuples = tuples;
+        slicerSupportsAggregatePushdown = false;
         if (tuples != null) {
             disjointSlicerTuple = SqlConstraintUtils.isDisjointTuple(tuples);
             multiLevelSlicerTuple =
@@ -606,6 +610,14 @@ public class RolapEvaluator implements Evaluator {
 
     public boolean isMultiLevelSlicerTuple() {
         return multiLevelSlicerTuple;
+    }
+
+    public boolean doesSlicerSupportAggregatePushdown() {
+        return slicerSupportsAggregatePushdown;
+    }
+
+    public void setSlicerSupportAggregatePushdown(boolean isSupported) {
+        slicerSupportsAggregatePushdown = isSupported;
     }
 
     /**

@@ -288,6 +288,9 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
             if (ev instanceof RolapEvaluator) {
                 rolapEvaluator = (RolapEvaluator)ev;
                 isSlicer = rolapEvaluator.getSlicerTuples() == tupleList;
+                if (isSlicer && rolapEvaluator.doesSlicerSupportAggregatePushdown()) {
+                    return true;
+                }
             }
             Set<Member> argMembers = new HashSet<>();
             for (List<Member> members : tupleList) {
@@ -321,6 +324,10 @@ public class AggregateFunDef extends AbstractAggregateFunDef {
                     {
                         return false;
                     }
+                }
+
+                if (isSlicer) {
+                    rolapEvaluator.setSlicerSupportAggregatePushdown(true);
                 }
             }
             return true;
