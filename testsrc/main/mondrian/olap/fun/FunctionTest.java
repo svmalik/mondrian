@@ -2323,6 +2323,51 @@ public class FunctionTest extends FoodMartTestCase {
             + "{[Store].[USA].[OR]}\n"
             + "{[Store].[USA].[WA]}\n"
             + "{[Store].[USA].[CA plus OR]}\n");
+
+        //----------------------------------------------------
+        // AddCalculatedMembers: only sibling calc members should be included
+        //----------------------------------------------------
+        assertQueryReturns(
+            "WITH MEMBER [Store].[USA].[CA plus OR] AS 'AGGREGATE({[Store].[USA].[CA], [Store].[USA].[OR]})' "
+            + "\nMEMBER [Store].[Canada].[BC copy] AS '[Store].[Canada].[BC]'"
+            + "\nSELECT {[Measures].[Unit Sales], [Measures].[Store Sales]} ON COLUMNS,"
+            + "AddCalculatedMembers([Store].[USA].Children) ON ROWS "
+            + "\nFROM Sales "
+            + "WHERE ([1997].[Q1])",
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "{[Measures].[Store Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Store].[USA].[CA]}\n"
+            + "{[Store].[USA].[OR]}\n"
+            + "{[Store].[USA].[WA]}\n"
+            + "{[Store].[USA].[CA plus OR]}\n"
+            + "Row #0: 16,890\n"
+            + "Row #0: 36,175.20\n"
+            + "Row #1: 19,287\n"
+            + "Row #1: 40,170.29\n"
+            + "Row #2: 30,114\n"
+            + "Row #2: 63,282.86\n"
+            + "Row #3: 36,177\n"
+            + "Row #3: 76,345.49\n");
+
+        //----------------------------------------------------
+        // AddCalculatedMembers: test with All lelel
+        //----------------------------------------------------
+        assertQueryReturns(
+            "WITH MEMBER [Store].[USA].[CA plus OR] AS 'AGGREGATE({[Store].[USA].[CA], [Store].[USA].[OR]})' "
+            + "SELECT {[Measures].[Unit Sales]} ON COLUMNS,"
+            + "AddCalculatedMembers({[Store].[All Stores]}) ON ROWS "
+            + "FROM Sales WHERE ([1997].[Q1])",
+        "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Unit Sales]}\n"
+            + "Axis #2:\n"
+            + "{[Store].[All Stores]}\n"
+            + "Row #0: 66,291\n");
     }
 
     public void testStripCalculatedMembers() {
@@ -11875,9 +11920,7 @@ Intel platforms):
             + "{[Product].[Drink]}\n"
             + "{[Product].[Non-Consumable]}\n"
             + "Row #0: 6,838\n"
-            // Note: For [Non-Consumable], the calculated child for [Drink] was
-            // selected!
-            + "Row #1: 6,838\n");
+            + "Row #1: 841\n");
         Member member = executeSingletonAxis(
             "[Product].[All Products].CalculatedChild(\"foobar\")");
         Assert.assertEquals(member, null);

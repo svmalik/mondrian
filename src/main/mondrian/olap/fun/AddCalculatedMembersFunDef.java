@@ -62,7 +62,7 @@ class AddCalculatedMembersFunDef extends FunDefBase {
         Evaluator evaluator)
     {
         // Determine unique levels in the set
-        final Set<Level> levels = new LinkedHashSet<Level>();
+        final Map<Level, Set<Member>> levels = new LinkedHashMap<>();
         Hierarchy hierarchy = null;
 
         for (Member member : memberList) {
@@ -75,7 +75,15 @@ class AddCalculatedMembersFunDef extends FunDefBase {
                     + "AddCalculatedMembers set: " + hierarchy
                     + " vs " + member.getHierarchy());
             }
-            levels.add(member.getLevel());
+
+            Set<Member> levelMembers;
+            if (levels.containsKey(member.getLevel())) {
+                levelMembers = levels.get(member.getLevel());
+            } else {
+                levelMembers = new LinkedHashSet<>();
+                levels.put(member.getLevel(), levelMembers);
+            }
+            levelMembers.add(member.isAll() ? member : member.getParentMember());
         }
 
         // For each level, add the calculated members from both
@@ -83,14 +91,16 @@ class AddCalculatedMembersFunDef extends FunDefBase {
         List<Member> workingList = null;
         final SchemaReader schemaReader =
                 evaluator.getQuery().getSchemaReader(true);
-        for (Level level : levels) {
+        for (Level level : levels.keySet()) {
             List<Member> calcMemberList =
                 schemaReader.getCalculatedMembers(level);
             if (workingList == null && !calcMemberList.isEmpty()) {
                 workingList = new ArrayList<>(memberList);
             }
             for (Member calc : calcMemberList) {
-                if (!workingList.contains(calc)) {
+                if (!workingList.contains(calc) &&
+                    levels.get(level).contains(calc.getParentMember()))
+                {
                     workingList.add(calc);
                 }
             }
