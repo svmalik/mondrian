@@ -131,11 +131,14 @@ public class RolapNativeOrder extends RolapNativeSet {
                         sqlQuery, aggStar, getEvaluator(), level, preEval);
                 final String orderBySql =
                     sql.generateTopCountOrderBy(orderByExpr);
-                if (!"".equals(orderBySql)) {
+                if (!"".equals(orderBySql) && !isInSubquery(sqlQuery)) {
                     boolean nullable =
                         deduceNullability(orderByExpr);
-                    final String orderByAlias =
-                        sqlQuery.addSelect(orderBySql, null);
+                    String orderByAlias = sqlQuery.getAlias(orderBySql);
+                    if (orderByAlias == null) {
+                        orderByAlias = sqlQuery.addSelect(orderBySql, null);
+                    }
+
                     sqlQuery.addOrderBy(
                         orderBySql,
                         orderByAlias,
@@ -159,6 +162,20 @@ public class RolapNativeOrder extends RolapNativeSet {
             final RolapStoredMeasure measure =
                 (RolapStoredMeasure) memberExpr.getMember();
             return measure.getAggregator() != RolapAggregator.DistinctCount;
+        }
+
+        private boolean isInSubquery(SqlQuery sqlQuery) {
+            if (level.getHierarchy() instanceof RolapCubeHierarchy &&
+                ((RolapCubeHierarchy)level.getHierarchy()).isManyToMany() &&
+                !sqlQuery.subqueries.isEmpty())
+            {
+                for (SqlQuery subsql : sqlQuery.subqueries.values()) {
+                    if (subsql.hasFrom(level.getHierarchy().getRelation(), null)){
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         /**

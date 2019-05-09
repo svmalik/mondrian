@@ -2406,6 +2406,36 @@ public class ManyToManyTest  extends CsvDBTestCase {
             newList.toString());
     }
 
+    public void testNativeOrderByMemberName() {
+        if (!MondrianProperties.instance().EnableNativeOrder.get()) {
+            return;
+        }
+
+        TestContext context = createFoodmartTestContext();
+        context.assertQueryReturns(
+            "WITH SET [Warehouses] AS NonEmpty([Warehouse].[City].Members, [Measures].[Sales Count])\n"
+            + "SET [Warehouses Ordered] AS Order([Warehouses], [Warehouse].[City].CurrentMember.Name, BAsc)\n"
+            + "SET [Warehouses Subset] AS Subset([Warehouses Ordered], 0, 5)\n"
+            + "SELECT {[Measures].[Sales Count]} ON COLUMNS, {[Warehouses Subset]} ON ROWS\n"
+            + "FROM [WarehouseSales]\n"
+            + "WHERE [Time].[1997].[Q1]",
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Sales Count]}\n"
+            + "Axis #2:\n"
+            + "{[Warehouse].[USA].[WA].[Bellingham]}\n"
+            + "{[Warehouse].[USA].[CA].[Beverly Hills]}\n"
+            + "{[Warehouse].[USA].[WA].[Bremerton]}\n"
+            + "{[Warehouse].[USA].[CA].[Los Angeles]}\n"
+            + "{[Warehouse].[USA].[OR].[Portland]}\n"
+            + "Row #0: 18\n"
+            + "Row #1: 139\n"
+            + "Row #2: 518\n"
+            + "Row #3: 571\n"
+            + "Row #4: 223\n");
+    }
+
     /**
      * This class overrides the buildCartesianProduct function to public so it
      * can be tested
