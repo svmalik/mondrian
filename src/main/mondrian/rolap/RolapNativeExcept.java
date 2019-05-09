@@ -141,10 +141,11 @@ public class RolapNativeExcept extends RolapNativeSet {
                 evaluator.restore(savepoint);
             }
         } else {
-            // if subset wraps another native function, add start and count to the constraint.
+            SetConstraint parentConstraint = (SetConstraint) eval.getConstraint();
+            RolapEvaluator parentEvaluator = (RolapEvaluator) parentConstraint.getEvaluator();
             TupleConstraint constraint =
                 new ExceptFunctionConstraint(
-                    cjArgs, exceptMembers, evaluator, (SetConstraint)eval.getConstraint());
+                    cjArgs, exceptMembers, parentEvaluator, parentConstraint);
             eval.setConstraint(constraint);
             LOGGER.debug("using native except");
             return eval;

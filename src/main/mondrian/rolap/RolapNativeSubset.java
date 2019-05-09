@@ -239,9 +239,11 @@ public class RolapNativeSubset extends RolapNativeSet {
             }
         } else {
             // if subset wraps another native function, add start and count to the constraint.
+            SetConstraint parentConstraint = (SetConstraint) eval.getConstraint();
+            RolapEvaluator parentEvaluator = (RolapEvaluator) parentConstraint.getEvaluator();
             TupleConstraint constraint =
                 new SubsetConstraint(
-                    start, count, cjArgs, evaluator, (SetConstraint)eval.getConstraint());
+                    start, count, cjArgs, parentEvaluator, parentConstraint);
             eval.setConstraint(constraint);
             if (count != null) {
                 eval.setMaxRows(count);

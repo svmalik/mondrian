@@ -7904,6 +7904,94 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         );
     }
 
+    public void testNativeNestingShouldUseParentConstraint() {
+        if (!MondrianProperties.instance().EnableNativeFilter.get()
+            || !MondrianProperties.instance().EnableNativeNonEmptyFunction.get()
+            || !MondrianProperties.instance().EnableNativeOrder.get())
+        {
+            return;
+        }
+        String roleDef =
+            "  <Role name=\"Test\">\n"
+            + "    <SchemaGrant access=\"all\">\n"
+            + "      <CubeGrant cube=\"Warehouse and Sales3\" access=\"all\">\n"
+            + "        <HierarchyGrant hierarchy=\"[Store]\" rollupPolicy=\"partial\" access=\"custom\">\n"
+            + "          <MemberGrant member=\"[Store].[All Stores]\" access=\"none\"></MemberGrant>\n"
+            + "          <MemberGrant member=\"[Store].[USA]\" access=\"all\"></MemberGrant>\n"
+            + "        </HierarchyGrant>\n"
+            + "      </CubeGrant>\n"
+            + "    </SchemaGrant>\n"
+            + "  </Role>";
+        String virtualCube =
+            "<VirtualCube name=\"Warehouse and Sales3\" defaultMeasure=\"Store Invoice\">\n"
+            + "  <CubeUsages>\n"
+            + "       <CubeUsage cubeName=\"Sales\" ignoreUnrelatedDimensions=\"true\"/>"
+            + "       <CubeUsage cubeName=\"Warehouse\" ignoreUnrelatedDimensions=\"true\"/>"
+            + "   </CubeUsages>\n"
+            + "   <VirtualCubeDimension cubeName=\"Sales\" name=\"Customers\"/>\n"
+            + "   <VirtualCubeDimension name=\"Store\"/>\n"
+            + "   <VirtualCubeDimension name=\"Store Type\"/>\n"
+            + "   <VirtualCubeDimension name=\"Product\"/>\n"
+            + "   <VirtualCubeDimension name=\"Time\"/>\n"
+            + "   <VirtualCubeDimension cubeName=\"Warehouse\" name=\"Warehouse\"/>\n"
+            + "   <VirtualCubeMeasure cubeName=\"Sales\" name=\"[Measures].[Customer Count]\"/>\n"
+            + "   <VirtualCubeMeasure cubeName=\"Warehouse\" name=\"[Measures].[Units Ordered]\"/>\n"
+            + "   <VirtualCubeMeasure cubeName=\"Warehouse\" name=\"[Measures].[Warehouse Sales]\"/>\n"
+            + "</VirtualCube>";
+        String mdx =
+            "WITH SET [s1] AS Filter({[Store Type].[Store Type].members}, InStr([Store Type].CurrentMember.Name, \"x\") = 0)\n"
+            + "SET [s2] AS Order([s1], \"\")\n"
+            + "SET [s3] AS NonEmpty([s2], [Measures].[Units Ordered])\n"
+            + "SELECT Subset([s3], 0, 2) ON 0,"
+            + " [Measures].[Warehouse Sales] on 1\n"
+            + " FROM [Warehouse and Sales3] WHERE [Time].[1997].[Q1]";
+
+        TestContext testContext =
+            TestContext.instance()
+                .create(null, null, virtualCube, null, null, roleDef)
+                .withCube("Warehouse and Sales3")
+                .withRole("Test");
+        if (!isUseAgg()) {
+            propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+            String mysql =
+                "select\n"
+                + "    `store`.`store_type` as `c0`\n"
+                + "from\n"
+                + "    `store` as `store`,\n"
+                + "    `inventory_fact_1997` as `inventory_fact_1997`,\n"
+                + "    `time_by_day` as `time_by_day`\n"
+                + "where\n"
+                + "    `inventory_fact_1997`.`store_id` = `store`.`store_id`\n"
+                + "and\n"
+                + "    `inventory_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+                + "and\n"
+                + "    `time_by_day`.`the_year` = 1997\n"
+                + "and\n"
+                + "    `time_by_day`.`quarter` = 'Q1'\n"
+                + "and\n"
+                + "    `store`.`store_country` = 'USA'\n"
+                + "and\n"
+                + "    `inventory_fact_1997`.`units_ordered` is not null\n"
+                + "group by\n"
+                + "    `store`.`store_type`\n"
+                + "having\n"
+                + "    (INSTR(c0, 'x') = 0)\n"
+                + "order by\n"
+                + "    ISNULL(`store`.`store_type`) ASC, `store`.`store_type` ASC limit 2 offset 0";
+            assertQuerySql(testContext, mdx, mysqlPattern(mysql));
+        }
+        testContext.assertQueryReturns(mdx,
+            "Axis #0:\n"
+            + "{[Time].[1997].[Q1]}\n"
+            + "Axis #1:\n"
+            + "{[Store Type].[Mid-Size Grocery]}\n"
+            + "{[Store Type].[Small Grocery]}\n"
+            + "Axis #2:\n"
+            + "{[Measures].[Warehouse Sales]}\n"
+            + "Row #0: 8,040.024\n"
+            + "Row #0: 5,931.583\n");
+    }
+
     public void testDimensionUsageWithDifferentNameExecutedNatively() {
       TestContext testContext = getTestContext()
               .createSubstitutingCube(

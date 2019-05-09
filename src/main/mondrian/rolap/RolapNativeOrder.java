@@ -337,7 +337,7 @@ public class RolapNativeOrder extends RolapNativeSet {
                 }
                 TupleConstraint constraint =
                     new OrderConstraint(
-                        combinedArgs, evaluator, orderByExpr, ascending, sql.preEvalExprs, firstCrossjoinLevel, parentConstraint);
+                        combinedArgs, evaluator, orderByExpr, ascending, sql.preEvalExprs, firstCrossjoinLevel, null);
                 SetEvaluator sev =
                     new SetEvaluator(cjArgs, schemaReader, constraint, sql.getStoredMeasure());
                 sev.setCompleteWithNullValues(!evaluator.isNonEmpty());
@@ -347,9 +347,10 @@ public class RolapNativeOrder extends RolapNativeSet {
                 evaluator.restore(savepoint);
             }
         } else {
+            RolapEvaluator parentEvaluator = (RolapEvaluator) parentConstraint.getEvaluator();
             TupleConstraint constraint =
                 new OrderConstraint(
-                    cjArgs, evaluator, orderByExpr, ascending, sql.preEvalExprs, firstCrossjoinLevel, parentConstraint);
+                    cjArgs, parentEvaluator, orderByExpr, ascending, sql.preEvalExprs, firstCrossjoinLevel, parentConstraint);
             eval.setConstraint(constraint);
             LOGGER.debug("using nested native order");
             return eval;
