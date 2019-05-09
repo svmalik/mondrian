@@ -187,6 +187,64 @@ public class HangerDimensionTest extends FoodMartTestCase {
             Util.close(cellSet, statement, connection);
         }
     }
+
+    public void testHangerDimensionDistinctCountAggregation() {
+        String schema =
+            "<Schema name=\"tiny\">\n"
+            + "  <Dimension name=\"Time\" type=\"TimeDimension\">\n"
+            + "    <Hierarchy hasAll=\"false\" primaryKey=\"time_id\">\n"
+            + "      <Table name=\"time_by_day\" />\n"
+            + "      <Level name=\"Year\" column=\"the_year\" type=\"Numeric\" uniqueMembers=\"true\" levelType=\"TimeYears\" />\n"
+            + "      <Level name=\"Quarter\" uniqueMembers=\"false\" levelType=\"TimeQuarters\" />\n"
+            + "    </Hierarchy>\n"
+            + "  </Dimension>\n"
+            + "  <Dimension name=\"Product\">\n"
+            + "    <Hierarchy hasAll=\"true\" primaryKey=\"product_id\" primaryKeyTable=\"product\">\n"
+            + "      <Join leftKey=\"product_class_id\" rightKey=\"product_class_id\">\n"
+            + "        <Table name=\"product\"/>\n"
+            + "        <Table name=\"product_class\"/>\n"
+            + "      </Join>\n"
+            + "      <Level name=\"Product Family\" table=\"product_class\" column=\"product_family\" uniqueMembers=\"true\" />\n"
+            + "    </Hierarchy>\n"
+            + "  </Dimension>\n"
+            + "  <Dimension name=\"Marital Status\">\n"
+            + "    <Hierarchy hasAll=\"true\" allMemberName=\"All Marital Status\" primaryKey=\"customer_id\">\n"
+            + "      <Table name=\"customer\"/>\n"
+            + "      <Level name=\"Marital Status\" column=\"marital_status\" uniqueMembers=\"true\" approxRowCount=\"111\"/>\n"
+            + "    </Hierarchy>\n"
+            + "  </Dimension>"
+            + "  <Dimension name=\"Boolean\" hanger=\"true\">\n"
+            + "    <Hierarchy hasAll=\"true\" allMemberName=\"All\">\n"
+            + "      <Level name=\"Boolean\"/>\n"
+            + "    </Hierarchy>\n"
+            + "  </Dimension>"
+            + "  <Cube name=\"Sales\">\n"
+            + "    <Table name=\"sales_fact_1997\" />\n"
+            + "    <DimensionUsage name=\"Time\" source=\"Time\" foreignKey=\"time_id\" />\n"
+            + "    <DimensionUsage name=\"Product\" source=\"Product\" foreignKey=\"product_id\" />\n"
+            + "    <DimensionUsage name=\"Marital Status\" source=\"Marital Status\" foreignKey=\"customer_id\" />\n"
+            + "    <DimensionUsage name=\"Boolean\" source=\"Boolean\" />\n"
+            + "    <Measure name=\"Unit Sales\" column=\"unit_sales\" aggregator=\"sum\" formatString=\"Standard\" />\n"
+            + "    <Measure name=\"Customer Count\" column=\"customer_id\" aggregator=\"distinct-count\" formatString=\"#,###\" />\n"
+            + "    <CalculatedMember name=\"False\" hierarchy=\"[Boolean]\" parent=\"[Boolean].[All]\" formula=\"[Marital Status]\"/>\n"
+            + "    <CalculatedMember name=\"True\" hierarchy=\"[Boolean]\" parent=\"[Boolean].[All]\" formula=\"[Marital Status]\"/>\n"
+            + "  </Cube>\n"
+            + "</Schema>\n";
+
+        TestContext testContext = TestContext.instance().withSchema(schema);
+        String desiredResult =
+            "Axis #0:\n"
+            + "{[Boolean].[All].[True]}\n"
+            + "{[Boolean].[All].[False]}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Customer Count]}\n"
+            + "Row #0: 5,581\n";
+        testContext.assertQueryReturns(
+            "select [Measures].[Customer Count] on columns\n"
+            + "from [Sales]\n"
+            +"where {[Boolean].[All].[True], [Boolean].[All].[False]}",
+            desiredResult);
+    }
 }
 
 // End HangerDimensionTest.java

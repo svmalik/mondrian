@@ -122,7 +122,9 @@ class SqlMemberSource
     }
 
     public int getLevelMemberCount(RolapLevel level) {
-        if (level.isAll()) {
+        if (level.isAll() ||
+            (level.getDimension().isHanger() && level.getHierarchy().getRelation() == null))
+        {
             return 1;
         }
         return getMemberCount(level, dataSource);

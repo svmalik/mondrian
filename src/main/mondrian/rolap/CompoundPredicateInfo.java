@@ -280,7 +280,7 @@ public class CompoundPredicateInfo {
     {
         RolapCubeMember levelMember = member;
         boolean memberUnsatisfiable = false;
-        while (levelMember != null) {
+        while (levelMember != null && !levelMember.getDimension().isHanger()) {
             RolapCubeLevel level = levelMember.getLevel();
             // Only need to constrain the nonAll levels
             if (!level.isAll()) {
@@ -320,7 +320,7 @@ public class CompoundPredicateInfo {
                 // [USA].[CA]
                 List<StarPredicate> tuplePredicates = new ArrayList<>(tuple.length);
                 for (RolapCubeMember member : tuple) {
-                    while (member != null) {
+                    while (member != null && !member.getDimension().isHanger()) {
                         RolapCubeLevel level = member.getLevel();
                         if (!level.isAll()) {
                             RolapStar.Column column = level.getBaseStarKeyColumn(baseCube);
@@ -352,8 +352,7 @@ public class CompoundPredicateInfo {
                 compoundGroupPredicate = new OrPredicate(groupPredicates);
             }
 
-            if (compoundGroupPredicate != null
-                && compoundGroupPredicate instanceof OrPredicate)
+            if (compoundGroupPredicate instanceof OrPredicate)
             {
                 // try to go for a column-based approach if full crossjoin
                 compoundGroupPredicate =
@@ -441,7 +440,7 @@ public class CompoundPredicateInfo {
     {
         boolean isFirstLevel = true;
         List<StarPredicate> memberPredicates = new ArrayList<>();
-        while (member != null) {
+        while (member != null && !member.getDimension().isHanger()) {
             if (member.isCalculated()) {
                 return false;
             }
