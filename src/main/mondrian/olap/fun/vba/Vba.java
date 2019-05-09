@@ -1990,6 +1990,32 @@ public class Vba {
             throw new InvalidArgumentException(
                 "start must be -1 or a location in the string to start");
         }
+
+        if (stringMatch.length() == 0) {
+            return start > 0 ? start : 1;
+        }
+        if (stringCheck.length() == 0) {
+            return 0;
+        }
+        if (start > 0 && start >= stringCheck.length()) {
+            return 0;
+        }
+        if (stringCheck.length() < stringMatch.length()) {
+            return 0;
+        }
+
+        if (compare == 1) {
+            // text compare, case insensitive
+            final int startPos = start == -1 ? 0 : start - 1;
+            final int endLimit = stringCheck.length() - stringMatch.length() + 1;
+            for (int i = startPos; i < endLimit; i++) {
+                if (stringCheck.regionMatches(true, i, stringMatch, 0, stringMatch.length())) {
+                    return i + 1;
+                }
+            }
+            return 0;
+        }
+
         if (start != -1) {
             return stringCheck.indexOf(stringMatch, start - 1) + 1;
         } else {

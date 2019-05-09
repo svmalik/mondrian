@@ -1178,6 +1178,24 @@ public class VbaTest extends TestCase {
         } catch (InvalidArgumentException e) {
             assertTrue(e.getMessage().indexOf("-1 or a location") >= 0);
         }
+
+        assertEquals(1, Vba.inStr("", ""));
+        assertEquals(1, Vba.inStr("string", ""));
+        assertEquals(0, Vba.inStr("string", "long string"));
+
+        // text comparison - case insensitive
+        assertEquals(
+            1,
+            Vba.inStr(1, "the quick brown fox jumps over the lazy dog", "The", 1));
+        assertEquals(
+            32,
+            Vba.inStr(16, "the quick brown fox jumps over the lazy dog", "The", 1));
+        assertEquals(
+            0,
+            Vba.inStr(100, "the quick brown fox jumps over the lazy dog", "The", 1));
+        assertEquals(
+            0,
+            Vba.inStr(1, "the quick brown fox jumps over the lazy dog", "cat", 1));
     }
 
     public void testInStrRev() {
