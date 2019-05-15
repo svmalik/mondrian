@@ -245,9 +245,7 @@ public class DescendantsFunDef extends FunDefBase {
         final int depthLimit)
     {
         if (member.isCalculatedInQuery() || !schemaReader.isDrillable(member)) {
-            if (depthLimit >= 0) {
-                result.add(member);
-            }
+            result.add(member);
             return;
         }
         List<Member> children = new ArrayList<Member>();

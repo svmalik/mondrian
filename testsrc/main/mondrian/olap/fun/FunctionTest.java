@@ -5510,7 +5510,7 @@ public class FunctionTest extends FoodMartTestCase {
             + "Row #1: 23,428\n"
             + "Row #1: 6,479\n"
             + "Row #2: 43,796\n"
-            + "Row #2: \n");
+            + "Row #2: 43,796\n");
     }
 
     public void testRange() {
