@@ -1958,7 +1958,7 @@ public class Vba {
         "Returns a Variant (Long) specifying the position of the first "
         + "occurrence of one string within another.")
     public static int inStr(String stringCheck, String stringMatch) {
-        return inStr(1, stringCheck, stringMatch, 0);
+        return inStr(1, stringCheck, stringMatch);
     }
 
     @FunctionName("InStr")
@@ -1971,7 +1971,7 @@ public class Vba {
         String stringCheck,
         String stringMatch)
     {
-        return inStr(start, stringCheck, stringMatch, 0);
+        return inStr(start, stringCheck, stringMatch, 1);
     }
 
     @FunctionName("InStr")
@@ -1983,9 +1983,8 @@ public class Vba {
         int start /* default 1 */,
         String stringCheck,
         String stringMatch,
-        int compare /* default BinaryCompare */)
+        int compare /* default TextCompare */)
     {
-        // todo: implement binary vs. text compare
         if (start == 0 || start < -1) {
             throw new InvalidArgumentException(
                 "start must be -1 or a location in the string to start");

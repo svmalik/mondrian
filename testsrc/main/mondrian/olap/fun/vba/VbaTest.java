@@ -1196,6 +1196,11 @@ public class VbaTest extends TestCase {
         assertEquals(
             0,
             Vba.inStr(1, "the quick brown fox jumps over the lazy dog", "cat", 1));
+
+        // binary comparison - case sensitive
+        assertEquals(
+            0,
+            Vba.inStr(1, "the quick brown fox jumps over the lazy dog", "The", 0));
     }
 
     public void testInStrRev() {

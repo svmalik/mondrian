@@ -175,7 +175,7 @@ public class NamedSetTest extends FoodMartTestCase {
     public void testIntrinsic() {
         assertQueryReturns(
             "WITH SET [ChardonnayChablis] AS\n"
-            + "   'Filter([Product].Members, (InStr(1, [Product].CurrentMember.Name, \"chardonnay\") <> 0) OR (InStr(1, [Product].CurrentMember.Name, \"chablis\") <> 0))'\n"
+            + "   'Filter([Product].Members, (InStr(1, [Product].CurrentMember.Name, \"chardonnay\", 0) <> 0) OR (InStr(1, [Product].CurrentMember.Name, \"chablis\", 0) <> 0))'\n"
             + "SELECT\n"
             + "   [ChardonnayChablis] ON COLUMNS,\n"
             + "   {Measures.[Unit Sales]} ON ROWS\n"
