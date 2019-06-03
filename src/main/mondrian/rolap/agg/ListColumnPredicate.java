@@ -73,7 +73,7 @@ public class ListColumnPredicate extends AbstractColumnPredicate {
         for (StarColumnPredicate predicate : list) {
             if (predicate instanceof ValueColumnPredicate) {
                 set.add(((ValueColumnPredicate) predicate).getValue());
-            } if (predicate instanceof ListColumnPredicate) {
+            } else if (predicate instanceof ListColumnPredicate) {
                 List<StarColumnPredicate> predicates =
                     ((ListColumnPredicate) predicate).getPredicates();
                 Set<Object> childSet = createValues(predicates);
@@ -326,7 +326,7 @@ public class ListColumnPredicate extends AbstractColumnPredicate {
     public void toSql(SqlQuery sqlQuery, StringBuilder buf) {
 
         List<StarColumnPredicate> predicates = getPredicates();
-        if (predicates.size() == 1) {
+        if (predicates.size() == 1 || (createdValues && values != null && values.size() == 1)) {
             predicates.get(0).toSql(sqlQuery, buf);
             return;
         }
@@ -401,12 +401,13 @@ public class ListColumnPredicate extends AbstractColumnPredicate {
         final int marker = buf.length(); // to allow backtrack later
         buf.append(expr);
         ValueColumnPredicate firstNotNull = null;
+        Set<Object> uniqueValues = new HashSet<>(predicates.size());
         buf.append(" in (");
         for (StarColumnPredicate predicate1 : predicates) {
             final ValueColumnPredicate predicate2 =
                 (ValueColumnPredicate) predicate1;
             Object key = predicate2.getValue();
-            if (key == RolapUtil.sqlNullValue) {
+            if (key == RolapUtil.sqlNullValue || !uniqueValues.add(key)) {
                 continue;
             }
             if (notNullCount > 0) {
