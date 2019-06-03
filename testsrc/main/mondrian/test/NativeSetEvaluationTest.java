@@ -6360,6 +6360,66 @@ public class NativeSetEvaluationTest extends BatchTestCase {
         }
     }
 
+    public void testSumAggregateMember() {
+        if (!propSaver.properties.EnableNativeSum.get()) {
+            return;
+        }
+
+        String mdx =
+            "WITH\n"
+            + "SET [Time Set] AS {[Time].[1997].[Q2], [Time].[1997].[Q3]}\n"
+            + "MEMBER [Time].[(Selected)] AS Aggregate([Time Set])\n"
+            + "MEMBER [Measures].[Sum Existing] AS Sum([Product].[Product Name].Members, [Measures].[Unit Sales])\n"
+            + "SELECT {[Measures].[Sum Existing]} ON 0,\n"
+            + " {[Time Set], [Time].[(Selected)]} ON 1\n"
+            + "FROM [Sales]";
+
+        propSaver.set(propSaver.properties.GenerateFormattedSql, true);
+        String mysql =
+            "select\n"
+            + "    sum(`m1`)\n"
+            + "from\n"
+            + "    (select\n"
+            + "    sum(`sales_fact_1997`.`unit_sales`) as `m1`\n"
+            + "from\n"
+            + "    `product_class` as `product_class`,\n"
+            + "    `product` as `product`,\n"
+            + "    `sales_fact_1997` as `sales_fact_1997`,\n"
+            + "    `time_by_day` as `time_by_day`\n"
+            + "where\n"
+            + "    `sales_fact_1997`.`product_id` = `product`.`product_id`\n"
+            + "and\n"
+            + "    `product`.`product_class_id` = `product_class`.`product_class_id`\n"
+            + "and\n"
+            + "    `sales_fact_1997`.`time_id` = `time_by_day`.`time_id`\n"
+            + "and\n"
+            + "    `time_by_day`.`the_year` = 1997\n"
+            + "and\n"
+            + "    `time_by_day`.`quarter` in ('Q2', 'Q3')\n"
+            + "group by\n"
+            + "    `product_class`.`product_family`,\n"
+            + "    `product_class`.`product_department`,\n"
+            + "    `product_class`.`product_category`,\n"
+            + "    `product_class`.`product_subcategory`,\n"
+            + "    `product`.`brand_name`,\n"
+            + "    `product`.`product_name`) as `sumQuery`";
+        assertQuerySql(mdx, mysqlPattern(mysql));
+
+        assertQueryReturns(
+            mdx,
+            "Axis #0:\n"
+            + "{}\n"
+            + "Axis #1:\n"
+            + "{[Measures].[Sum Existing]}\n"
+            + "Axis #2:\n"
+            + "{[Time].[1997].[Q2]}\n"
+            + "{[Time].[1997].[Q3]}\n"
+            + "{[Time].[(Selected)]}\n"
+            + "Row #0: 62,610\n"
+            + "Row #1: 65,848\n"
+            + "Row #2: 128,458\n");
+    }
+
     // tests creating consolidated count with descendant cross join arg instances
     // i.e. mondrian.rolap.sql.DescendantsCrossJoinArg instances in the constraint
     public void testNativeCombinedCountWithDescendantsCrossJoinArg() {

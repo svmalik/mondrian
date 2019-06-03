@@ -805,7 +805,7 @@ public class SqlConstraintUtils {
         Map<MondrianDef.Expression, Set<RolapMember>> mapOfSlicerMembers =
             new HashMap<MondrianDef.Expression, Set<RolapMember>>();
         List<Member> slicerMembers =
-            ((RolapEvaluator) evaluator).getSlicerMembers();
+            new ArrayList<>(Arrays.asList(evaluator.getNonAllMembers()));
 
         // if any of the members have been replaced in the context
         // we need to swap them out with the overridden context.
